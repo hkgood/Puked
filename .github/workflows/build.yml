@@ -8,10 +8,16 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest # Using macOS to support both Android and iOS builds
+    runs-on: ubuntu-latest # Switch to Ubuntu for faster and cheaper builds
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -34,13 +40,9 @@ jobs:
       - name: Build Android APK
         run: flutter build apk --release
 
-      - name: Build iOS
-        run: flutter build ios --release --no-codesign
-
       # Upload artifacts
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-

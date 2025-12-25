@@ -1,65 +1,68 @@
-name: Puked Build & Release
+name: Puked Fast CI & Release
 
 on:
   push:
     branches: [ main, master ]
-    tags:
-      - 'v*' # 只有以 v 开头的标签（如 v0.0.1）才会触发 Release 流程
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
 
 jobs:
-  build:
+  # 任务 1：快速检查（格式、分析、测试）
+  check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # 必须显式开启写入权限，才能创建 Release 并上传文件
-
     steps:
       - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Fast Checks
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed .
+          flutter analyze
+          flutter test
 
+  # 任务 2：APK 编译（与检查并行）
+  build-android:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle' # 开启 Gradle 缓存，大幅提升 Android 编译速度
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
 
-      - name: Install dependencies
-        run: flutter pub get
+      - name: Build APK
+        run: |
+          flutter pub get
+          flutter build apk --release
 
-      - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed .
-
-      - name: Run analyzer
-        run: flutter analyze
-
-      - name: Run tests
-        run: flutter test
-
-      - name: Build Android APK
-        run: flutter build apk --release
-
-      # 1. 始终上传 Artifact，方便开发调试
+      # 始终上传 Artifact，方便在 Actions 页面直接下载
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      # 2. 只有在推送 tag 时才创建 GitHub Release
+      # 仅在推送以 v 开头的标签时才创建 GitHub Release
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
           name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

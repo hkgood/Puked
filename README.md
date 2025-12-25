@@ -1,9 +1,19 @@
+<p align="center">
+  <img src="assets/images/logo.png" width="120" />
+</p>
+
 # Puked - Ride Comfort Quantification Tool 🚗💨
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Flutter](https://img.shields.io/badge/Flutter-v3.0+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 
-[简体中文](./README.md) | [English](./README_EN.md) (Wait, I will combine them or just write a comprehensive one)
+<p align="center">
+  <img src="assets/images/01.jpg" width="30%" />
+  <img src="assets/images/02.jpg" width="30%" />
+  <img src="assets/images/03.jpg" width="30%" />
+</p>
+
+[简体中文](./README.md) | [English](./README_EN.md)
 
 > **Puked** (Picky Passenger) 是一款专为自动驾驶产品经理 (PM) 和工程师设计的行驶舒适度量化工具。通过手机传感器捕捉高频数据，结合重力对齐算法，将主观感受转化为客观、可追溯的数据。
 

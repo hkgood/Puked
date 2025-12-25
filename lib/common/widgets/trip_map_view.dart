@@ -1,15 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart'; // Corrected import
 import 'package:puked/models/db_models.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
+
+class RetryTileProvider extends TileProvider {
+  final int maxRetries;
+  final Duration retryDelay;
+  final HttpClient _httpClient = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 10);
+
+  RetryTileProvider({
+    this.maxRetries = 3,
+    this.retryDelay = const Duration(milliseconds: 500),
+  });
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
+    final url = getTileUrl(coordinates, options);
+    return RetryNetworkImage(url, maxRetries: maxRetries, retryDelay: retryDelay, httpClient: _httpClient);
+  }
+}
+
+class RetryNetworkImage extends ImageProvider<RetryNetworkImage> {
+  final String url;
+  final int maxRetries;
+  final Duration retryDelay;
+  final HttpClient httpClient;
+
+  RetryNetworkImage(this.url, {required this.maxRetries, required this.retryDelay, required this.httpClient});
+
+  @override
+  Future<RetryNetworkImage> obtainKey(ImageConfiguration configuration) {
+    return SynchronousFuture<RetryNetworkImage>(this);
+  }
+
+  @override
+  ImageStreamCompleter loadImage(RetryNetworkImage key, ImageDecoderCallback decode) {
+    return MultiFrameImageStreamCompleter(
+      codec: _loadAsync(key, decode),
+      scale: 1.0,
+      debugLabel: url,
+      informationCollector: () => [
+        DiagnosticsProperty<ImageProvider>('Image provider', this),
+        DiagnosticsProperty<RetryNetworkImage>('Image key', key),
+      ],
+    );
+  }
+
+  Future<ui.Codec> _loadAsync(RetryNetworkImage key, ImageDecoderCallback decode) async {
+    int attempt = 0;
+    while (attempt < maxRetries) {
+      try {
+        final request = await httpClient.getUrl(Uri.parse(url));
+        final response = await request.close();
+        if (response.statusCode != 200) {
+          throw Exception('HTTP ${response.statusCode}');
+        }
+        final bytes = await consolidateHttpClientResponseBytes(response);
+        if (bytes.lengthInBytes == 0) throw Exception('Empty image');
+        
+        // 使用 decode 回调而不是直接调用 ui.instantiateImageCodec
+        // 这样可以更好地集成到 Flutter 的图片流水线中
+        final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+        return await decode(buffer);
+      } catch (e) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        await Future.delayed(retryDelay * attempt); // 指数退避
+      }
+    }
+    throw Exception('Failed to load image after $maxRetries attempts');
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other.runtimeType != runtimeType) return false;
+    return other is RetryNetworkImage && other.url == url;
+  }
+
+  @override
+  int get hashCode => url.hashCode;
+}
 
 class TripMapView extends StatefulWidget {
   final List<TrajectoryPoint> trajectory;
   final List<RecordedEvent> events;
   final bool isLive;
   final Position? currentPosition;
+  final LatLng? focusPoint; // 新增：聚焦坐标
 
   const TripMapView({
     super.key,
@@ -17,16 +102,44 @@ class TripMapView extends StatefulWidget {
     required this.events,
     this.isLive = true,
     this.currentPosition,
+    this.focusPoint,
   });
 
   @override
   State<TripMapView> createState() => _TripMapViewState();
 }
 
-class _TripMapViewState extends State<TripMapView> {
+class _TripMapViewState extends State<TripMapView> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   Timer? _recenterTimer;
   bool _isUserInteracting = false;
+
+  void _animatedMapMove(LatLng destLocation, double destZoom) {
+    final camera = _mapController.camera;
+    final latTween = Tween<double>(begin: camera.center.latitude, end: destLocation.latitude);
+    final lngTween = Tween<double>(begin: camera.center.longitude, end: destLocation.longitude);
+    final zoomTween = Tween<double>(begin: camera.zoom, end: destZoom);
+
+    final controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
+    final Animation<double> animation = CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+
+    controller.addListener(() {
+      _mapController.move(
+        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+        zoomTween.evaluate(animation),
+      );
+    });
+
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.dispose();
+      }
+    });
+
+    controller.forward();
+  }
 
   @override
   void dispose() {
@@ -60,7 +173,13 @@ class _TripMapViewState extends State<TripMapView> {
   @override
   void didUpdateWidget(TripMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 实时模式下，如果没有用户交互，地图跟随当前位置
+    
+    // 1. 处理详情模式下的手动聚焦
+    if (widget.focusPoint != null && widget.focusPoint != oldWidget.focusPoint) {
+      _animatedMapMove(widget.focusPoint!, 17.0);
+    }
+
+    // 2. 实时模式下，如果没有用户交互，地图跟随当前位置
     if (widget.isLive && !_isUserInteracting) {
       if (widget.currentPosition != oldWidget.currentPosition ||
           widget.trajectory.length != oldWidget.trajectory.length) {
@@ -91,59 +210,63 @@ class _TripMapViewState extends State<TripMapView> {
       }
     }
 
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
-        initialCenter: center,
-        initialZoom: 15,
-        interactionOptions: const InteractionOptions(
-          flags: InteractiveFlag.all, // 允许所有交互 (缩放、拖动等)
-        ),
-        onPointerDown: (_, __) {
-          if (widget.isLive) {
-            setState(() => _isUserInteracting = true);
-            _startRecenterTimer();
-          }
-        },
-        onMapReady: () {
-          if (!widget.isLive && widget.trajectory.isNotEmpty) {
-            // 延迟一帧确保地图容器尺寸已稳定，防止 fitCamera 计算出的视野出现灰色空白
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final points =
-                  widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
-              if (points.isNotEmpty) {
-                final bounds = LatLngBounds.fromPoints(points);
-                _mapController.fitCamera(
-                  CameraFit.bounds(
-                    bounds: bounds,
-                    padding: const EdgeInsets.all(50), // 稍微增加边距
-                    maxZoom: 16, // 降低最大缩放，防止视野过窄
-                  ),
-                );
-              }
-            });
-          }
-        },
-      ),
-      children: [
-        // 1. CartoDB 瓦片源 (WGS-84)
-        TileLayer(
-          // dark_all 为深灰样式，light_all 为浅灰样式
-          urlTemplate:
-              'https://{s}.basemaps.cartocdn.com/${isDarkMode ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
-          retinaMode: RetinaMode.isHighDensity(context),
-          // 优化瓦片显示逻辑，减少灰色区域
-          tileDisplay:
-              const TileDisplay.fadeIn(duration: Duration(milliseconds: 300)),
-          errorTileCallback: (tile, error, stackTrace) {
-            debugPrint("Tile load error: $error");
+    return Container(
+      color: isDarkMode ? Colors.black : const Color(0xFFF5F5F5), // 夜间模式背景设为黑色
+      child: FlutterMap(
+        mapController: _mapController,
+        options: MapOptions(
+          initialCenter: center,
+          initialZoom: 15,
+          interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.all,
+          ),
+          onPointerDown: (_, __) {
+            if (widget.isLive) {
+              setState(() => _isUserInteracting = true);
+              _startRecenterTimer();
+            }
           },
-          // 增加缓冲区，提前加载视野外的瓦片
-          keepBuffer: 3,
-          panBuffer: 1,
+          onMapReady: () {
+            if (!widget.isLive && widget.trajectory.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                final points =
+                    widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
+                if (points.isNotEmpty) {
+                  final bounds = LatLngBounds.fromPoints(points);
+                  _mapController.fitCamera(
+                    CameraFit.bounds(
+                      bounds: bounds,
+                      padding: const EdgeInsets.all(50),
+                      maxZoom: 16,
+                    ),
+                  );
+                }
+              });
+            }
+          },
         ),
+        children: [
+          // 1. CartoDB 瓦片源 (WGS-84)
+          TileLayer(
+            urlTemplate:
+                'https://{s}.basemaps.cartocdn.com/${isDarkMode ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png',
+            subdomains: const ['a', 'b', 'c', 'd'],
+            tileProvider: RetryTileProvider(maxRetries: 5), // 使用带重试机制的 Provider
+            retinaMode: RetinaMode.isHighDensity(context),
+            // 瓦片显示优化
+            tileDisplay:
+                const TileDisplay.fadeIn(duration: Duration(milliseconds: 300)),
+            // 错误处理与自动重试策略
+            errorTileCallback: (tile, error, stackTrace) {
+              debugPrint("Tile load error: $error");
+            },
+            // 当瓦片加载错误时，不缓存错误，以便下次重试
+            evictErrorTileStrategy: EvictErrorTileStrategy.notVisible,
+            // 增加缓冲区
+            keepBuffer: 3,
+            panBuffer: 1,
+          ),
 
         // 2. 轨迹线 (WGS-84)
         PolylineLayer(
@@ -165,17 +288,17 @@ class _TripMapViewState extends State<TripMapView> {
                   final config = _getEventConfig(e.type);
                   return Marker(
                     point: LatLng(e.lat!, e.lng!),
-                    width: 28, // 缩小图标尺寸 (从 32 缩小到 28)
-                    height: 28,
+                    width: 20, // 缩小至 20
+                    height: 20,
                     child: Container(
                       decoration: BoxDecoration(
                         color: config.color.withValues(alpha: 0.95),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: Colors.white, width: 1.5), // 细描边
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 4,
+                            blurRadius: 3,
                             offset: const Offset(0, 1),
                           ),
                         ],
@@ -183,7 +306,7 @@ class _TripMapViewState extends State<TripMapView> {
                       child: Icon(
                         config.icon,
                         color: Colors.white,
-                        size: 14, // 图标随比例缩小
+                        size: 10, // 图标随比例缩小
                       ),
                     ),
                   );
@@ -194,46 +317,47 @@ class _TripMapViewState extends State<TripMapView> {
               .toList(),
         ),
 
-        // 4. 起终点标记 (仅非实时模式显示)
-        if (!widget.isLive && widget.trajectory.isNotEmpty)
+        // 4. 起终点标记
+        if (widget.trajectory.isNotEmpty)
           MarkerLayer(
             markers: [
               // 起点
               Marker(
                 point: LatLng(
                     widget.trajectory.first.lat, widget.trajectory.first.lng),
-                width: 28,
-                height: 28,
+                width: 20,
+                height: 20,
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
                     shape: BoxShape.circle,
-                    boxShadow: [
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: const [
                       BoxShadow(color: Colors.black12, blurRadius: 4)
                     ],
                   ),
-                  child: const Icon(Icons.play_circle_fill,
-                      color: Colors.green, size: 24),
+                  child: const Icon(Icons.play_arrow, color: Colors.white, size: 12),
                 ),
               ),
               // 终点
-              Marker(
-                point: LatLng(
-                    widget.trajectory.last.lat, widget.trajectory.last.lng),
-                width: 28,
-                height: 28,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Colors.black12, blurRadius: 4)
-                    ],
+              if (!widget.isLive)
+                Marker(
+                  point: LatLng(
+                      widget.trajectory.last.lat, widget.trajectory.last.lng),
+                  width: 20,
+                  height: 20,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 4)
+                      ],
+                    ),
+                    child: const Icon(Icons.stop, color: Colors.white, size: 12),
                   ),
-                  child: const Icon(Icons.stop_circle,
-                      color: Colors.red, size: 24),
                 ),
-              ),
             ],
           ),
 
@@ -251,6 +375,7 @@ class _TripMapViewState extends State<TripMapView> {
             ],
           ),
       ],
+    ),
     );
   }
 

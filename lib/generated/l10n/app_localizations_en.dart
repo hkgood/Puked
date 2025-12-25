@@ -48,6 +48,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sensitivityHigh => 'High (Most Sensitive)';
 
   @override
+  String get sensitivityLowDesc => 'Accel > 3.0m/s², Brake > 3.5m/s²';
+
+  @override
+  String get sensitivityMediumDesc => 'Accel > 2.4m/s², Brake > 2.8m/s²';
+
+  @override
+  String get sensitivityHighDesc => 'Accel > 1.8m/s², Brake > 2.1m/s²';
+
+  @override
   String get sensitivityTip =>
       'Higher sensitivity means lower acceleration thresholds for auto-tagging events.';
 

@@ -15,9 +15,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
+    // 删除了重复且冲突的 kotlinOptions/compilerOptions 配置
+    // 全局 JVM 版本已在根目录 build.gradle.kts 中统一处理
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).

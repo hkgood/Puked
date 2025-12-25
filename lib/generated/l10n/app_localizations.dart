@@ -176,6 +176,24 @@ abstract class AppLocalizations {
   /// **'High (Most Sensitive)'**
   String get sensitivityHigh;
 
+  /// No description provided for @sensitivityLowDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Accel > 3.0m/s², Brake > 3.5m/s²'**
+  String get sensitivityLowDesc;
+
+  /// No description provided for @sensitivityMediumDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Accel > 2.4m/s², Brake > 2.8m/s²'**
+  String get sensitivityMediumDesc;
+
+  /// No description provided for @sensitivityHighDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Accel > 1.8m/s², Brake > 2.1m/s²'**
+  String get sensitivityHighDesc;
+
   /// No description provided for @sensitivityTip.
   ///
   /// In en, this message translates to:

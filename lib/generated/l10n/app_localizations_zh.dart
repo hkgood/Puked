@@ -48,6 +48,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sensitivityHigh => '高 (最灵敏)';
 
   @override
+  String get sensitivityLowDesc => '急加速 > 3.0m/s², 急刹车 > 3.5m/s²';
+
+  @override
+  String get sensitivityMediumDesc => '急加速 > 2.4m/s², 急刹车 > 2.8m/s²';
+
+  @override
+  String get sensitivityHighDesc => '急加速 > 1.8m/s², 急刹车 > 2.1m/s²';
+
+  @override
   String get sensitivityTip => '敏感度越高，触发急加速、急刹车等事件所需的加速度阈值就越小。';
 
   @override

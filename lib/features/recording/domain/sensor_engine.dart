@@ -103,11 +103,11 @@ class SensorEngine {
   Future<void> calibrate() async {
     // 1. 采样一段时间获取稳定的重力向量
     Vector3 gravitySum = Vector3.zero();
-    const int samples = 20; // 增加采样次数
+    const int samples = 10; // 减少采样次数到 10 次，缩短阻塞时间
 
     for (int i = 0; i < samples; i++) {
       gravitySum += _latestAccel;
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 100)); // 增加单次间隔，保持总时长 1s 左右但减少循环频率
     }
 
     final gMean = gravitySum / samples.toDouble();

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/features/recording/domain/sensor_engine.dart';
 import 'package:puked/models/db_models.dart';
@@ -39,6 +40,9 @@ class RecordingState {
   final double currentDistance; // 当前行程里程 (米)
   final double maxGForce; // 本次行程的最大 G 值
   final Position? currentPosition; // 实时位置
+  final DateTime? lastLocationTime; // 上一次位置更新时间
+  final int locationUpdateCount; // 位置更新计数
+  final String debugMessage; // 调试信息
   final LocationPermission? permissionStatus; // 权限状态
 
   RecordingState({
@@ -50,6 +54,9 @@ class RecordingState {
     this.currentDistance = 0.0,
     this.maxGForce = 0.0,
     this.currentPosition,
+    this.lastLocationTime,
+    this.locationUpdateCount = 0,
+    this.debugMessage = '',
     this.permissionStatus,
   });
 
@@ -62,6 +69,9 @@ class RecordingState {
     double? currentDistance,
     double? maxGForce,
     Position? currentPosition,
+    DateTime? lastLocationTime,
+    int? locationUpdateCount,
+    String? debugMessage,
     LocationPermission? permissionStatus,
   }) {
     return RecordingState(
@@ -73,6 +83,9 @@ class RecordingState {
       currentDistance: currentDistance ?? this.currentDistance,
       maxGForce: maxGForce ?? this.maxGForce,
       currentPosition: currentPosition ?? this.currentPosition,
+      lastLocationTime: lastLocationTime ?? this.lastLocationTime,
+      locationUpdateCount: locationUpdateCount ?? this.locationUpdateCount,
+      debugMessage: debugMessage ?? this.debugMessage,
       permissionStatus: permissionStatus ?? this.permissionStatus,
     );
   }
@@ -105,64 +118,123 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
   RecordingNotifier(this._engine, this._storage, this._ref)
       : super(RecordingState(isRecording: false)) {
-    // 初始化时就请求权限并开始监听位置
     _initializeLocation();
   }
 
   Future<void> _initializeLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
+    try {
+      state = state.copyWith(debugMessage: 'Checking Permission...');
+      
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
 
-    state = state.copyWith(permissionStatus: permission);
+      state = state.copyWith(permissionStatus: permission);
 
-    if (permission == LocationPermission.whileInUse ||
-        permission == LocationPermission.always) {
-      // 获取初始位置
-      final initialPosition = await Geolocator.getLastKnownPosition() ??
-          await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.high);
-      state = state.copyWith(currentPosition: initialPosition);
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
+        
+        state = state.copyWith(debugMessage: 'Getting Initial Position...');
 
-      // 启动全局位置监听
-      _positionSub?.cancel();
-      _positionSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 2,
-        ),
-      ).listen((position) {
-        _handlePositionUpdate(position);
-      });
+        // 1. 获取初始位置作为“启动触发器”
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          state = state.copyWith(currentPosition: lastKnown, debugMessage: 'Initial GPS OK');
+        }
+
+        // 2. 启动定位流
+        _positionSub?.cancel();
+
+        late LocationSettings locationSettings;
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          locationSettings = AndroidSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 0,
+            intervalDuration: const Duration(seconds: 2), // 调低频率到 2s 规避拦截
+            forceLocationManager: true, // 【关键优化】强制使用系统原生 GPS，绕过 Fused Location 的智能合并/延迟
+            foregroundNotificationConfig: const ForegroundNotificationConfig(
+              notificationText: "Puked 正在记录行程中",
+              notificationTitle: "实时记录中",
+              enableWakeLock: true,
+            ),
+          );
+        } else {
+          locationSettings = AppleSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 0,
+            pauseLocationUpdatesAutomatically: false,
+            showBackgroundLocationIndicator: true,
+          );
+        }
+
+        _positionSub = Geolocator.getPositionStream(locationSettings: locationSettings)
+            .listen(
+          (position) {
+            _handlePositionUpdate(position);
+          },
+          onError: (error) {
+            state = state.copyWith(debugMessage: 'Stream Error: $error');
+          },
+        );
+
+        // 异步尝试获取更高精度的起始点
+        Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 5),
+        ).then((pos) {
+          if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
+        }).catchError((_) {});
+      }
+    } catch (e) {
+      state = state.copyWith(debugMessage: 'Init Error: $e');
     }
   }
 
   void _handlePositionUpdate(Position position) {
-    // 如果 GPS 精度太差 (> 20米)，直接忽略该点，防止桥下跳线
-    if (position.accuracy > 20) return;
+    // 调试打印原始精度
+    print('GPS Raw Update: Acc:${position.accuracy}');
 
-    // 无论是否录制，都更新当前实时位置
+    // 第一性原理：UI 必须更新
     final prevPosition = state.currentPosition;
-    state = state.copyWith(currentPosition: position);
+    final now = DateTime.now();
 
-    // 如果正在录制，则保存到轨迹中
-    if (state.isRecording && state.currentTrip != null) {
-      // 距离过滤：如果两点之间距离太短 (< 2米)，不记录，减少原地抖动
+    // 判断是否在“行程起始宽容期”（前 60 秒）
+    bool isInGracePeriod = false;
+    if (state.isRecording && _recordingStartTime != null) {
+      isInGracePeriod = now.difference(_recordingStartTime!).inSeconds < 60;
+    }
+
+    // 动态精度阈值：宽容期 200m，稳定期 50m
+    final double accuracyThreshold = isInGracePeriod ? 200.0 : 50.0;
+    final bool isReliable = position.accuracy <= accuracyThreshold;
+
+    state = state.copyWith(
+      currentPosition: position,
+      lastLocationTime: now,
+      locationUpdateCount: state.locationUpdateCount + 1,
+      debugMessage: isReliable 
+          ? 'GPS OK (${position.accuracy.toStringAsFixed(0)}m)' 
+          : 'Poor Signal (${position.accuracy.toStringAsFixed(0)}m)',
+    );
+
+    // 第二性原理：记录从严 (只有精度达标才进轨迹)
+    if (state.isRecording && state.currentTrip != null && isReliable) {
       double addedDistance = 0;
       if (prevPosition != null) {
         addedDistance = Geolocator.distanceBetween(prevPosition.latitude,
             prevPosition.longitude, position.latitude, position.longitude);
       }
 
-      if (addedDistance < 2.0 && prevPosition != null) return;
+      // 距离过滤
+      if (addedDistance < 2.0 && prevPosition != null && state.trajectory.isNotEmpty) return;
 
       final point = TrajectoryPoint()
         ..lat = position.latitude
         ..lng = position.longitude
         ..altitude = position.altitude
         ..speed = position.speed
-        ..timestamp = DateTime.now();
+        ..timestamp = now;
 
       final newDistance = state.currentDistance + addedDistance;
       _storage.addTrajectoryPoint(state.currentTrip!.id, point,
@@ -175,8 +247,6 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   }
 
   void _detectAutoEvents(SensorData data) {
-    // 自动判定始终基于已校准且低通滤波平滑后的数据，以确保准确性和排除抖动干扰
-    // 如果正在校准中，或处于起步保护期内，不触发任何自动事件
     final now = DateTime.now();
     if (state.isCalibrating) return;
     if (_recordingStartTime != null &&
@@ -185,41 +255,34 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     }
 
     final accel = data.filteredAccel;
-
-    // 更新 X 轴历史记录
     _xHistory.addLast(MapEntry(now, accel.x));
     while (_xHistory.isNotEmpty &&
         now.difference(_xHistory.first.key) > _wobbleWindow) {
       _xHistory.removeFirst();
     }
 
-    // 获取当前的敏感度倍率
     final sensitivity = _ref.read(settingsProvider).sensitivity;
-    double multiplier = 1.0; // Low (默认)
+    double multiplier = 1.0; 
     if (sensitivity == SensitivityLevel.medium) multiplier = 0.8;
     if (sensitivity == SensitivityLevel.high) multiplier = 0.6;
 
-    // 内部帮助函数：检查是否在防抖期内
     bool isDebounced(String type) {
       final last = _lastTriggered[type];
       if (last == null) return false;
       return now.difference(last) < _debounceDuration;
     }
 
-    // 1. 检测急刹车 (Y 轴负向)
     if (accel.y < (_thresholdDecel * multiplier) &&
         !isDebounced('rapidDeceleration')) {
       _lastTriggered['rapidDeceleration'] = now;
       tagEvent(EventType.rapidDeceleration, source: 'AUTO');
     }
-    // 2. 检测急加速 (Y 轴正向)
     else if (accel.y > (_thresholdAccel * multiplier) &&
         !isDebounced('rapidAcceleration')) {
       _lastTriggered['rapidAcceleration'] = now;
       tagEvent(EventType.rapidAcceleration, source: 'AUTO');
     }
 
-    // 3. 增强型“摆动”检测逻辑 (Wobble/Snake-like)
     if (!isDebounced('wobble') && _xHistory.length > 10) {
       double minX = 0;
       double maxX = 0;
@@ -238,12 +301,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       }
 
       final span = maxX - minX;
-      // 限制一：跨度必须超过阈值 (受敏感度调节)
       if (span > (_thresholdWobbleSpan * multiplier)) {
-        // 限制二：必须同时存在明显的正向和负向分量 (交叉特征)
-        // 这里的 0.4 是一个硬阈值，代表至少向左/向右都有过 0.04G 以上的摆动
         if (maxX > 0.4 && minX < -0.4) {
-          // 限制三：这个跨度跳变必须在较短时间内完成 (比如 800ms 内)
           if (minTime != null && maxTime != null) {
             final jumpDuration = maxTime.difference(minTime).abs();
             if (jumpDuration < const Duration(milliseconds: 800)) {
@@ -255,7 +314,6 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       }
     }
 
-    // 4. 检测颠簸 (Z 轴)
     if (accel.z.abs() > (_thresholdBump * multiplier) && !isDebounced('bump')) {
       _lastTriggered['bump'] = now;
       tagEvent(EventType.bump, source: 'AUTO');
@@ -265,70 +323,73 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   Future<void> startRecording({String? carModel, String? notes}) async {
     if (state.isCalibrating || state.isRecording) return;
 
-    // 确保权限已获取
-    if (state.permissionStatus == LocationPermission.denied ||
-        state.permissionStatus == LocationPermission.deniedForever) {
-      await _initializeLocation();
-      if (state.permissionStatus == LocationPermission.denied ||
-          state.permissionStatus == LocationPermission.deniedForever) {
-        return; // 依然没权限，无法开始
+    try {
+      state = state.copyWith(isCalibrating: true, debugMessage: 'Calibrating...');
+      await WakelockPlus.enable();
+      
+      await _engine.calibrate();
+
+      state = state.copyWith(debugMessage: 'Initing Storage...');
+      await _storage.init();
+      final trip = await _storage.startTrip(carModel: carModel, notes: notes);
+      _recordingStartTime = DateTime.now();
+      _xHistory.clear();
+
+      // 【核心改进】点击开始瞬间，如果有位置，立即存入作为起点
+      List<TrajectoryPoint> initialTrajectory = [];
+      if (state.currentPosition != null) {
+        final startPoint = TrajectoryPoint()
+          ..lat = state.currentPosition!.latitude
+          ..lng = state.currentPosition!.longitude
+          ..altitude = state.currentPosition!.altitude
+          ..speed = state.currentPosition!.speed
+          ..timestamp = DateTime.now();
+        _storage.addTrajectoryPoint(trip.id, startPoint, distance: 0);
+        initialTrajectory.add(startPoint);
       }
-    }
 
-    // 1. 开启校准模式
-    state = state.copyWith(isCalibrating: true);
-    await WakelockPlus.enable(); // 开启屏幕常亮
-    await _engine.calibrate();
-
-    // 2. 开始行程
-    await _storage.init();
-    final trip = await _storage.startTrip(carModel: carModel, notes: notes);
-    _recordingStartTime = DateTime.now();
-    _xHistory.clear();
-
-    // 启动传感器监听以记录峰值 G 值和自动检测事件
-    _sensorSub?.close();
-    _sensorSub = _ref.listen<AsyncValue<SensorData>>(
-      sensorStreamProvider,
-      (previous, next) {
-        next.whenData((sensorData) {
-          if (state.isRecording) {
-            // 使用经过滤波的加速度来计算 Peak G，避免由于手机架晃动导致的瞬间尖峰
-            final accelForPeak = sensorData.filteredAccel;
-            final currentG = accelForPeak.length / 9.80665;
-
-            // 峰值追踪逻辑优化：不仅要大于当前峰值，还要有一定的波动阈值
-            if (currentG > state.maxGForce) {
-              state = state.copyWith(maxGForce: currentG);
+      _sensorSub?.close();
+      _sensorSub = _ref.listen<AsyncValue<SensorData>>(
+        sensorStreamProvider,
+        (previous, next) {
+          next.whenData((sensorData) {
+            if (state.isRecording) {
+              final accelForPeak = sensorData.filteredAccel;
+              final currentG = accelForPeak.length / 9.80665;
+              if (currentG > state.maxGForce) {
+                state = state.copyWith(maxGForce: currentG);
+              }
+              _detectAutoEvents(sensorData);
             }
+          });
+        },
+        fireImmediately: true,
+      );
 
-            // 自动事件检测逻辑 (使用 filteredAccel 以确保坡道优化后的准确性)
-            _detectAutoEvents(sensorData);
-          }
-        });
-      },
-      fireImmediately: true,
-    );
-
-    state = state.copyWith(
-      isRecording: true,
-      isCalibrating: false,
-      currentTrip: trip,
-      events: [],
-      trajectory: [],
-      currentDistance: 0.0,
-      maxGForce: 0.0,
-    );
+      state = state.copyWith(
+        isRecording: true,
+        isCalibrating: false,
+        currentTrip: trip,
+        events: [],
+        trajectory: initialTrajectory, // 包含起始点
+        currentDistance: 0.0,
+        maxGForce: 0.0,
+        debugMessage: 'Recording Active',
+      );
+    } catch (e, stack) {
+      print('ERROR startRecording: $e');
+      print(stack);
+      state = state.copyWith(isRecording: false, isCalibrating: false, debugMessage: 'CRASH: $e');
+    }
   }
 
   Future<void> stopRecording() async {
-    // 停止录制时，不停止位置监听，只停止写入数据库和轨迹更新逻辑
     if (state.currentTrip != null) {
       await _storage.endTrip(state.currentTrip!.id);
     }
     _sensorSub?.close();
     _sensorSub = null;
-    await WakelockPlus.disable(); // 关闭屏幕常亮
+    await WakelockPlus.disable();
     state = state.copyWith(
       isRecording: false,
       isCalibrating: false,
@@ -337,6 +398,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       trajectory: [],
       currentDistance: 0.0,
       maxGForce: 0.0,
+      currentPosition: state.currentPosition,
     );
   }
 
@@ -365,7 +427,6 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
             ..offsetMs = d.timestamp.difference(now).inMilliseconds)
           .toList();
 
-    // 使用当前实时位置
     if (state.currentPosition != null) {
       event.lat = state.currentPosition!.latitude;
       event.lng = state.currentPosition!.longitude;

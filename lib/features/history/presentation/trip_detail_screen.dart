@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:puked/common/widgets/trip_map_view.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
 
-class TripDetailScreen extends ConsumerWidget {
+class TripDetailScreen extends ConsumerStatefulWidget {
   final Trip trip;
 
   const TripDetailScreen({super.key, required this.trip});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TripDetailScreen> createState() => _TripDetailScreenState();
+}
+
+class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
+  LatLng? _focusedLocation;
+
+  @override
+  Widget build(BuildContext context) {
     final i18n = ref.watch(i18nProvider);
+    final trip = widget.trip;
     final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(trip.startTime);
     final trajectory = trip.trajectory.toList();
     final events = trip.events.toList();
@@ -48,78 +57,94 @@ class TripDetailScreen extends ConsumerWidget {
                   trajectory: trajectory,
                   events: events,
                   isLive: false,
+                  focusPoint: _focusedLocation,
                 ),
               ),
             ),
 
-            // 2. 数据概览 (更紧凑的内边距)
+            // 2. 数据概览 (移除统一的 horizontal padding，改为内部组件单独控制)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(i18n.t('trip_summary'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(i18n.t('trip_summary'),
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            )),
+                        Text(
+                          "${(trip.distance / 1000).toStringAsFixed(2)} km",
                           style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          )),
-                      Text(
-                        "${(trip.distance / 1000).toStringAsFixed(2)} km",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _StatItem(
-                          label: i18n.t('total_events'),
-                          value: "${trip.eventCount}"),
-                      _StatItem(
-                        label: i18n.t('avg_speed'),
-                        value: trip.endTime != null && trip.distance > 0
-                            ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
-                            : "--",
-                      ),
-                      _StatItem(
-                          label: i18n.t('duration'),
-                          value: trip.endTime != null
-                              ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}"
-                              : "--"),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _StatItem(
+                            label: i18n.t('total_events'),
+                            value: "${trip.eventCount}"),
+                        _StatItem(
+                          label: i18n.t('avg_speed'),
+                          value: trip.endTime != null && trip.distance > 0
+                              ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
+                              : "--",
+                        ),
+                        _StatItem(
+                            label: i18n.t('duration'),
+                            value: trip.endTime != null
+                                ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}"
+                                : "--"),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   // 事件比例分布条
                   if (events.isNotEmpty) ...[
-                    _buildEventDistributionBar(events),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildEventDistributionBar(events),
+                    ),
                     const SizedBox(height: 12),
                   ],
-                  Divider(
-                      height: 24,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant
-                          .withValues(alpha: 0.5)),
-                  Text(i18n.t('event_list'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      )),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Divider(
+                        height: 24,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(i18n.t('event_list'),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        )),
+                  ),
                   const SizedBox(height: 4),
                   // 事件列表
                   if (events.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                       child: Center(
                           child: Text(i18n.t('no_trips'),
                               style: TextStyle(
@@ -131,12 +156,15 @@ class TripDetailScreen extends ConsumerWidget {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: events.length,
-                      separatorBuilder: (context, index) => Divider(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant
-                              .withValues(alpha: 0.5),
-                          height: 1),
+                      separatorBuilder: (context, index) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Divider(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(alpha: 0.5),
+                            height: 1),
+                      ),
                       itemBuilder: (context, index) {
                         final e = events[index];
                         // 统一使用 i18nProvider 提供的方法进行翻译
@@ -205,8 +233,15 @@ class TripDetailScreen extends ConsumerWidget {
                         }
 
                         return ListTile(
+                          onTap: () {
+                            if (e.lat != null && e.lng != null) {
+                              setState(() {
+                                _focusedLocation = LatLng(e.lat!, e.lng!);
+                              });
+                            }
+                          },
                           contentPadding:
-                              const EdgeInsets.symmetric(vertical: 4),
+                              const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
                           leading: Container(
                             width: 44,
                             height: 44,

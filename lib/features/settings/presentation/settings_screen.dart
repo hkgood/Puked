@@ -74,12 +74,30 @@ class SettingsScreen extends ConsumerWidget {
 
           // 自动打标敏感度
           _buildSectionHeader(context, l10n.sensitivity),
-          _buildSensitivityTile(context, ref, l10n.sensitivityLow,
-              SensitivityLevel.low, settings.sensitivity),
-          _buildSensitivityTile(context, ref, l10n.sensitivityMedium,
-              SensitivityLevel.medium, settings.sensitivity),
-          _buildSensitivityTile(context, ref, l10n.sensitivityHigh,
-              SensitivityLevel.high, settings.sensitivity),
+          _buildSensitivityTile(
+            context,
+            ref,
+            l10n.sensitivityLow,
+            l10n.sensitivityLowDesc,
+            SensitivityLevel.low,
+            settings.sensitivity,
+          ),
+          _buildSensitivityTile(
+            context,
+            ref,
+            l10n.sensitivityMedium,
+            l10n.sensitivityMediumDesc,
+            SensitivityLevel.medium,
+            settings.sensitivity,
+          ),
+          _buildSensitivityTile(
+            context,
+            ref,
+            l10n.sensitivityHigh,
+            l10n.sensitivityHighDesc,
+            SensitivityLevel.high,
+            settings.sensitivity,
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
@@ -95,12 +113,25 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSensitivityTile(BuildContext context, WidgetRef ref,
-      String title, SensitivityLevel level, SensitivityLevel current) {
+  Widget _buildSensitivityTile(
+      BuildContext context,
+      WidgetRef ref,
+      String title,
+      String subtitle,
+      SensitivityLevel level,
+      SensitivityLevel current) {
     return ListTile(
       title: Text(
         title,
         style: const TextStyle(fontFamily: 'PingFang SC'),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontFamily: 'PingFang SC',
+          color: Colors.grey.shade600,
+          fontSize: 12,
+        ),
       ),
       trailing: current == level
           ? const Icon(Icons.check, color: Colors.green)

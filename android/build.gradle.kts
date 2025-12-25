@@ -32,8 +32,9 @@ allprojects {
             }
         }
 
-        // 2. 强制同步 Java 和 Kotlin 的 JVM 版本为 17
+        // 2. 强制同步 Java 和 Kotlin 的 JVM 版本为 17，并提升 compileSdkVersion 解决 lStar 问题
         p.extensions.findByType<com.android.build.gradle.BaseExtension>()?.apply {
+            compileSdkVersion(34) // 强制提升所有子模块的 compileSdkVersion
             compileOptions {
                 sourceCompatibility = JavaVersion.VERSION_17
                 targetCompatibility = JavaVersion.VERSION_17

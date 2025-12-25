@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 必须显式开启写入权限，才能创建 Release 并上传文件
 
     steps:
       - uses: actions/checkout@v4

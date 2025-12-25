@@ -195,7 +195,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
   void _handlePositionUpdate(Position position) {
     // 调试打印原始精度
-    print('GPS Raw Update: Acc:${position.accuracy}');
+    debugPrint('GPS Raw Update: Acc:${position.accuracy}');
 
     // 第一性原理：UI 必须更新
     final prevPosition = state.currentPosition;
@@ -231,7 +231,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       // 距离过滤
       if (addedDistance < 2.0 &&
           prevPosition != null &&
-          state.trajectory.isNotEmpty) return;
+          state.trajectory.isNotEmpty) {
+        return;
+      }
 
       final point = TrajectoryPoint()
         ..lat = position.latitude
@@ -381,8 +383,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         debugMessage: 'Recording Active',
       );
     } catch (e, stack) {
-      print('ERROR startRecording: $e');
-      print(stack);
+      debugPrint('ERROR startRecording: $e');
+      debugPrint(stack.toString());
       state = state.copyWith(
           isRecording: false, isCalibrating: false, debugMessage: 'CRASH: $e');
     }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart'; // Corrected import
 import 'package:puked/models/db_models.dart';
-import 'package:puked/common/utils/coordinate_converter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 
@@ -75,7 +74,7 @@ class _TripMapViewState extends State<TripMapView> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     // 初始中心点逻辑
-    LatLng center = LatLng(31.2304, 121.4737);
+    LatLng center = const LatLng(31.2304, 121.4737);
     if (widget.currentPosition != null) {
       center = LatLng(
           widget.currentPosition!.latitude, widget.currentPosition!.longitude);
@@ -170,12 +169,12 @@ class _TripMapViewState extends State<TripMapView> {
                     height: 28,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: config.color.withOpacity(0.95),
+                        color: config.color.withValues(alpha: 0.95),
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 4,
                             offset: const Offset(0, 1),
                           ),
@@ -314,7 +313,7 @@ class _CurrentLocationMarkerState extends State<_CurrentLocationMarker>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.blueAccent
-                    .withOpacity(0.4 * (1 - _controller.value)),
+                    .withValues(alpha: 0.4 * (1 - _controller.value)),
               ),
             ),
             // 中心点
@@ -327,7 +326,7 @@ class _CurrentLocationMarkerState extends State<_CurrentLocationMarker>
                 border: Border.all(color: Colors.white, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blueAccent.withOpacity(0.5),
+                    color: Colors.blueAccent.withValues(alpha: 0.5),
                     blurRadius: 6,
                     spreadRadius: 1,
                   ),

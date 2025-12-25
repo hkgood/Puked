@@ -26,8 +26,8 @@ class SensorWaveform extends StatelessWidget {
                   ? Theme.of(context)
                       .colorScheme
                       .onSurfaceVariant
-                      .withOpacity(0.7)
-                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      .withValues(alpha: 0.7)
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
@@ -42,7 +42,7 @@ class SensorWaveform extends StatelessWidget {
               color: color,
               limit: limit,
               gridColor:
-                  Theme.of(context).colorScheme.outlineVariant.withOpacity(0.2),
+                  Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
             ),
           ),
         ),
@@ -77,7 +77,7 @@ class WaveformPainter extends CustomPainter {
 
     // 增加一个微弱的发光层
     final shadowPaint = Paint()
-      ..color = color.withOpacity(0.3)
+      ..color = color.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.5
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
@@ -100,7 +100,7 @@ class WaveformPainter extends CustomPainter {
 
     // 绘制背景参考线 (更精致的虚线感)
     final gridPaint = Paint()
-      ..color = gridColor.withOpacity(0.05)
+      ..color = gridColor.withValues(alpha: 0.05)
       ..strokeWidth = 1;
 
     // 绘制多条水平参考线增加细节感
@@ -111,7 +111,7 @@ class WaveformPainter extends CustomPainter {
 
     // 主中心线稍微重一点
     final centerGridPaint = Paint()
-      ..color = gridColor.withOpacity(0.15)
+      ..color = gridColor.withValues(alpha: 0.15)
       ..strokeWidth = 1.2;
     canvas.drawLine(
         Offset(0, centerY), Offset(size.width, centerY), centerGridPaint);

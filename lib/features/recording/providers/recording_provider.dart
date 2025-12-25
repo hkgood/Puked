@@ -83,7 +83,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   final StorageService _storage;
   final Ref _ref;
   StreamSubscription<Position>? _positionSub;
-  StreamSubscription? _sensorSub;
+  ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
   // 事件检测阈值 (m/s²)
   static const double _thresholdAccel = 3.0; // 急加速
@@ -180,7 +180,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     final now = DateTime.now();
     if (state.isCalibrating) return;
     if (_recordingStartTime != null &&
-        now.difference(_recordingStartTime!) < _startProtectionDuration) return;
+        now.difference(_recordingStartTime!) < _startProtectionDuration) {
+      return;
+    }
 
     final accel = data.filteredAccel;
 
@@ -285,25 +287,28 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     _xHistory.clear();
 
     // 启动传感器监听以记录峰值 G 值和自动检测事件
-    _sensorSub?.cancel();
-    _sensorSub = _ref.read(sensorStreamProvider.stream).listen((sensorData) {
-      if (state.isRecording) {
-        // 使用经过滤波的加速度来计算 Peak G，避免由于手机架晃动导致的瞬间尖峰
-        final accelForPeak = sensorData.filteredAccel;
-        final currentG = accelForPeak.length / 9.80665;
+    _sensorSub?.close();
+    _sensorSub = _ref.listen<AsyncValue<SensorData>>(
+      sensorStreamProvider,
+      (previous, next) {
+        next.whenData((sensorData) {
+          if (state.isRecording) {
+            // 使用经过滤波的加速度来计算 Peak G，避免由于手机架晃动导致的瞬间尖峰
+            final accelForPeak = sensorData.filteredAccel;
+            final currentG = accelForPeak.length / 9.80665;
 
-        // 峰值追踪逻辑优化：不仅要大于当前峰值，还要有一定的波动阈值
-        if (currentG > state.maxGForce) {
-          state = state.copyWith(maxGForce: currentG);
-        } else if (currentG < state.maxGForce * 0.8 && state.maxGForce > 0.5) {
-          // 如果当前 G 值大幅回落，说明之前的峰值已经结束，这里保持峰值不变
-          // 仅作为逻辑参考，maxGForce 应该一直保持行程最大值
-        }
+            // 峰值追踪逻辑优化：不仅要大于当前峰值，还要有一定的波动阈值
+            if (currentG > state.maxGForce) {
+              state = state.copyWith(maxGForce: currentG);
+            }
 
-        // 自动事件检测逻辑 (使用 filteredAccel 以确保坡道优化后的准确性)
-        _detectAutoEvents(sensorData);
-      }
-    });
+            // 自动事件检测逻辑 (使用 filteredAccel 以确保坡道优化后的准确性)
+            _detectAutoEvents(sensorData);
+          }
+        });
+      },
+      fireImmediately: true,
+    );
 
     state = state.copyWith(
       isRecording: true,
@@ -321,7 +326,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     if (state.currentTrip != null) {
       await _storage.endTrip(state.currentTrip!.id);
     }
-    _sensorSub?.cancel();
+    _sensorSub?.close();
     _sensorSub = null;
     await WakelockPlus.disable(); // 关闭屏幕常亮
     state = state.copyWith(
@@ -373,7 +378,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   @override
   void dispose() {
     _positionSub?.cancel();
-    _sensorSub?.cancel();
+    _sensorSub?.close();
     super.dispose();
   }
 }

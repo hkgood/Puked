@@ -95,8 +95,8 @@ class Real3DSensorPainter extends CustomPainter {
     // 2. 绘制球体背景和网格 (继续增加透明度，使其更加隐约)
     final bgPaint = Paint()
       ..color = isDarkMode
-          ? Colors.white.withOpacity(0.03)
-          : Colors.black.withOpacity(0.02)
+          ? Colors.white.withValues(alpha: 0.03)
+          : Colors.black.withValues(alpha: 0.02)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -110,9 +110,9 @@ class Real3DSensorPainter extends CustomPainter {
     double gY = -accel.y / 9.80665;
     double gZ = (accel.z - 9.80665) / 9.80665;
 
-    final colorX = const Color(0xFFFF453A); // Apple Red
-    final colorY = const Color(0xFF32D74B); // Apple Green
-    final colorZ = const Color(0xFF0A84FF); // Apple Blue
+    const colorX = Color(0xFFFF453A); // Apple Red
+    const colorY = Color(0xFF32D74B); // Apple Green
+    const colorZ = Color(0xFF0A84FF); // Apple Blue
 
     // 绘制受力分量 (动态变化的线，加粗)
     _drawForceComponent(
@@ -126,7 +126,7 @@ class Real3DSensorPainter extends CustomPainter {
     v.Vector3 forceVec = v.Vector3(gX, gY, gZ);
     double forceMagnitude = forceVec.length;
 
-    canvas.drawCircle(center, 2, Paint()..color = color.withOpacity(0.5));
+    canvas.drawCircle(center, 2, Paint()..color = color.withValues(alpha: 0.5));
 
     if (forceMagnitude > 0.01) {
       v.Vector3 ballPos3D = v.Vector3(gX * radius, gY * radius, gZ * radius);
@@ -144,7 +144,7 @@ class Real3DSensorPainter extends CustomPainter {
       // 合力丝带 (加粗)
       final vectorPaint = Paint()
         ..shader = LinearGradient(
-          colors: [color.withOpacity(0.1), color.withOpacity(0.8)],
+          colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.8)],
         ).createShader(Rect.fromPoints(center, ballPos2D))
         ..strokeWidth = 4.0
         ..strokeCap = StrokeCap.round;
@@ -156,7 +156,7 @@ class Real3DSensorPainter extends CustomPainter {
       final ballPaint = Paint()
         ..shader = RadialGradient(
           center: const Alignment(-0.3, -0.4),
-          colors: [Colors.white, color, color.withOpacity(0.8)],
+          colors: [Colors.white, color, color.withValues(alpha: 0.8)],
         ).createShader(Rect.fromCircle(
             center: ballPos2D, radius: radius * 0.1 * depthScale));
       canvas.drawCircle(ballPos2D, radius * 0.1 * depthScale, ballPaint);
@@ -164,15 +164,15 @@ class Real3DSensorPainter extends CustomPainter {
 
     // 6. 外部刻度环 (显著加粗)
     final ringPaint = Paint()
-      ..color = isDarkMode ? Colors.white24 : Colors.black.withOpacity(0.12)
+      ..color = isDarkMode ? Colors.white24 : Colors.black.withValues(alpha: 0.12)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
     canvas.drawCircle(center, radius, ringPaint);
 
     final dashPaint = Paint()
       ..color = isDarkMode
-          ? Colors.white.withOpacity(0.15)
-          : Colors.black.withOpacity(0.1)
+          ? Colors.white.withValues(alpha: 0.15)
+          : Colors.black.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     _drawDashCircle(canvas, center, radius * 0.5, dashPaint);
@@ -189,7 +189,7 @@ class Real3DSensorPainter extends CustomPainter {
     Offset endPoint2D = center + Offset(p.x / w, p.y / w);
 
     final linePaint = Paint()
-      ..color = color.withOpacity(0.8) // 动态受力线颜色深一些
+      ..color = color.withValues(alpha: 0.8) // 动态受力线颜色深一些
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(center, endPoint2D, linePaint);
@@ -254,13 +254,13 @@ class Real3DSensorPainter extends CustomPainter {
   void _drawFixedAxes(
       Canvas canvas, Offset center, double radius, v.Matrix4 matrix) {
     final paintX = Paint()
-      ..color = const Color(0xFFFF453A).withOpacity(0.25)
+      ..color = const Color(0xFFFF453A).withValues(alpha: 0.25)
       ..strokeWidth = 1.5;
     final paintY = Paint()
-      ..color = const Color(0xFF32D74B).withOpacity(0.25)
+      ..color = const Color(0xFF32D74B).withValues(alpha: 0.25)
       ..strokeWidth = 1.5;
     final paintZ = Paint()
-      ..color = const Color(0xFF0A84FF).withOpacity(0.25)
+      ..color = const Color(0xFF0A84FF).withValues(alpha: 0.25)
       ..strokeWidth = 1.5;
 
     // X 轴 (横向)

@@ -17,13 +17,13 @@ void main() async {
   runApp(
     UncontrolledProviderScope(
       container: container,
-      child: const PickyPassengerApp(),
+      child: const PukedApp(),
     ),
   );
 }
 
-class PickyPassengerApp extends ConsumerWidget {
-  const PickyPassengerApp({super.key});
+class PukedApp extends ConsumerWidget {
+  const PukedApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -72,15 +72,15 @@ class PickyPassengerApp extends ConsumerWidget {
           systemOverlayStyle: SystemUiOverlayStyle.dark, // 强制状态栏文字为深色
         ),
         scaffoldBackgroundColor: const Color(0xFFF2F2F7), // Apple System Gray 6
-        colorScheme: ColorScheme.light(
-          primary: const Color(0xFF248A3D), // 更深邃的高级绿
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF248A3D), // 更深邃的高级绿
           onPrimary: Colors.white,
-          secondary: const Color(0xFF007AFF), // Apple Blue
+          secondary: Color(0xFF007AFF), // Apple Blue
           surface: Colors.white,
-          onSurface: const Color(0xFF1C1C1E),
-          surfaceVariant: const Color(0xFFE5E5EA), // Apple System Gray 4
-          onSurfaceVariant: const Color(0xFF636366), // Apple System Gray
-          outlineVariant: const Color(0xFFD1D1D6), // Apple System Gray 3
+          onSurface: Color(0xFF1C1C1E),
+          surfaceContainerHighest: Color(0xFFE5E5EA), // Apple System Gray 4
+          onSurfaceVariant: Color(0xFF636366), // Apple System Gray
+          outlineVariant: Color(0xFFD1D1D6), // Apple System Gray 3
         ),
         cardTheme: CardThemeData(
           color: Colors.white,
@@ -97,15 +97,15 @@ class PickyPassengerApp extends ConsumerWidget {
           systemOverlayStyle: SystemUiOverlayStyle.light, // 强制状态栏文字为白色
         ),
         scaffoldBackgroundColor: Colors.black,
-        colorScheme: ColorScheme.dark(
-          primary: const Color(0xFF32D74B), // Apple System Green Dark
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF32D74B), // Apple System Green Dark
           onPrimary: Colors.black,
-          secondary: const Color(0xFF0A84FF), // Apple Blue Dark
-          surface: const Color(0xFF1C1C1E), // Apple System Gray 6 Dark
-          onSurface: const Color(0xFFF2F2F7),
-          surfaceVariant: const Color(0xFF2C2C2E), // Apple System Gray 4 Dark
-          onSurfaceVariant: const Color(0xFF8E8E93), // Apple System Gray
-          outlineVariant: const Color(0xFF3A3A3C), // Apple System Gray 3 Dark
+          secondary: Color(0xFF0A84FF), // Apple Blue Dark
+          surface: Color(0xFF1C1C1E), // Apple System Gray 6 Dark
+          onSurface: Color(0xFFF2F2F7),
+          surfaceContainerHighest: Color(0xFF2C2C2E), // Apple System Gray 4 Dark
+          onSurfaceVariant: Color(0xFF8E8E93), // Apple System Gray
+          outlineVariant: Color(0xFF3A3A3C), // Apple System Gray 3 Dark
         ),
         cardTheme: CardThemeData(
           color: const Color(0xFF1C1C1E),

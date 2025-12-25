@@ -90,7 +90,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor:
-                  Theme.of(context).colorScheme.errorContainer.withOpacity(0.8),
+                  Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.8),
               foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -215,16 +215,16 @@ class _TripCard extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isSelected
-            ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
-            : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: isSelected
-                ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
                 : Theme.of(context)
                     .colorScheme
                     .outlineVariant
-                    .withOpacity(0.3)),
+                    .withValues(alpha: 0.3)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -257,7 +257,7 @@ class _TripCard extends ConsumerWidget {
                       color: Theme.of(context)
                           .colorScheme
                           .primary
-                          .withOpacity(0.1),
+                          .withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(Icons.route,
@@ -306,7 +306,7 @@ class _TripCard extends ConsumerWidget {
                         backgroundColor: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.05),
+                            .withValues(alpha: 0.05),
                       ),
                     ),
                 ],

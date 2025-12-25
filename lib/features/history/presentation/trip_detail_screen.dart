@@ -40,7 +40,7 @@ class TripDetailScreen extends ConsumerWidget {
                     color: Theme.of(context)
                         .colorScheme
                         .outlineVariant
-                        .withOpacity(0.5)),
+                        .withValues(alpha: 0.5)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
@@ -108,7 +108,7 @@ class TripDetailScreen extends ConsumerWidget {
                       color: Theme.of(context)
                           .colorScheme
                           .outlineVariant
-                          .withOpacity(0.5)),
+                          .withValues(alpha: 0.5)),
                   Text(i18n.t('event_list'),
                       style: TextStyle(
                         fontSize: 16,
@@ -135,7 +135,7 @@ class TripDetailScreen extends ConsumerWidget {
                           color: Theme.of(context)
                               .colorScheme
                               .outlineVariant
-                              .withOpacity(0.5),
+                              .withValues(alpha: 0.5),
                           height: 1),
                       itemBuilder: (context, index) {
                         final e = events[index];
@@ -179,14 +179,17 @@ class TripDetailScreen extends ConsumerWidget {
                           for (var p in e.sensorData) {
                             if (e.type == 'rapidAcceleration' ||
                                 e.type == 'rapidDeceleration') {
-                              if (p.ay != null && p.ay!.abs() > maxVal.abs())
+                              if (p.ay != null && p.ay!.abs() > maxVal.abs()) {
                                 maxVal = p.ay!;
+                              }
                             } else if (e.type == 'wobble') {
-                              if (p.ax != null && p.ax!.abs() > maxVal.abs())
+                              if (p.ax != null && p.ax!.abs() > maxVal.abs()) {
                                 maxVal = p.ax!;
+                              }
                             } else if (e.type == 'bump') {
-                              if (p.az != null && p.az!.abs() > maxVal.abs())
+                              if (p.az != null && p.az!.abs() > maxVal.abs()) {
                                 maxVal = p.az!;
+                              }
                             } else {
                               // 其他类型取合力加速度
                               final g = (p.ax ?? 0) * (p.ax ?? 0) +
@@ -208,7 +211,7 @@ class TripDetailScreen extends ConsumerWidget {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: eventColor.withOpacity(0.1),
+                              color: eventColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -248,7 +251,7 @@ class TripDetailScreen extends ConsumerWidget {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurfaceVariant
-                                        .withOpacity(0.6)),
+                                        .withValues(alpha: 0.6)),
                                 const SizedBox(width: 4),
                                 Text(
                                   DateFormat('HH:mm:ss').format(e.timestamp),
@@ -266,7 +269,7 @@ class TripDetailScreen extends ConsumerWidget {
                                   decoration: BoxDecoration(
                                     color: Theme.of(context)
                                         .colorScheme
-                                        .surfaceVariant,
+                                        .surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -352,7 +355,7 @@ class _StatItem extends StatelessWidget {
               color: Theme.of(context)
                   .colorScheme
                   .onSurfaceVariant
-                  .withOpacity(0.8),
+                  .withValues(alpha: 0.8),
             )),
       ],
     );

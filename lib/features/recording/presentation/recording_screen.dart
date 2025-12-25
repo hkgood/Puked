@@ -77,8 +77,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                           style: IconButton.styleFrom(
                             backgroundColor: Theme.of(context)
                                 .colorScheme
-                                .surfaceVariant
-                                .withOpacity(Theme.of(context).brightness ==
+                                .surfaceContainerHighest
+                                .withValues(alpha: Theme.of(context).brightness ==
                                         Brightness.dark
                                     ? 0.3
                                     : 0.1), // 白天模式下降低背景深度
@@ -97,8 +97,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                           style: IconButton.styleFrom(
                             backgroundColor: Theme.of(context)
                                 .colorScheme
-                                .surfaceVariant
-                                .withOpacity(Theme.of(context).brightness ==
+                                .surfaceContainerHighest
+                                .withValues(alpha: Theme.of(context).brightness ==
                                         Brightness.dark
                                     ? 0.3
                                     : 0.1), // 同上
@@ -118,14 +118,14 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                         decoration: BoxDecoration(
                           color: Theme.of(context)
                               .colorScheme
-                              .surfaceVariant
-                              .withOpacity(0.1),
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                               color: Theme.of(context)
                                   .colorScheme
                                   .outlineVariant
-                                  .withOpacity(0.5)),
+                                  .withValues(alpha: 0.5)),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(24),
@@ -148,8 +148,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                     decoration: BoxDecoration(
                       color: Theme.of(context)
                           .colorScheme
-                          .surfaceVariant
-                          .withOpacity(0.15),
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Row(
@@ -169,8 +169,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                                   shape: BoxShape.circle,
                                   color: Theme.of(context)
                                       .colorScheme
-                                      .surfaceVariant
-                                      .withOpacity(0.1))),
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.1))),
                         ),
                         const SizedBox(width: 20), // 增加间距
                         // Waveforms
@@ -349,7 +349,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             // 校准遮罩层
             if (isCalibrating)
               Container(
-                color: Colors.black.withOpacity(0.85),
+                color: Colors.black.withValues(alpha: 0.85),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -365,7 +365,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                       const SizedBox(height: 8),
                       Text(i18n.t('calibration_tip'),
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 14)),
                     ],
                   ),
@@ -447,7 +447,7 @@ class _RecordingStat extends StatelessWidget {
           children: [
             Icon(icon,
                 size: 14,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.7)),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)),
             const SizedBox(width: 4),
             Text(
               value,
@@ -489,7 +489,7 @@ class _TagButton extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Material(
-      color: isDarkMode ? color.withOpacity(0.12) : color.withOpacity(0.08),
+      color: isDarkMode ? color.withValues(alpha: 0.12) : color.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onPressed,
@@ -498,7 +498,7 @@ class _TagButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-                color: color.withOpacity(isDarkMode ? 0.3 : 0.2), width: 1.5),
+                color: color.withValues(alpha: isDarkMode ? 0.3 : 0.2), width: 1.5),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -508,7 +508,7 @@ class _TagButton extends StatelessWidget {
               Text(label,
                   style: TextStyle(
                     color: isDarkMode
-                        ? color.withOpacity(0.9)
+                        ? color.withValues(alpha: 0.9)
                         : color.withAlpha(200),
                     fontWeight: FontWeight.w700,
                     fontSize: 14,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:puked/models/sensor_data.dart';
-import 'package:puked/models/trip_event.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -26,9 +25,9 @@ class SensorEngine {
   Vector3 _gravityEstimate = Vector3.zero(); // 实时估计重力方向 (用于坡道补偿)
 
   // 临时存储最新的传感器原始值
-  Vector3 _latestAccel = Vector3.zero();
-  Vector3 _latestGyro = Vector3.zero();
-  Vector3 _latestMag = Vector3.zero();
+  final Vector3 _latestAccel = Vector3.zero();
+  final Vector3 _latestGyro = Vector3.zero();
+  final Vector3 _latestMag = Vector3.zero();
 
   StreamSubscription? _accelSub;
   StreamSubscription? _gyroSub;

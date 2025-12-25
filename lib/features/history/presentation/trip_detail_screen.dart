@@ -144,7 +144,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   // 事件列表
                   if (events.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 20, horizontal: 20),
                       child: Center(
                           child: Text(i18n.t('no_trips'),
                               style: TextStyle(
@@ -240,8 +241,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               });
                             }
                           },
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 4, horizontal: 20),
                           leading: Container(
                             width: 44,
                             height: 44,

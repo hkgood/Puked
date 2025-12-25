@@ -46,7 +46,8 @@ class RecordingScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
 
                   // 3. 交互控制
-                  _buildControlSection(context, ref, recordingState, isRecording, isCalibrating, i18n),
+                  _buildControlSection(context, ref, recordingState,
+                      isRecording, isCalibrating, i18n),
                 ],
               ),
             ),
@@ -79,13 +80,15 @@ class RecordingScreen extends ConsumerWidget {
           ),
           IconButton(
             onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (context) => const SettingsScreen())),
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const SettingsScreen())),
             icon: Icon(Icons.settings, size: 22, color: onSurface), // 显式指定颜色
           ),
           const SizedBox(width: 8),
           IconButton(
-            onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (context) => const HistoryScreen())),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (context) => const HistoryScreen())),
             icon: Icon(Icons.history, size: 22, color: onSurface), // 显式指定颜色
           ),
         ],
@@ -100,9 +103,16 @@ class RecordingScreen extends ConsumerWidget {
           Container(
             margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              border: Border.all(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.5)),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
@@ -119,12 +129,20 @@ class RecordingScreen extends ConsumerWidget {
             left: 24,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(10)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("GPS Updates: ${state.locationUpdateCount}", style: const TextStyle(color: Colors.white, fontSize: 10)),
-                  Text("Msg: ${state.debugMessage}", style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                  Text("GPS Updates: ${state.locationUpdateCount}",
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 10)),
+                  Text("Msg: ${state.debugMessage}",
+                      style: const TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -140,7 +158,10 @@ class RecordingScreen extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.15),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Consumer(
@@ -168,7 +189,13 @@ class RecordingScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildControlSection(BuildContext context, WidgetRef ref, RecordingState state, bool isRecording, bool isCalibrating, dynamic i18n) {
+  Widget _buildControlSection(
+      BuildContext context,
+      WidgetRef ref,
+      RecordingState state,
+      bool isRecording,
+      bool isCalibrating,
+      dynamic i18n) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       child: Column(
@@ -179,8 +206,15 @@ class RecordingScreen extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _RecordingStat(label: i18n.t('distance'), value: "${(state.currentDistance / 1000).toStringAsFixed(2)} km", icon: Icons.straighten),
-                  _RecordingStat(label: i18n.t('peak_g'), value: "${state.maxGForce.toStringAsFixed(2)}G", icon: Icons.shutter_speed),
+                  _RecordingStat(
+                      label: i18n.t('distance'),
+                      value:
+                          "${(state.currentDistance / 1000).toStringAsFixed(2)} km",
+                      icon: Icons.straighten),
+                  _RecordingStat(
+                      label: i18n.t('peak_g'),
+                      value: "${state.maxGForce.toStringAsFixed(2)}G",
+                      icon: Icons.shutter_speed),
                   ..._buildEventBreakdown(state.events, context),
                 ],
               ),
@@ -192,20 +226,27 @@ class RecordingScreen extends ConsumerWidget {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isRecording ? const Color(0xFFFF3B30) : Theme.of(context).colorScheme.primary,
+                backgroundColor: isRecording
+                    ? const Color(0xFFFF3B30)
+                    : Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18)),
               ),
-              onPressed: isCalibrating ? null : () {
-                if (isRecording) {
-                  ref.read(recordingProvider.notifier).stopRecording();
-                } else {
-                  ref.read(recordingProvider.notifier).startRecording();
-                }
-              },
-              child: Text(isRecording ? i18n.t('stop_trip') : i18n.t('start_trip'),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              onPressed: isCalibrating
+                  ? null
+                  : () {
+                      if (isRecording) {
+                        ref.read(recordingProvider.notifier).stopRecording();
+                      } else {
+                        ref.read(recordingProvider.notifier).startRecording();
+                      }
+                    },
+              child: Text(
+                  isRecording ? i18n.t('stop_trip') : i18n.t('start_trip'),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -220,26 +261,46 @@ class RecordingScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+            CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 24),
-            Text(i18n.t('calibrating'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+            Text(i18n.t('calibrating'),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            Text(i18n.t('calibration_tip'), style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
+            Text(i18n.t('calibration_tip'),
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
           ],
         ),
       ),
     );
   }
 
-  List<Widget> _buildEventBreakdown(List<dynamic> events, BuildContext context) {
+  List<Widget> _buildEventBreakdown(
+      List<dynamic> events, BuildContext context) {
     final counts = <String, int>{};
     for (var e in events) {
       counts[e.type] = (counts[e.type] ?? 0) + 1;
     }
     final types = [
-      {'type': 'rapidAcceleration', 'icon': Icons.speed, 'color': const Color(0xFFFF9500)},
-      {'type': 'rapidDeceleration', 'icon': Icons.trending_down, 'color': const Color(0xFFFF3B30)},
-      {'type': 'bump', 'icon': Icons.vibration, 'color': const Color(0xFF5856D6)},
+      {
+        'type': 'rapidAcceleration',
+        'icon': Icons.speed,
+        'color': const Color(0xFFFF9500)
+      },
+      {
+        'type': 'rapidDeceleration',
+        'icon': Icons.trending_down,
+        'color': const Color(0xFFFF3B30)
+      },
+      {
+        'type': 'bump',
+        'icon': Icons.vibration,
+        'color': const Color(0xFF5856D6)
+      },
       {'type': 'wobble', 'icon': Icons.waves, 'color': const Color(0xFF007AFF)},
     ];
     return types.map((config) {
@@ -249,9 +310,12 @@ class RecordingScreen extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Column(
           children: [
-            Icon(config['icon'] as IconData, size: 14, color: config['color'] as Color),
+            Icon(config['icon'] as IconData,
+                size: 14, color: config['color'] as Color),
             const SizedBox(height: 2),
-            Text("$count", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            Text("$count",
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ],
         ),
       );
@@ -321,25 +385,31 @@ class _TagButtonsGrid extends StatelessWidget {
           label: i18n.t('rapid_accel'),
           icon: Icons.speed,
           color: const Color(0xFFFF9500),
-          onPressed: () => ref.read(recordingProvider.notifier).tagEvent(EventType.rapidAcceleration),
+          onPressed: () => ref
+              .read(recordingProvider.notifier)
+              .tagEvent(EventType.rapidAcceleration),
         ),
         _TagButton(
           label: i18n.t('rapid_decel'),
           icon: Icons.trending_down,
           color: const Color(0xFFFF3B30),
-          onPressed: () => ref.read(recordingProvider.notifier).tagEvent(EventType.rapidDeceleration),
+          onPressed: () => ref
+              .read(recordingProvider.notifier)
+              .tagEvent(EventType.rapidDeceleration),
         ),
         _TagButton(
           label: i18n.t('bump'),
           icon: Icons.vibration,
           color: const Color(0xFF5856D6),
-          onPressed: () => ref.read(recordingProvider.notifier).tagEvent(EventType.bump),
+          onPressed: () =>
+              ref.read(recordingProvider.notifier).tagEvent(EventType.bump),
         ),
         _TagButton(
           label: i18n.t('wobble'),
           icon: Icons.waves,
           color: const Color(0xFF007AFF),
-          onPressed: () => ref.read(recordingProvider.notifier).tagEvent(EventType.wobble),
+          onPressed: () =>
+              ref.read(recordingProvider.notifier).tagEvent(EventType.wobble),
         ),
       ],
     );
@@ -350,7 +420,8 @@ class _RecordingStat extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _RecordingStat({required this.label, required this.value, required this.icon});
+  const _RecordingStat(
+      {required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -359,12 +430,20 @@ class _RecordingStat extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)),
+            Icon(icon,
+                size: 14,
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.7)),
             const SizedBox(width: 4),
-            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(value,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           ],
         ),
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -375,7 +454,11 @@ class _TagButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onPressed;
-  const _TagButton({required this.label, required this.icon, required this.color, required this.onPressed});
+  const _TagButton(
+      {required this.label,
+      required this.icon,
+      required this.color,
+      required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -395,7 +478,9 @@ class _TagButton extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 20),
               const SizedBox(width: 10),
-              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text(label,
+                  style: TextStyle(
+                      color: color, fontWeight: FontWeight.w700, fontSize: 14)),
             ],
           ),
         ),

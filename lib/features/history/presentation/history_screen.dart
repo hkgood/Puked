@@ -89,8 +89,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.8),
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .errorContainer
+                  .withValues(alpha: 0.8),
               foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -215,8 +217,14 @@ class _TripCard extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isSelected
-            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
-            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            ? Theme.of(context)
+                .colorScheme
+                .primaryContainer
+                .withValues(alpha: 0.3)
+            : Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: isSelected

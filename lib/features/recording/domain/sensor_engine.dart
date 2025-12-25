@@ -107,7 +107,8 @@ class SensorEngine {
 
     for (int i = 0; i < samples; i++) {
       gravitySum += _latestAccel;
-      await Future.delayed(const Duration(milliseconds: 100)); // 增加单次间隔，保持总时长 1s 左右但减少循环频率
+      await Future.delayed(
+          const Duration(milliseconds: 100)); // 增加单次间隔，保持总时长 1s 左右但减少循环频率
     }
 
     final gMean = gravitySum / samples.toDouble();

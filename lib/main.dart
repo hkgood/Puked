@@ -103,7 +103,8 @@ class PukedApp extends ConsumerWidget {
           secondary: Color(0xFF0A84FF), // Apple Blue Dark
           surface: Color(0xFF1C1C1E), // Apple System Gray 6 Dark
           onSurface: Color(0xFFF2F2F7),
-          surfaceContainerHighest: Color(0xFF2C2C2E), // Apple System Gray 4 Dark
+          surfaceContainerHighest:
+              Color(0xFF2C2C2E), // Apple System Gray 4 Dark
           onSurfaceVariant: Color(0xFF8E8E93), // Apple System Gray
           outlineVariant: Color(0xFF3A3A3C), // Apple System Gray 3 Dark
         ),

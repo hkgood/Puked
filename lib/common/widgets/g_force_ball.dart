@@ -164,7 +164,8 @@ class Real3DSensorPainter extends CustomPainter {
 
     // 6. 外部刻度环 (显著加粗)
     final ringPaint = Paint()
-      ..color = isDarkMode ? Colors.white24 : Colors.black.withValues(alpha: 0.12)
+      ..color =
+          isDarkMode ? Colors.white24 : Colors.black.withValues(alpha: 0.12)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
     canvas.drawCircle(center, radius, ringPaint);

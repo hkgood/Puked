@@ -27,7 +27,10 @@ class SensorWaveform extends StatelessWidget {
                       .colorScheme
                       .onSurfaceVariant
                       .withValues(alpha: 0.7)
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.8),
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
@@ -41,8 +44,10 @@ class SensorWaveform extends StatelessWidget {
               data: data,
               color: color,
               limit: limit,
-              gridColor:
-                  Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+              gridColor: Theme.of(context)
+                  .colorScheme
+                  .outlineVariant
+                  .withValues(alpha: 0.2),
             ),
           ),
         ),

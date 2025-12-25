@@ -22,7 +22,10 @@ class RetryTileProvider extends TileProvider {
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
     final url = getTileUrl(coordinates, options);
-    return RetryNetworkImage(url, maxRetries: maxRetries, retryDelay: retryDelay, httpClient: _httpClient);
+    return RetryNetworkImage(url,
+        maxRetries: maxRetries,
+        retryDelay: retryDelay,
+        httpClient: _httpClient);
   }
 }
 
@@ -32,7 +35,10 @@ class RetryNetworkImage extends ImageProvider<RetryNetworkImage> {
   final Duration retryDelay;
   final HttpClient httpClient;
 
-  RetryNetworkImage(this.url, {required this.maxRetries, required this.retryDelay, required this.httpClient});
+  RetryNetworkImage(this.url,
+      {required this.maxRetries,
+      required this.retryDelay,
+      required this.httpClient});
 
   @override
   Future<RetryNetworkImage> obtainKey(ImageConfiguration configuration) {
@@ -40,7 +46,8 @@ class RetryNetworkImage extends ImageProvider<RetryNetworkImage> {
   }
 
   @override
-  ImageStreamCompleter loadImage(RetryNetworkImage key, ImageDecoderCallback decode) {
+  ImageStreamCompleter loadImage(
+      RetryNetworkImage key, ImageDecoderCallback decode) {
     return MultiFrameImageStreamCompleter(
       codec: _loadAsync(key, decode),
       scale: 1.0,
@@ -52,7 +59,8 @@ class RetryNetworkImage extends ImageProvider<RetryNetworkImage> {
     );
   }
 
-  Future<ui.Codec> _loadAsync(RetryNetworkImage key, ImageDecoderCallback decode) async {
+  Future<ui.Codec> _loadAsync(
+      RetryNetworkImage key, ImageDecoderCallback decode) async {
     int attempt = 0;
     while (attempt < maxRetries) {
       try {
@@ -63,7 +71,7 @@ class RetryNetworkImage extends ImageProvider<RetryNetworkImage> {
         }
         final bytes = await consolidateHttpClientResponseBytes(response);
         if (bytes.lengthInBytes == 0) throw Exception('Empty image');
-        
+
         // 使用 decode 回调而不是直接调用 ui.instantiateImageCodec
         // 这样可以更好地集成到 Flutter 的图片流水线中
         final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
@@ -109,19 +117,24 @@ class TripMapView extends StatefulWidget {
   State<TripMapView> createState() => _TripMapViewState();
 }
 
-class _TripMapViewState extends State<TripMapView> with TickerProviderStateMixin {
+class _TripMapViewState extends State<TripMapView>
+    with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   Timer? _recenterTimer;
   bool _isUserInteracting = false;
 
   void _animatedMapMove(LatLng destLocation, double destZoom) {
     final camera = _mapController.camera;
-    final latTween = Tween<double>(begin: camera.center.latitude, end: destLocation.latitude);
-    final lngTween = Tween<double>(begin: camera.center.longitude, end: destLocation.longitude);
+    final latTween = Tween<double>(
+        begin: camera.center.latitude, end: destLocation.latitude);
+    final lngTween = Tween<double>(
+        begin: camera.center.longitude, end: destLocation.longitude);
     final zoomTween = Tween<double>(begin: camera.zoom, end: destZoom);
 
-    final controller = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    final Animation<double> animation = CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+    final controller = AnimationController(
+        duration: const Duration(milliseconds: 800), vsync: this);
+    final Animation<double> animation =
+        CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
 
     controller.addListener(() {
       _mapController.move(
@@ -173,9 +186,10 @@ class _TripMapViewState extends State<TripMapView> with TickerProviderStateMixin
   @override
   void didUpdateWidget(TripMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // 1. 处理详情模式下的手动聚焦
-    if (widget.focusPoint != null && widget.focusPoint != oldWidget.focusPoint) {
+    if (widget.focusPoint != null &&
+        widget.focusPoint != oldWidget.focusPoint) {
       _animatedMapMove(widget.focusPoint!, 17.0);
     }
 
@@ -268,114 +282,117 @@ class _TripMapViewState extends State<TripMapView> with TickerProviderStateMixin
             panBuffer: 1,
           ),
 
-        // 2. 轨迹线 (WGS-84)
-        PolylineLayer(
-          polylines: [
-            Polyline(
-              points:
-                  widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList(),
-              color: Colors.greenAccent,
-              strokeWidth: 4,
-            ),
-          ],
-        ),
-
-        // 3. 事件标记 (根据类型差异化图标和颜色)
-        MarkerLayer(
-          markers: widget.events
-              .map((e) {
-                if (e.lat != null && e.lng != null) {
-                  final config = _getEventConfig(e.type);
-                  return Marker(
-                    point: LatLng(e.lat!, e.lng!),
-                    width: 20, // 缩小至 20
-                    height: 20,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: config.color.withValues(alpha: 0.95),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5), // 细描边
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 3,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        config.icon,
-                        color: Colors.white,
-                        size: 10, // 图标随比例缩小
-                      ),
-                    ),
-                  );
-                }
-                return null;
-              })
-              .whereType<Marker>()
-              .toList(),
-        ),
-
-        // 4. 起终点标记
-        if (widget.trajectory.isNotEmpty)
-          MarkerLayer(
-            markers: [
-              // 起点
-              Marker(
-                point: LatLng(
-                    widget.trajectory.first.lat, widget.trajectory.first.lng),
-                width: 20,
-                height: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 4)
-                    ],
-                  ),
-                  child: const Icon(Icons.play_arrow, color: Colors.white, size: 12),
-                ),
+          // 2. 轨迹线 (WGS-84)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points:
+                    widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList(),
+                color: Colors.greenAccent,
+                strokeWidth: 4,
               ),
-              // 终点
-              if (!widget.isLive)
+            ],
+          ),
+
+          // 3. 事件标记 (根据类型差异化图标和颜色)
+          MarkerLayer(
+            markers: widget.events
+                .map((e) {
+                  if (e.lat != null && e.lng != null) {
+                    final config = _getEventConfig(e.type);
+                    return Marker(
+                      point: LatLng(e.lat!, e.lng!),
+                      width: 20, // 缩小至 20
+                      height: 20,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: config.color.withValues(alpha: 0.95),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white, width: 1.5), // 细描边
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          config.icon,
+                          color: Colors.white,
+                          size: 10, // 图标随比例缩小
+                        ),
+                      ),
+                    );
+                  }
+                  return null;
+                })
+                .whereType<Marker>()
+                .toList(),
+          ),
+
+          // 4. 起终点标记
+          if (widget.trajectory.isNotEmpty)
+            MarkerLayer(
+              markers: [
+                // 起点
                 Marker(
                   point: LatLng(
-                      widget.trajectory.last.lat, widget.trajectory.last.lng),
+                      widget.trajectory.first.lat, widget.trajectory.first.lng),
                   width: 20,
                   height: 20,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: Colors.green,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 1.5),
                       boxShadow: const [
                         BoxShadow(color: Colors.black12, blurRadius: 4)
                       ],
                     ),
-                    child: const Icon(Icons.stop, color: Colors.white, size: 12),
+                    child: const Icon(Icons.play_arrow,
+                        color: Colors.white, size: 12),
                   ),
                 ),
-            ],
-          ),
+                // 终点
+                if (!widget.isLive)
+                  Marker(
+                    point: LatLng(
+                        widget.trajectory.last.lat, widget.trajectory.last.lng),
+                    width: 20,
+                    height: 20,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 4)
+                        ],
+                      ),
+                      child:
+                          const Icon(Icons.stop, color: Colors.white, size: 12),
+                    ),
+                  ),
+              ],
+            ),
 
-        // 5. 当前位置点 (仅实时录制显示)
-        if (widget.isLive &&
-            (widget.currentPosition != null || widget.trajectory.isNotEmpty))
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: center,
-                width: 40,
-                height: 40,
-                child: _CurrentLocationMarker(),
-              ),
-            ],
-          ),
-      ],
-    ),
+          // 5. 当前位置点 (仅实时录制显示)
+          if (widget.isLive &&
+              (widget.currentPosition != null || widget.trajectory.isNotEmpty))
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: center,
+                  width: 40,
+                  height: 40,
+                  child: _CurrentLocationMarker(),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 

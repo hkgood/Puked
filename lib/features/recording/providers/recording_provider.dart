@@ -124,7 +124,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   Future<void> _initializeLocation() async {
     try {
       state = state.copyWith(debugMessage: 'Checking Permission...');
-      
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -134,13 +134,13 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
-        
         state = state.copyWith(debugMessage: 'Getting Initial Position...');
 
         // 1. 获取初始位置作为“启动触发器”
         final lastKnown = await Geolocator.getLastKnownPosition();
         if (lastKnown != null) {
-          state = state.copyWith(currentPosition: lastKnown, debugMessage: 'Initial GPS OK');
+          state = state.copyWith(
+              currentPosition: lastKnown, debugMessage: 'Initial GPS OK');
         }
 
         // 2. 启动定位流
@@ -152,7 +152,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
             accuracy: LocationAccuracy.high,
             distanceFilter: 0,
             intervalDuration: const Duration(seconds: 2), // 调低频率到 2s 规避拦截
-            forceLocationManager: true, // 【关键优化】强制使用系统原生 GPS，绕过 Fused Location 的智能合并/延迟
+            forceLocationManager:
+                true, // 【关键优化】强制使用系统原生 GPS，绕过 Fused Location 的智能合并/延迟
             foregroundNotificationConfig: const ForegroundNotificationConfig(
               notificationText: "Puked 正在记录行程中",
               notificationTitle: "实时记录中",
@@ -168,8 +169,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
           );
         }
 
-        _positionSub = Geolocator.getPositionStream(locationSettings: locationSettings)
-            .listen(
+        _positionSub =
+            Geolocator.getPositionStream(locationSettings: locationSettings)
+                .listen(
           (position) {
             _handlePositionUpdate(position);
           },
@@ -213,8 +215,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       currentPosition: position,
       lastLocationTime: now,
       locationUpdateCount: state.locationUpdateCount + 1,
-      debugMessage: isReliable 
-          ? 'GPS OK (${position.accuracy.toStringAsFixed(0)}m)' 
+      debugMessage: isReliable
+          ? 'GPS OK (${position.accuracy.toStringAsFixed(0)}m)'
           : 'Poor Signal (${position.accuracy.toStringAsFixed(0)}m)',
     );
 
@@ -227,7 +229,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       }
 
       // 距离过滤
-      if (addedDistance < 2.0 && prevPosition != null && state.trajectory.isNotEmpty) return;
+      if (addedDistance < 2.0 &&
+          prevPosition != null &&
+          state.trajectory.isNotEmpty) return;
 
       final point = TrajectoryPoint()
         ..lat = position.latitude
@@ -262,7 +266,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     }
 
     final sensitivity = _ref.read(settingsProvider).sensitivity;
-    double multiplier = 1.0; 
+    double multiplier = 1.0;
     if (sensitivity == SensitivityLevel.medium) multiplier = 0.8;
     if (sensitivity == SensitivityLevel.high) multiplier = 0.6;
 
@@ -276,8 +280,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         !isDebounced('rapidDeceleration')) {
       _lastTriggered['rapidDeceleration'] = now;
       tagEvent(EventType.rapidDeceleration, source: 'AUTO');
-    }
-    else if (accel.y > (_thresholdAccel * multiplier) &&
+    } else if (accel.y > (_thresholdAccel * multiplier) &&
         !isDebounced('rapidAcceleration')) {
       _lastTriggered['rapidAcceleration'] = now;
       tagEvent(EventType.rapidAcceleration, source: 'AUTO');
@@ -324,9 +327,10 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     if (state.isCalibrating || state.isRecording) return;
 
     try {
-      state = state.copyWith(isCalibrating: true, debugMessage: 'Calibrating...');
+      state =
+          state.copyWith(isCalibrating: true, debugMessage: 'Calibrating...');
       await WakelockPlus.enable();
-      
+
       await _engine.calibrate();
 
       state = state.copyWith(debugMessage: 'Initing Storage...');
@@ -379,7 +383,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     } catch (e, stack) {
       print('ERROR startRecording: $e');
       print(stack);
-      state = state.copyWith(isRecording: false, isCalibrating: false, debugMessage: 'CRASH: $e');
+      state = state.copyWith(
+          isRecording: false, isCalibrating: false, debugMessage: 'CRASH: $e');
     }
   }
 

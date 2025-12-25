@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/logo.png" width="120" />
+  <img src="assets/images/Puked.png" width="120" />
 </p>
 
 # Puked - Ride Comfort Quantification Tool 🚗💨

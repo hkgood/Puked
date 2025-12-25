@@ -1,0 +1,68 @@
+name: puked
+description: A sophisticated tool for autonomous driving PMs to record ride comfort.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  
+  # Sensors & Location
+  sensors_plus: ^5.0.1
+  geolocator: ^10.1.0
+  
+  # NEW: Pure Dart Maps
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+  
+  # Storage
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  path_provider: ^2.1.2
+  shared_preferences: ^2.2.2
+  
+  # Utils & Math
+  vector_math: ^2.1.4
+  json_annotation: ^4.8.1
+  intl: ^0.20.2
+  share_plus: ^7.2.2
+  uuid: ^4.3.3
+  wakelock_plus: ^1.2.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.8
+  isar_generator: ^3.1.0+1
+  json_serializable: ^6.7.1
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: "assets/images/logo.png"
+  android_12:
+    image: "assets/images/logo.png"
+    color: "#ffffff"
+  fullscreen: true

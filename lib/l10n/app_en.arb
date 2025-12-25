@@ -1,0 +1,25 @@
+{
+  "appTitle": "Puked",
+  "settings": "Settings",
+  "language": "Language",
+  "theme": "Theme",
+  "themeAuto": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "chinese": "Chinese",
+  "english": "English",
+  "sensitivity": "Auto-tagging Sensitivity",
+  "sensitivityLow": "Low (Default)",
+  "sensitivityMedium": "Medium (Sensitive)",
+  "sensitivityHigh": "High (Most Sensitive)",
+  "sensitivityTip": "Higher sensitivity means lower acceleration thresholds for auto-tagging events.",
+  "rapidAcceleration": "Rapid Acceleration",
+  "rapidDeceleration": "Rapid Deceleration",
+  "bump": "Bump",
+  "wobble": "Wobble",
+  "start_trip": "START TRIP",
+  "stop_trip": "STOP TRIP",
+  "calibrating": "Calibrating...",
+  "calibration_tip": "Keep the phone stable for vehicle alignment"
+}
+

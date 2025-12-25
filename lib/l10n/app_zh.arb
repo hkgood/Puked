@@ -1,0 +1,25 @@
+{
+  "appTitle": "吐槽",
+  "settings": "设置",
+  "language": "语言",
+  "theme": "主题",
+  "themeAuto": "跟随系统",
+  "themeLight": "白天模式",
+  "themeDark": "夜间模式",
+  "chinese": "中文",
+  "english": "英文",
+  "sensitivity": "自动打标敏感度",
+  "sensitivityLow": "低 (默认)",
+  "sensitivityMedium": "中 (更灵敏)",
+  "sensitivityHigh": "高 (最灵敏)",
+  "sensitivityTip": "敏感度越高，触发急加速、急刹车等事件所需的加速度阈值就越小。",
+  "rapidAcceleration": "急加速",
+  "rapidDeceleration": "急减速",
+  "bump": "颠簸",
+  "wobble": "摆动",
+  "start_trip": "开始行程",
+  "stop_trip": "结束行程",
+  "calibrating": "校准中...",
+  "calibration_tip": "请保持手机静止以对齐车辆坐标系"
+}
+

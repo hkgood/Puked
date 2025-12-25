@@ -103,7 +103,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   final Map<String, DateTime> _lastTriggered = {};
   static const Duration _debounceDuration = Duration(seconds: 2);
 
-  RecordingNotifier(this._engine, this._storage, this._ref) : super(RecordingState(isRecording: false)) {
+  RecordingNotifier(this._engine, this._storage, this._ref)
+      : super(RecordingState(isRecording: false)) {
     // 初始化时就请求权限并开始监听位置
     _initializeLocation();
   }
@@ -113,20 +114,22 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    
+
     state = state.copyWith(permissionStatus: permission);
 
-    if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
       // 获取初始位置
-      final initialPosition = await Geolocator.getLastKnownPosition() ?? 
-                             await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final initialPosition = await Geolocator.getLastKnownPosition() ??
+          await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high);
       state = state.copyWith(currentPosition: initialPosition);
 
       // 启动全局位置监听
       _positionSub?.cancel();
       _positionSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high, 
+          accuracy: LocationAccuracy.high,
           distanceFilter: 2,
         ),
       ).listen((position) {
@@ -148,14 +151,10 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       // 距离过滤：如果两点之间距离太短 (< 2米)，不记录，减少原地抖动
       double addedDistance = 0;
       if (prevPosition != null) {
-        addedDistance = Geolocator.distanceBetween(
-          prevPosition.latitude, 
-          prevPosition.longitude, 
-          position.latitude, 
-          position.longitude
-        );
+        addedDistance = Geolocator.distanceBetween(prevPosition.latitude,
+            prevPosition.longitude, position.latitude, position.longitude);
       }
-      
+
       if (addedDistance < 2.0 && prevPosition != null) return;
 
       final point = TrajectoryPoint()
@@ -164,9 +163,10 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         ..altitude = position.altitude
         ..speed = position.speed
         ..timestamp = DateTime.now();
-      
+
       final newDistance = state.currentDistance + addedDistance;
-      _storage.addTrajectoryPoint(state.currentTrip!.id, point, distance: newDistance);
+      _storage.addTrajectoryPoint(state.currentTrip!.id, point,
+          distance: newDistance);
       state = state.copyWith(
         trajectory: [...state.trajectory, point],
         currentDistance: newDistance,
@@ -179,13 +179,15 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     // 如果正在校准中，或处于起步保护期内，不触发任何自动事件
     final now = DateTime.now();
     if (state.isCalibrating) return;
-    if (_recordingStartTime != null && now.difference(_recordingStartTime!) < _startProtectionDuration) return;
+    if (_recordingStartTime != null &&
+        now.difference(_recordingStartTime!) < _startProtectionDuration) return;
 
     final accel = data.filteredAccel;
-    
+
     // 更新 X 轴历史记录
     _xHistory.addLast(MapEntry(now, accel.x));
-    while (_xHistory.isNotEmpty && now.difference(_xHistory.first.key) > _wobbleWindow) {
+    while (_xHistory.isNotEmpty &&
+        now.difference(_xHistory.first.key) > _wobbleWindow) {
       _xHistory.removeFirst();
     }
 
@@ -203,12 +205,14 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     }
 
     // 1. 检测急刹车 (Y 轴负向)
-    if (accel.y < (_thresholdDecel * multiplier) && !isDebounced('rapidDeceleration')) {
+    if (accel.y < (_thresholdDecel * multiplier) &&
+        !isDebounced('rapidDeceleration')) {
       _lastTriggered['rapidDeceleration'] = now;
       tagEvent(EventType.rapidDeceleration, source: 'AUTO');
     }
     // 2. 检测急加速 (Y 轴正向)
-    else if (accel.y > (_thresholdAccel * multiplier) && !isDebounced('rapidAcceleration')) {
+    else if (accel.y > (_thresholdAccel * multiplier) &&
+        !isDebounced('rapidAcceleration')) {
       _lastTriggered['rapidAcceleration'] = now;
       tagEvent(EventType.rapidAcceleration, source: 'AUTO');
     }
@@ -260,10 +264,10 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     if (state.isCalibrating || state.isRecording) return;
 
     // 确保权限已获取
-    if (state.permissionStatus == LocationPermission.denied || 
+    if (state.permissionStatus == LocationPermission.denied ||
         state.permissionStatus == LocationPermission.deniedForever) {
       await _initializeLocation();
-      if (state.permissionStatus == LocationPermission.denied || 
+      if (state.permissionStatus == LocationPermission.denied ||
           state.permissionStatus == LocationPermission.deniedForever) {
         return; // 依然没权限，无法开始
       }
@@ -272,22 +276,22 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     // 1. 开启校准模式
     state = state.copyWith(isCalibrating: true);
     await WakelockPlus.enable(); // 开启屏幕常亮
-    await _engine.calibrate(); 
-    
+    await _engine.calibrate();
+
     // 2. 开始行程
     await _storage.init();
     final trip = await _storage.startTrip(carModel: carModel, notes: notes);
     _recordingStartTime = DateTime.now();
     _xHistory.clear();
-    
+
     // 启动传感器监听以记录峰值 G 值和自动检测事件
     _sensorSub?.cancel();
     _sensorSub = _ref.read(sensorStreamProvider.stream).listen((sensorData) {
       if (state.isRecording) {
         // 使用经过滤波的加速度来计算 Peak G，避免由于手机架晃动导致的瞬间尖峰
         final accelForPeak = sensorData.filteredAccel;
-        final currentG = accelForPeak.length / 9.80665; 
-        
+        final currentG = accelForPeak.length / 9.80665;
+
         // 峰值追踪逻辑优化：不仅要大于当前峰值，还要有一定的波动阈值
         if (currentG > state.maxGForce) {
           state = state.copyWith(maxGForce: currentG);
@@ -302,9 +306,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     });
 
     state = state.copyWith(
-      isRecording: true, 
-      isCalibrating: false, 
-      currentTrip: trip, 
+      isRecording: true,
+      isCalibrating: false,
+      currentTrip: trip,
       events: [],
       trajectory: [],
       currentDistance: 0.0,
@@ -321,8 +325,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     _sensorSub = null;
     await WakelockPlus.disable(); // 关闭屏幕常亮
     state = state.copyWith(
-      isRecording: false, 
-      isCalibrating: false, 
+      isRecording: false,
+      isCalibrating: false,
       currentTrip: null,
       events: [],
       trajectory: [],
@@ -336,25 +340,26 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
     final now = DateTime.now();
     final fragment = _engine.getLookbackBuffer(10);
-    
+
     final event = RecordedEvent()
       ..uuid = const Uuid().v4()
       ..timestamp = now
       ..type = type.name
       ..source = source
-      ..sensorData = fragment.map((d) => SensorPointEmbedded()
-        ..ax = d.processedAccel.x
-        ..ay = d.processedAccel.y
-        ..az = d.processedAccel.z
-        ..gx = d.gyroscope.x
-        ..gy = d.gyroscope.y
-        ..gz = d.gyroscope.z
-        ..mx = d.magnetometer.x
-        ..my = d.magnetometer.y
-        ..mz = d.magnetometer.z
-        ..offsetMs = d.timestamp.difference(now).inMilliseconds
-      ).toList();
-    
+      ..sensorData = fragment
+          .map((d) => SensorPointEmbedded()
+            ..ax = d.processedAccel.x
+            ..ay = d.processedAccel.y
+            ..az = d.processedAccel.z
+            ..gx = d.gyroscope.x
+            ..gy = d.gyroscope.y
+            ..gz = d.gyroscope.z
+            ..mx = d.magnetometer.x
+            ..my = d.magnetometer.y
+            ..mz = d.magnetometer.z
+            ..offsetMs = d.timestamp.difference(now).inMilliseconds)
+          .toList();
+
     // 使用当前实时位置
     if (state.currentPosition != null) {
       event.lat = state.currentPosition!.latitude;
@@ -373,7 +378,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   }
 }
 
-final recordingProvider = StateNotifierProvider<RecordingNotifier, RecordingState>((ref) {
+final recordingProvider =
+    StateNotifierProvider<RecordingNotifier, RecordingState>((ref) {
   final engine = ref.watch(sensorEngineProvider);
   final storage = ref.watch(storageServiceProvider);
   return RecordingNotifier(engine, storage, ref);

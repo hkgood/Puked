@@ -24,7 +24,8 @@ class TripDetailScreen extends ConsumerWidget {
           style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         ),
         backgroundColor: Colors.transparent,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        iconTheme:
+            IconThemeData(color: Theme.of(context).colorScheme.onSurface),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -35,7 +36,11 @@ class TripDetailScreen extends ConsumerWidget {
               margin: const EdgeInsets.fromLTRB(16, 8, 16, 12), // 减小页边距
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20), // 稍小的圆角更硬朗
-                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
+                border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withOpacity(0.5)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
@@ -46,7 +51,7 @@ class TripDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            
+
             // 2. 数据概览 (更紧凑的内边距)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -56,14 +61,12 @@ class TripDetailScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        i18n.t('trip_summary'), 
-                        style: TextStyle(
-                          fontSize: 17, 
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        )
-                      ),
+                      Text(i18n.t('trip_summary'),
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          )),
                       Text(
                         "${(trip.distance / 1000).toStringAsFixed(2)} km",
                         style: TextStyle(
@@ -78,16 +81,20 @@ class TripDetailScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _StatItem(label: i18n.t('total_events'), value: "${trip.eventCount}"),
                       _StatItem(
-                        label: i18n.t('avg_speed'), 
+                          label: i18n.t('total_events'),
+                          value: "${trip.eventCount}"),
+                      _StatItem(
+                        label: i18n.t('avg_speed'),
                         value: trip.endTime != null && trip.distance > 0
-                          ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
-                          : "--",
+                            ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
+                            : "--",
                       ),
-                      _StatItem(label: i18n.t('duration'), value: trip.endTime != null 
-                        ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}" 
-                        : "--"),
+                      _StatItem(
+                          label: i18n.t('duration'),
+                          value: trip.endTime != null
+                              ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}"
+                              : "--"),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -96,37 +103,49 @@ class TripDetailScreen extends ConsumerWidget {
                     _buildEventDistributionBar(events),
                     const SizedBox(height: 12),
                   ],
-                  Divider(height: 24, color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
-                  Text(
-                    i18n.t('event_list'), 
-                    style: TextStyle(
-                      fontSize: 16, 
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    )
-                  ),
+                  Divider(
+                      height: 24,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withOpacity(0.5)),
+                  Text(i18n.t('event_list'),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      )),
                   const SizedBox(height: 4),
                   // 事件列表
                   if (events.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: Text(i18n.t('no_trips'), style: TextStyle(color: Theme.of(context).colorScheme.outline))),
+                      child: Center(
+                          child: Text(i18n.t('no_trips'),
+                              style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.outline))),
                     )
                   else
                     ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: events.length,
-                      separatorBuilder: (context, index) => Divider(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5), height: 1),
+                      separatorBuilder: (context, index) => Divider(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withOpacity(0.5),
+                          height: 1),
                       itemBuilder: (context, index) {
                         final e = events[index];
                         // 统一使用 i18nProvider 提供的方法进行翻译
-                        final typeLabel = i18n.t(e.type); 
-                        
+                        final typeLabel = i18n.t(e.type);
+
                         // 定义不同事件类型的颜色和图标
                         Color eventColor;
                         IconData eventIcon;
-                        
+
                         switch (e.type) {
                           case 'rapidAcceleration':
                             eventColor = const Color(0xFFFF9500);
@@ -158,25 +177,33 @@ class TripDetailScreen extends ConsumerWidget {
                         if (e.sensorData.isNotEmpty) {
                           double maxVal = 0;
                           for (var p in e.sensorData) {
-                            if (e.type == 'rapidAcceleration' || e.type == 'rapidDeceleration') {
-                              if (p.ay != null && p.ay!.abs() > maxVal.abs()) maxVal = p.ay!;
+                            if (e.type == 'rapidAcceleration' ||
+                                e.type == 'rapidDeceleration') {
+                              if (p.ay != null && p.ay!.abs() > maxVal.abs())
+                                maxVal = p.ay!;
                             } else if (e.type == 'wobble') {
-                              if (p.ax != null && p.ax!.abs() > maxVal.abs()) maxVal = p.ax!;
+                              if (p.ax != null && p.ax!.abs() > maxVal.abs())
+                                maxVal = p.ax!;
                             } else if (e.type == 'bump') {
-                              if (p.az != null && p.az!.abs() > maxVal.abs()) maxVal = p.az!;
+                              if (p.az != null && p.az!.abs() > maxVal.abs())
+                                maxVal = p.az!;
                             } else {
                               // 其他类型取合力加速度
-                              final g = (p.ax ?? 0) * (p.ax ?? 0) + (p.ay ?? 0) * (p.ay ?? 0) + (p.az ?? 0) * (p.az ?? 0);
+                              final g = (p.ax ?? 0) * (p.ax ?? 0) +
+                                  (p.ay ?? 0) * (p.ay ?? 0) +
+                                  (p.az ?? 0) * (p.az ?? 0);
                               if (g > maxVal) maxVal = g;
                             }
                           }
                           // 如果是合力，记得开方。如果是单轴，直接取绝对值并转为 G
-                          double finalG = e.type == 'manual' ? 0 : (maxVal.abs() / 9.80665);
+                          double finalG =
+                              e.type == 'manual' ? 0 : (maxVal.abs() / 9.80665);
                           parameter = "${finalG.toStringAsFixed(2)} G";
                         }
 
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 4),
                           leading: Container(
                             width: 44,
                             height: 44,
@@ -185,7 +212,7 @@ class TripDetailScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
-                              eventIcon, 
+                              eventIcon,
                               color: eventColor,
                               size: 24,
                             ),
@@ -195,7 +222,8 @@ class TripDetailScreen extends ConsumerWidget {
                               Text(
                                 typeLabel,
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
@@ -215,26 +243,38 @@ class TripDetailScreen extends ConsumerWidget {
                             padding: const EdgeInsets.only(top: 4),
                             child: Row(
                               children: [
-                                Icon(Icons.access_time, size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                                Icon(Icons.access_time,
+                                    size: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withOpacity(0.6)),
                                 const SizedBox(width: 4),
                                 Text(
                                   DateFormat('HH:mm:ss').format(e.timestamp),
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                     fontSize: 13,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceVariant,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceVariant,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     e.source,
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -254,6 +294,7 @@ class TripDetailScreen extends ConsumerWidget {
       ),
     );
   }
+
   Widget _buildEventDistributionBar(List<dynamic> events) {
     final counts = <String, int>{};
     for (var e in events) {
@@ -296,26 +337,24 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          value, 
-          style: TextStyle(
-            fontSize: 22, 
-            fontWeight: FontWeight.w800, 
-            color: Theme.of(context).colorScheme.primary,
-            letterSpacing: -0.5,
-          )
-        ),
+        Text(value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).colorScheme.primary,
+              letterSpacing: -0.5,
+            )),
         const SizedBox(height: 4),
-        Text(
-          label, 
-          style: TextStyle(
-            fontSize: 12, 
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
-          )
-        ),
+        Text(label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant
+                  .withOpacity(0.8),
+            )),
       ],
     );
   }
 }
-

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
+final settingsProvider =
+    StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
   return SettingsNotifier();
 });
 
@@ -43,7 +44,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // 加载主题
     final themeIndex = prefs.getInt(_themeKey) ?? ThemeMode.system.index;
     final themeMode = ThemeMode.values[themeIndex];
@@ -56,7 +57,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     }
 
     // 加载敏感度
-    final sensitivityIndex = prefs.getInt(_sensitivityKey) ?? SensitivityLevel.low.index;
+    final sensitivityIndex =
+        prefs.getInt(_sensitivityKey) ?? SensitivityLevel.low.index;
     final sensitivity = SensitivityLevel.values[sensitivityIndex];
 
     state = SettingsState(
@@ -88,4 +90,3 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     }
   }
 }
-

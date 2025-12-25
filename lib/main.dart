@@ -9,11 +9,11 @@ import 'package:puked/features/settings/providers/settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 初始化 ProviderContainer
   final container = ProviderContainer();
   await container.read(storageServiceProvider).init();
-  
+
   runApp(
     UncontrolledProviderScope(
       container: container,
@@ -41,14 +41,14 @@ class PickyPassengerApp extends ConsumerWidget {
 
     final baseTheme = ThemeData(
       useMaterial3: true,
-      fontFamily: 'PingFang SC', 
+      fontFamily: 'PingFang SC',
       fontFamilyFallback: fontFallback,
     );
 
     return MaterialApp(
       title: 'Puked',
       debugShowCheckedModeBanner: false,
-      
+
       // 国际化配置
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -61,10 +61,10 @@ class PickyPassengerApp extends ConsumerWidget {
         Locale('en'),
       ],
       locale: settings.locale,
-      
+
       // 主题配置
       themeMode: settings.themeMode,
-      
+
       // 白天模式 (Apple Level Design)
       theme: baseTheme.copyWith(
         brightness: Brightness.light,
@@ -85,10 +85,11 @@ class PickyPassengerApp extends ConsumerWidget {
         cardTheme: CardThemeData(
           color: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
       ),
-      
+
       // 黑夜模式 (Apple Level Design)
       darkTheme: baseTheme.copyWith(
         brightness: Brightness.dark,
@@ -109,10 +110,11 @@ class PickyPassengerApp extends ConsumerWidget {
         cardTheme: CardThemeData(
           color: const Color(0xFF1C1C1E),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
       ),
-      
+
       home: const RecordingScreen(),
     );
   }

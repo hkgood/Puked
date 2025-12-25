@@ -34,8 +34,10 @@ class _GForceBallState extends State<GForceBall> {
   void didUpdateWidget(GForceBall oldWidget) {
     super.didUpdateWidget(oldWidget);
     // 对显示数值进行平滑插值 (LERP)，消除视觉抖动
-    _displayAccel = _displayAccel * (1.0 - _lerpCoeff) + widget.acceleration * _lerpCoeff;
-    _displayGyro = _displayGyro * (1.0 - _lerpCoeff) + widget.gyroscope * _lerpCoeff;
+    _displayAccel =
+        _displayAccel * (1.0 - _lerpCoeff) + widget.acceleration * _lerpCoeff;
+    _displayGyro =
+        _displayGyro * (1.0 - _lerpCoeff) + widget.gyroscope * _lerpCoeff;
   }
 
   @override
@@ -92,10 +94,12 @@ class Real3DSensorPainter extends CustomPainter {
 
     // 2. 绘制球体背景和网格 (继续增加透明度，使其更加隐约)
     final bgPaint = Paint()
-      ..color = isDarkMode ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02)
+      ..color = isDarkMode
+          ? Colors.white.withOpacity(0.03)
+          : Colors.black.withOpacity(0.02)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
-    
+
     _draw3DSphereGrid(canvas, center, radius, sphereMatrix, bgPaint);
 
     // 3. 绘制始终展示的固定 XYZ 轴 (随球体旋转)
@@ -103,7 +107,7 @@ class Real3DSensorPainter extends CustomPainter {
 
     // 4. 计算并绘制受力分量 (G值)
     double gX = accel.x / 9.80665;
-    double gY = -accel.y / 9.80665; 
+    double gY = -accel.y / 9.80665;
     double gZ = (accel.z - 9.80665) / 9.80665;
 
     final colorX = const Color(0xFFFF453A); // Apple Red
@@ -111,14 +115,17 @@ class Real3DSensorPainter extends CustomPainter {
     final colorZ = const Color(0xFF0A84FF); // Apple Blue
 
     // 绘制受力分量 (动态变化的线，加粗)
-    _drawForceComponent(canvas, center, radius, sphereMatrix, v.Vector3(gX, 0, 0), colorX);
-    _drawForceComponent(canvas, center, radius, sphereMatrix, v.Vector3(0, gY, 0), colorY);
-    _drawForceComponent(canvas, center, radius, sphereMatrix, v.Vector3(0, 0, gZ), colorZ);
+    _drawForceComponent(
+        canvas, center, radius, sphereMatrix, v.Vector3(gX, 0, 0), colorX);
+    _drawForceComponent(
+        canvas, center, radius, sphereMatrix, v.Vector3(0, gY, 0), colorY);
+    _drawForceComponent(
+        canvas, center, radius, sphereMatrix, v.Vector3(0, 0, gZ), colorZ);
 
     // 5. 绘制核心指示球和合力丝带
     v.Vector3 forceVec = v.Vector3(gX, gY, gZ);
     double forceMagnitude = forceVec.length;
-    
+
     canvas.drawCircle(center, 2, Paint()..color = color.withOpacity(0.5));
 
     if (forceMagnitude > 0.01) {
@@ -128,9 +135,11 @@ class Real3DSensorPainter extends CustomPainter {
         ballPos3D.scale(radius * 0.95);
       }
 
-      v.Vector4 projectedPos = sphereMatrix.transform(v.Vector4(ballPos3D.x, ballPos3D.y, ballPos3D.z, 1.0));
+      v.Vector4 projectedPos = sphereMatrix
+          .transform(v.Vector4(ballPos3D.x, ballPos3D.y, ballPos3D.z, 1.0));
       double w = projectedPos.w == 0 ? 1.0 : projectedPos.w;
-      Offset ballPos2D = center + Offset(projectedPos.x / w, projectedPos.y / w);
+      Offset ballPos2D =
+          center + Offset(projectedPos.x / w, projectedPos.y / w);
 
       // 合力丝带 (加粗)
       final vectorPaint = Paint()
@@ -148,7 +157,8 @@ class Real3DSensorPainter extends CustomPainter {
         ..shader = RadialGradient(
           center: const Alignment(-0.3, -0.4),
           colors: [Colors.white, color, color.withOpacity(0.8)],
-        ).createShader(Rect.fromCircle(center: ballPos2D, radius: radius * 0.1 * depthScale));
+        ).createShader(Rect.fromCircle(
+            center: ballPos2D, radius: radius * 0.1 * depthScale));
       canvas.drawCircle(ballPos2D, radius * 0.1 * depthScale, ballPaint);
     }
 
@@ -158,18 +168,23 @@ class Real3DSensorPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
     canvas.drawCircle(center, radius, ringPaint);
-    
+
     final dashPaint = Paint()
-      ..color = isDarkMode ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.1)
+      ..color = isDarkMode
+          ? Colors.white.withOpacity(0.15)
+          : Colors.black.withOpacity(0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     _drawDashCircle(canvas, center, radius * 0.5, dashPaint);
   }
 
-  void _drawForceComponent(Canvas canvas, Offset center, double radius, v.Matrix4 matrix, v.Vector3 vec, Color color) {
+  void _drawForceComponent(Canvas canvas, Offset center, double radius,
+      v.Matrix4 matrix, v.Vector3 vec, Color color) {
     if (vec.length < 0.01) return;
-    v.Vector3 endPoint3D = v.Vector3(vec.x * radius, vec.y * radius, vec.z * radius);
-    v.Vector4 p = matrix.transform(v.Vector4(endPoint3D.x, endPoint3D.y, endPoint3D.z, 1.0));
+    v.Vector3 endPoint3D =
+        v.Vector3(vec.x * radius, vec.y * radius, vec.z * radius);
+    v.Vector4 p = matrix
+        .transform(v.Vector4(endPoint3D.x, endPoint3D.y, endPoint3D.z, 1.0));
     double w = p.w == 0 ? 1.0 : p.w;
     Offset endPoint2D = center + Offset(p.x / w, p.y / w);
 
@@ -181,7 +196,8 @@ class Real3DSensorPainter extends CustomPainter {
     canvas.drawCircle(endPoint2D, 4, Paint()..color = color);
   }
 
-  void _draw3DSphereGrid(Canvas canvas, Offset center, double radius, v.Matrix4 matrix, Paint paint) {
+  void _draw3DSphereGrid(Canvas canvas, Offset center, double radius,
+      v.Matrix4 matrix, Paint paint) {
     const int segments = 8;
     for (int i = 1; i < segments; i++) {
       double lat = (i / segments) * pi;
@@ -193,7 +209,8 @@ class Real3DSensorPainter extends CustomPainter {
     }
   }
 
-  void _draw3DCircle(Canvas canvas, Offset center, double radius, v.Matrix4 matrix, Paint paint, double angle, bool isLat) {
+  void _draw3DCircle(Canvas canvas, Offset center, double radius,
+      v.Matrix4 matrix, Paint paint, double angle, bool isLat) {
     const int pointsCount = 24;
     final path = Path();
     bool first = true;
@@ -222,39 +239,53 @@ class Real3DSensorPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawDashCircle(Canvas canvas, Offset center, double radius, Paint paint) {
+  void _drawDashCircle(
+      Canvas canvas, Offset center, double radius, Paint paint) {
     const int dashCount = 40;
     const double dashAngle = (2 * pi) / dashCount;
     for (int i = 0; i < dashCount; i++) {
       if (i % 2 == 0) {
-        canvas.drawArc(Rect.fromCircle(center: center, radius: radius), i * dashAngle, dashAngle, false, paint);
+        canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+            i * dashAngle, dashAngle, false, paint);
       }
     }
   }
 
-  void _drawFixedAxes(Canvas canvas, Offset center, double radius, v.Matrix4 matrix) {
-    final paintX = Paint()..color = const Color(0xFFFF453A).withOpacity(0.25)..strokeWidth = 1.5;
-    final paintY = Paint()..color = const Color(0xFF32D74B).withOpacity(0.25)..strokeWidth = 1.5;
-    final paintZ = Paint()..color = const Color(0xFF0A84FF).withOpacity(0.25)..strokeWidth = 1.5;
+  void _drawFixedAxes(
+      Canvas canvas, Offset center, double radius, v.Matrix4 matrix) {
+    final paintX = Paint()
+      ..color = const Color(0xFFFF453A).withOpacity(0.25)
+      ..strokeWidth = 1.5;
+    final paintY = Paint()
+      ..color = const Color(0xFF32D74B).withOpacity(0.25)
+      ..strokeWidth = 1.5;
+    final paintZ = Paint()
+      ..color = const Color(0xFF0A84FF).withOpacity(0.25)
+      ..strokeWidth = 1.5;
 
     // X 轴 (横向)
-    _draw3DLine(canvas, center, matrix, v.Vector3(-radius, 0, 0), v.Vector3(radius, 0, 0), paintX);
+    _draw3DLine(canvas, center, matrix, v.Vector3(-radius, 0, 0),
+        v.Vector3(radius, 0, 0), paintX);
     // Y 轴 (纵向)
-    _draw3DLine(canvas, center, matrix, v.Vector3(0, -radius, 0), v.Vector3(0, radius, 0), paintY);
+    _draw3DLine(canvas, center, matrix, v.Vector3(0, -radius, 0),
+        v.Vector3(0, radius, 0), paintY);
     // Z 轴 (垂向)
-    _draw3DLine(canvas, center, matrix, v.Vector3(0, 0, -radius), v.Vector3(0, 0, radius), paintZ);
+    _draw3DLine(canvas, center, matrix, v.Vector3(0, 0, -radius),
+        v.Vector3(0, 0, radius), paintZ);
   }
 
-  void _draw3DLine(Canvas canvas, Offset center, v.Matrix4 matrix, v.Vector3 start, v.Vector3 end, Paint paint) {
-    v.Vector4 pStart = matrix.transform(v.Vector4(start.x, start.y, start.z, 1.0));
+  void _draw3DLine(Canvas canvas, Offset center, v.Matrix4 matrix,
+      v.Vector3 start, v.Vector3 end, Paint paint) {
+    v.Vector4 pStart =
+        matrix.transform(v.Vector4(start.x, start.y, start.z, 1.0));
     v.Vector4 pEnd = matrix.transform(v.Vector4(end.x, end.y, end.z, 1.0));
-    
+
     double wS = pStart.w == 0 ? 1.0 : pStart.w;
     double wE = pEnd.w == 0 ? 1.0 : pEnd.w;
-    
+
     Offset start2D = center + Offset(pStart.x / wS, pStart.y / wS);
     Offset end2D = center + Offset(pEnd.x / wE, pEnd.y / wE);
-    
+
     canvas.drawLine(start2D, end2D, paint);
   }
 

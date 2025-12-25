@@ -15,7 +15,7 @@ class TripEvent {
   final String source; // "AUTO" or "MANUAL"
   final double? latitude;
   final double? longitude;
-  
+
   // 核心回溯数据片段 (30Hz)
   final List<SensorData> sensorFragment;
 
@@ -30,18 +30,17 @@ class TripEvent {
   });
 
   Map<String, dynamic> toJson() => {
-    'event_id': id,
-    'timestamp': timestamp.millisecondsSinceEpoch / 1000.0,
-    'type': type.name,
-    'source': source,
-    'location': {
-      'lat': latitude,
-      'lng': longitude,
-    },
-    'sensor_fragment': {
-      'sampling_rate': '30Hz',
-      'data': sensorFragment.map((e) => e.toJson()).toList(),
-    },
-  };
+        'event_id': id,
+        'timestamp': timestamp.millisecondsSinceEpoch / 1000.0,
+        'type': type.name,
+        'source': source,
+        'location': {
+          'lat': latitude,
+          'lng': longitude,
+        },
+        'sensor_fragment': {
+          'sampling_rate': '30Hz',
+          'data': sensorFragment.map((e) => e.toJson()).toList(),
+        },
+      };
 }
-

@@ -48,12 +48,13 @@ class _TripMapViewState extends State<TripMapView> {
   void _recenterToCurrentLocation() {
     if (widget.currentPosition != null) {
       _mapController.move(
-        LatLng(widget.currentPosition!.latitude, widget.currentPosition!.longitude), 
-        _mapController.camera.zoom
-      );
+          LatLng(widget.currentPosition!.latitude,
+              widget.currentPosition!.longitude),
+          _mapController.camera.zoom);
     } else if (widget.trajectory.isNotEmpty) {
       final last = widget.trajectory.last;
-      _mapController.move(LatLng(last.lat, last.lng), _mapController.camera.zoom);
+      _mapController.move(
+          LatLng(last.lat, last.lng), _mapController.camera.zoom);
     }
   }
 
@@ -62,7 +63,7 @@ class _TripMapViewState extends State<TripMapView> {
     super.didUpdateWidget(oldWidget);
     // 实时模式下，如果没有用户交互，地图跟随当前位置
     if (widget.isLive && !_isUserInteracting) {
-      if (widget.currentPosition != oldWidget.currentPosition || 
+      if (widget.currentPosition != oldWidget.currentPosition ||
           widget.trajectory.length != oldWidget.trajectory.length) {
         _recenterToCurrentLocation();
       }
@@ -72,18 +73,20 @@ class _TripMapViewState extends State<TripMapView> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     // 初始中心点逻辑
     LatLng center = LatLng(31.2304, 121.4737);
     if (widget.currentPosition != null) {
-      center = LatLng(widget.currentPosition!.latitude, widget.currentPosition!.longitude);
+      center = LatLng(
+          widget.currentPosition!.latitude, widget.currentPosition!.longitude);
     } else if (widget.trajectory.isNotEmpty) {
       if (widget.isLive) {
         // 实时模式：跟随最新点
         center = LatLng(widget.trajectory.last.lat, widget.trajectory.last.lng);
       } else {
         // 详情模式：初始中心点设为轨迹的几何中心，减少 fitCamera 时的视野跳变
-        final points = widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
+        final points =
+            widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
         final bounds = LatLngBounds.fromPoints(points);
         center = bounds.center;
       }
@@ -108,7 +111,8 @@ class _TripMapViewState extends State<TripMapView> {
             // 延迟一帧确保地图容器尺寸已稳定，防止 fitCamera 计算出的视野出现灰色空白
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              final points = widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
+              final points =
+                  widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
               if (points.isNotEmpty) {
                 final bounds = LatLngBounds.fromPoints(points);
                 _mapController.fitCamera(
@@ -127,11 +131,13 @@ class _TripMapViewState extends State<TripMapView> {
         // 1. CartoDB 瓦片源 (WGS-84)
         TileLayer(
           // dark_all 为深灰样式，light_all 为浅灰样式
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/${isDarkMode ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png',
+          urlTemplate:
+              'https://{s}.basemaps.cartocdn.com/${isDarkMode ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png',
           subdomains: const ['a', 'b', 'c', 'd'],
           retinaMode: RetinaMode.isHighDensity(context),
           // 优化瓦片显示逻辑，减少灰色区域
-          tileDisplay: const TileDisplay.fadeIn(duration: Duration(milliseconds: 300)),
+          tileDisplay:
+              const TileDisplay.fadeIn(duration: Duration(milliseconds: 300)),
           errorTileCallback: (tile, error, stackTrace) {
             debugPrint("Tile load error: $error");
           },
@@ -139,50 +145,54 @@ class _TripMapViewState extends State<TripMapView> {
           keepBuffer: 3,
           panBuffer: 1,
         ),
-        
+
         // 2. 轨迹线 (WGS-84)
         PolylineLayer(
           polylines: [
             Polyline(
-              points: widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList(),
+              points:
+                  widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList(),
               color: Colors.greenAccent,
               strokeWidth: 4,
             ),
           ],
         ),
-        
+
         // 3. 事件标记 (根据类型差异化图标和颜色)
         MarkerLayer(
-          markers: widget.events.map((e) {
-            if (e.lat != null && e.lng != null) {
-              final config = _getEventConfig(e.type);
-              return Marker(
-                point: LatLng(e.lat!, e.lng!),
-                width: 28, // 缩小图标尺寸 (从 32 缩小到 28)
-                height: 28,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: config.color.withOpacity(0.95),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
+          markers: widget.events
+              .map((e) {
+                if (e.lat != null && e.lng != null) {
+                  final config = _getEventConfig(e.type);
+                  return Marker(
+                    point: LatLng(e.lat!, e.lng!),
+                    width: 28, // 缩小图标尺寸 (从 32 缩小到 28)
+                    height: 28,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: config.color.withOpacity(0.95),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Icon(
-                    config.icon,
-                    color: Colors.white,
-                    size: 14, // 图标随比例缩小
-                  ),
-                ),
-              );
-            }
-            return null;
-          }).whereType<Marker>().toList(),
+                      child: Icon(
+                        config.icon,
+                        color: Colors.white,
+                        size: 14, // 图标随比例缩小
+                      ),
+                    ),
+                  );
+                }
+                return null;
+              })
+              .whereType<Marker>()
+              .toList(),
         ),
 
         // 4. 起终点标记 (仅非实时模式显示)
@@ -191,37 +201,46 @@ class _TripMapViewState extends State<TripMapView> {
             markers: [
               // 起点
               Marker(
-                point: LatLng(widget.trajectory.first.lat, widget.trajectory.first.lng),
+                point: LatLng(
+                    widget.trajectory.first.lat, widget.trajectory.first.lng),
                 width: 28,
                 height: 28,
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 4)
+                    ],
                   ),
-                  child: const Icon(Icons.play_circle_fill, color: Colors.green, size: 24),
+                  child: const Icon(Icons.play_circle_fill,
+                      color: Colors.green, size: 24),
                 ),
               ),
               // 终点
               Marker(
-                point: LatLng(widget.trajectory.last.lat, widget.trajectory.last.lng),
+                point: LatLng(
+                    widget.trajectory.last.lat, widget.trajectory.last.lng),
                 width: 28,
                 height: 28,
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 4)
+                    ],
                   ),
-                  child: const Icon(Icons.stop_circle, color: Colors.red, size: 24),
+                  child: const Icon(Icons.stop_circle,
+                      color: Colors.red, size: 24),
                 ),
               ),
             ],
           ),
 
         // 5. 当前位置点 (仅实时录制显示)
-        if (widget.isLive && (widget.currentPosition != null || widget.trajectory.isNotEmpty))
+        if (widget.isLive &&
+            (widget.currentPosition != null || widget.trajectory.isNotEmpty))
           MarkerLayer(
             markers: [
               Marker(
@@ -261,7 +280,8 @@ class _CurrentLocationMarker extends StatefulWidget {
   State<_CurrentLocationMarker> createState() => _CurrentLocationMarkerState();
 }
 
-class _CurrentLocationMarkerState extends State<_CurrentLocationMarker> with SingleTickerProviderStateMixin {
+class _CurrentLocationMarkerState extends State<_CurrentLocationMarker>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -293,7 +313,8 @@ class _CurrentLocationMarkerState extends State<_CurrentLocationMarker> with Sin
               height: 12 + (28 * _controller.value),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blueAccent.withOpacity(0.4 * (1 - _controller.value)),
+                color: Colors.blueAccent
+                    .withOpacity(0.4 * (1 - _controller.value)),
               ),
             ),
             // 中心点

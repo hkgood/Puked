@@ -29,7 +29,8 @@ class StorageService {
     return trip;
   }
 
-  Future<void> addTrajectoryPoint(int tripId, TrajectoryPoint point, {double? distance}) async {
+  Future<void> addTrajectoryPoint(int tripId, TrajectoryPoint point,
+      {double? distance}) async {
     final isar = _isar;
     if (isar == null) return;
     // 使用非阻塞事务并减少频繁写入带来的 UI 抖动
@@ -89,8 +90,10 @@ class StorageService {
           // 清理关联的轨迹点和事件
           await trip.trajectory.load();
           await trip.events.load();
-          await isar.trajectoryPoints.deleteAll(trip.trajectory.map((e) => e.id).toList());
-          await isar.recordedEvents.deleteAll(trip.events.map((e) => e.id).toList());
+          await isar.trajectoryPoints
+              .deleteAll(trip.trajectory.map((e) => e.id).toList());
+          await isar.recordedEvents
+              .deleteAll(trip.events.map((e) => e.id).toList());
           await isar.trips.delete(id);
         }
       }

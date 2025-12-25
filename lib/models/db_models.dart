@@ -11,13 +11,13 @@ class Trip {
 
   late DateTime startTime;
   DateTime? endTime;
-  
+
   String? carModel;
   String? notes;
 
   // 轨迹点列表
   final trajectory = IsarLinks<TrajectoryPoint>();
-  
+
   // 关联的事件列表
   final events = IsarLinks<RecordedEvent>();
 
@@ -45,7 +45,7 @@ class RecordedEvent {
   late DateTime timestamp;
   late String type; // rapidAcceleration, rapidDeceleration, etc.
   late String source; // AUTO, MANUAL
-  
+
   double? lat;
   double? lng;
 
@@ -68,4 +68,3 @@ class SensorPointEmbedded {
   double? mz;
   int? offsetMs;
 }
-

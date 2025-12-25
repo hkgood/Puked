@@ -24,7 +24,8 @@ class I18n {
       'wobble': 'Wobble',
       'manual': 'Manual Mark',
       'recorded_msg': 'Recorded (Last 10s data)',
-      'calibration_tip': 'Please keep the vehicle stationary and the phone fixed',
+      'calibration_tip':
+          'Please keep the vehicle stationary and the phone fixed',
       'no_trips': 'No trip records',
       'exporting': 'Exporting data...',
       'car_model': 'Car Model',

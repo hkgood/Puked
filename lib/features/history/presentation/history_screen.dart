@@ -39,7 +39,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Future<void> _deleteSelected() async {
     if (_selectedIds.isEmpty) return;
-    
+
     final i18n = ref.read(i18nProvider);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -49,7 +49,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: Row(
           children: [
-            Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+            Icon(Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error),
             const SizedBox(width: 12),
             Text(
               i18n.t('delete_trips'),
@@ -62,7 +63,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ],
         ),
         content: Text(
-          i18n.t('delete_trips_confirm', args: [_selectedIds.length.toString()]),
+          i18n.t('delete_trips_confirm',
+              args: [_selectedIds.length.toString()]),
           style: TextStyle(
             fontSize: 15,
             height: 1.5,
@@ -87,11 +89,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.errorContainer.withOpacity(0.8),
+              backgroundColor:
+                  Theme.of(context).colorScheme.errorContainer.withOpacity(0.8),
               foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
             ),
             child: Text(
               i18n.t('delete'),
@@ -115,16 +119,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget build(BuildContext context) {
     final storage = ref.watch(storageServiceProvider);
     final i18n = ref.watch(i18nProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _isDeleteMode ? i18n.t('select_items') : i18n.t('history'), 
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          )
-        ),
+        title: Text(_isDeleteMode ? i18n.t('select_items') : i18n.t('history'),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            )),
         actions: [
           if (!_isDeleteMode)
             IconButton(
@@ -136,7 +138,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
               child: Text(
                 "${i18n.t('delete')} (${_selectedIds.length})",
-                style: TextStyle(color: _selectedIds.isEmpty ? Colors.grey : Theme.of(context).colorScheme.error),
+                style: TextStyle(
+                    color: _selectedIds.isEmpty
+                        ? Colors.grey
+                        : Theme.of(context).colorScheme.error),
               ),
             ),
             IconButton(
@@ -146,7 +151,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ]
         ],
         backgroundColor: Colors.transparent,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        iconTheme:
+            IconThemeData(color: Theme.of(context).colorScheme.onSurface),
       ),
       body: FutureBuilder<List<Trip>>(
         future: storage.getAllTrips(),
@@ -154,12 +160,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           final trips = snapshot.data ?? [];
           if (trips.isEmpty) {
             return Center(
               child: Text(
-                i18n.t('no_trips'), 
+                i18n.t('no_trips'),
                 style: TextStyle(color: Theme.of(context).colorScheme.outline),
               ),
             );
@@ -171,7 +177,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             itemBuilder: (context, index) {
               final trip = trips[index];
               return _TripCard(
-                trip: trip, 
+                trip: trip,
                 isDeleteMode: _isDeleteMode,
                 isSelected: _selectedIds.contains(trip.id),
                 onTap: _isDeleteMode ? () => _toggleSelection(trip.id) : null,
@@ -193,7 +199,7 @@ class _TripCard extends ConsumerWidget {
   final ValueChanged<bool?>? onSelectChanged;
 
   const _TripCard({
-    required this.trip, 
+    required this.trip,
     this.isDeleteMode = false,
     this.isSelected = false,
     this.onTap,
@@ -204,31 +210,35 @@ class _TripCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(trip.startTime);
     final i18n = ref.watch(i18nProvider);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected 
-          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
-          : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        color: isSelected
+            ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+            : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected
-            ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
-            : Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3)
-        ),
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
+                : Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withOpacity(0.3)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap ?? () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => TripDetailScreen(trip: trip)),
-              );
-            },
+            onTap: onTap ??
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => TripDetailScreen(trip: trip)),
+                  );
+                },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -244,10 +254,14 @@ class _TripCard extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.route, color: Theme.of(context).colorScheme.primary),
+                    child: Icon(Icons.route,
+                        color: Theme.of(context).colorScheme.primary),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -257,16 +271,19 @@ class _TripCard extends ConsumerWidget {
                         Text(
                           dateStr,
                           style: TextStyle(
-                            fontWeight: FontWeight.bold, 
+                            fontWeight: FontWeight.bold,
                             fontSize: 16,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "${trip.carModel ?? i18n.t('car_model')} · ${i18n.t('events_count', args: [trip.eventCount.toString()])} · ${(trip.distance / 1000).toStringAsFixed(2)} km",
+                          "${trip.carModel ?? i18n.t('car_model')} · ${i18n.t('events_count', args: [
+                                trip.eventCount.toString()
+                              ])} · ${(trip.distance / 1000).toStringAsFixed(2)} km",
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant, 
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                         ),
@@ -277,13 +294,19 @@ class _TripCard extends ConsumerWidget {
                     IconButton(
                       onPressed: () async {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(i18n.t('exporting')), duration: const Duration(seconds: 1)),
+                          SnackBar(
+                              content: Text(i18n.t('exporting')),
+                              duration: const Duration(seconds: 1)),
                         );
                         await ref.read(exportServiceProvider).exportTrip(trip);
                       },
-                      icon: Icon(Icons.share_outlined, color: Theme.of(context).colorScheme.onSurface),
+                      icon: Icon(Icons.share_outlined,
+                          color: Theme.of(context).colorScheme.onSurface),
                       style: IconButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.05),
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.05),
                       ),
                     ),
                 ],

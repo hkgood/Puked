@@ -20,27 +20,29 @@ class SensorWaveform extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label, 
-          style: TextStyle(
-            color: isDarkMode 
-                ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)
-                : Theme.of(context).colorScheme.onSurface.withOpacity(0.8), 
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          )
-        ),
+        Text(label,
+            style: TextStyle(
+              color: isDarkMode
+                  ? Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withOpacity(0.7)
+                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            )),
         const SizedBox(height: 2),
         SizedBox(
           height: 48, // 减小高度从 60 到 48
           width: double.infinity,
           child: CustomPaint(
             painter: WaveformPainter(
-              data: data, 
-              color: color, 
+              data: data,
+              color: color,
               limit: limit,
-              gridColor: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.2),
+              gridColor:
+                  Theme.of(context).colorScheme.outlineVariant.withOpacity(0.2),
             ),
           ),
         ),
@@ -56,8 +58,8 @@ class WaveformPainter extends CustomPainter {
   final Color gridColor;
 
   WaveformPainter({
-    required this.data, 
-    required this.color, 
+    required this.data,
+    required this.color,
     required this.limit,
     required this.gridColor,
   });
@@ -81,14 +83,14 @@ class WaveformPainter extends CustomPainter {
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
     final path = Path();
-    final stepX = size.width / 100; 
+    final stepX = size.width / 100;
     final centerY = size.height / 2;
     final scaleY = size.height / (limit * 2);
 
     for (int i = 0; i < data.length; i++) {
       double x = i * stepX;
       double y = centerY - (data[i] * scaleY);
-      
+
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -100,22 +102,24 @@ class WaveformPainter extends CustomPainter {
     final gridPaint = Paint()
       ..color = gridColor.withOpacity(0.05)
       ..strokeWidth = 1;
-    
+
     // 绘制多条水平参考线增加细节感
-    canvas.drawLine(Offset(0, centerY * 0.5), Offset(size.width, centerY * 0.5), gridPaint);
-    canvas.drawLine(Offset(0, centerY * 1.5), Offset(size.width, centerY * 1.5), gridPaint);
-    
+    canvas.drawLine(
+        Offset(0, centerY * 0.5), Offset(size.width, centerY * 0.5), gridPaint);
+    canvas.drawLine(
+        Offset(0, centerY * 1.5), Offset(size.width, centerY * 1.5), gridPaint);
+
     // 主中心线稍微重一点
     final centerGridPaint = Paint()
       ..color = gridColor.withOpacity(0.15)
       ..strokeWidth = 1.2;
-    canvas.drawLine(Offset(0, centerY), Offset(size.width, centerY), centerGridPaint);
+    canvas.drawLine(
+        Offset(0, centerY), Offset(size.width, centerY), centerGridPaint);
 
     canvas.drawPath(path, shadowPaint); // 先画发光
-    canvas.drawPath(path, paint);       // 再画主体
+    canvas.drawPath(path, paint); // 再画主体
   }
 
   @override
   bool shouldRepaint(covariant WaveformPainter oldDelegate) => true;
 }
-

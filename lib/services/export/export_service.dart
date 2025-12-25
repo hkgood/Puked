@@ -17,28 +17,34 @@ class ExportService {
         "notes": trip.notes ?? "",
         "event_count": trip.eventCount,
       },
-      "trajectory": trip.trajectory.map((p) => {
-        "ts": p.timestamp.millisecondsSinceEpoch / 1000.0,
-        "lat": p.lat,
-        "lng": p.lng,
-        "speed": p.speed,
-      }).toList(),
-      "events": trip.events.map((e) => {
-        "event_id": e.uuid,
-        "timestamp": e.timestamp.millisecondsSinceEpoch / 1000.0,
-        "type": e.type,
-        "source": e.source,
-        "location": {"lat": e.lat, "lng": e.lng},
-        "sensor_fragment": {
-          "sampling_rate": "30Hz",
-          "data": e.sensorData.map((s) => {
-            "offset_ms": s.offsetMs,
-            "accel": {"x": s.ax, "y": s.ay, "z": s.az},
-            "gyro": {"x": s.gx, "y": s.gy, "z": s.gz},
-            "mag": {"x": s.mx, "y": s.my, "z": s.mz},
-          }).toList(),
-        }
-      }).toList(),
+      "trajectory": trip.trajectory
+          .map((p) => {
+                "ts": p.timestamp.millisecondsSinceEpoch / 1000.0,
+                "lat": p.lat,
+                "lng": p.lng,
+                "speed": p.speed,
+              })
+          .toList(),
+      "events": trip.events
+          .map((e) => {
+                "event_id": e.uuid,
+                "timestamp": e.timestamp.millisecondsSinceEpoch / 1000.0,
+                "type": e.type,
+                "source": e.source,
+                "location": {"lat": e.lat, "lng": e.lng},
+                "sensor_fragment": {
+                  "sampling_rate": "30Hz",
+                  "data": e.sensorData
+                      .map((s) => {
+                            "offset_ms": s.offsetMs,
+                            "accel": {"x": s.ax, "y": s.ay, "z": s.az},
+                            "gyro": {"x": s.gx, "y": s.gy, "z": s.gz},
+                            "mag": {"x": s.mx, "y": s.my, "z": s.mz},
+                          })
+                      .toList(),
+                }
+              })
+          .toList(),
     };
 
     // 1. 生成 JSON 字符串
@@ -46,7 +52,8 @@ class ExportService {
 
     // 2. 写入临时文件
     final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/Trip_${trip.uuid.substring(0, 8)}.json');
+    final file =
+        File('${directory.path}/Trip_${trip.uuid.substring(0, 8)}.json');
     await file.writeAsString(jsonString);
 
     // 3. 调用分享
@@ -56,4 +63,3 @@ class ExportService {
     );
   }
 }
-

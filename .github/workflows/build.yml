@@ -1,14 +1,16 @@
-name: Puked Build & Test
+name: Puked Build & Release
 
 on:
   push:
     branches: [ main, master ]
+    tags:
+      - 'v*' # 只有以 v 开头的标签（如 v0.0.1）才会触发 Release 流程
   pull_request:
     branches: [ main, master ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest # Switch to Ubuntu for faster and cheaper builds
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -40,9 +42,22 @@ jobs:
       - name: Build Android APK
         run: flutter build apk --release
 
-      # Upload artifacts
-      - name: Upload APK
+      # 1. 始终上传 Artifact，方便开发调试
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      # 2. 只有在推送 tag 时才创建 GitHub Release
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

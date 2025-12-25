@@ -4,14 +4,22 @@ title: Puked - 让舒适度可量化
 ---
 
 <style>
-  /* 隐藏 Minimal 主题自带的侧边栏和默认元素 */
-  header { display: none !important; }
-  section { width: 100% !important; float: none !important; margin: 0 auto !important; max-width: 800px !important; }
+  /* 隐藏 Minimal 主题自带的侧边栏、默认页脚和所有多余元素 */
+  header, .site-footer, footer { display: none !important; }
+  
+  /* 调整主容器 */
+  section { 
+    width: 100% !important; 
+    float: none !important; 
+    margin: 0 auto !important; 
+    max-width: 800px !important; 
+    padding-bottom: 150px !important; /* 为底部固定栏留出空间 */
+  }
   .wrapper { max-width: 800px !important; margin: 0 auto !important; padding: 20px !important; }
   
   /* 注入 Apple 风格的微调 */
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1d1d1f; }
-  h1 { font-weight: 700; font-size: 3rem; letter-spacing: -0.05rem; margin-bottom: 0.5rem; color: #1d1d1f; }
+  h1 { font-weight: 700; font-size: 3.5rem; letter-spacing: -0.05rem; margin-bottom: 0.5rem; color: #1d1d1f; }
   .subtitle { font-size: 1.5rem; color: #86868b; margin-bottom: 2.5rem; font-weight: 400; }
   
   .cta-button {
@@ -35,7 +43,23 @@ title: Puked - 让舒适度可量化
   .feature-item h3 { margin-bottom: 0.8rem; font-size: 1.2rem; font-weight: 600; }
   .feature-item p { color: #86868b; font-size: 1rem; line-height: 1.6; }
 
-  footer { border-top: 1px solid #d2d2d7; margin-top: 8rem; padding: 3rem 0; color: #86868b; font-size: 0.9rem; text-align: center; }
+  /* Apple 风格底部固定栏 */
+  .custom-sticky-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(210, 210, 215, 0.5);
+    padding: 20px 0;
+    z-index: 9999;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #86868b;
+  }
+  .custom-sticky-footer a { color: #0071e3; text-decoration: none; margin: 0 10px; }
 </style>
 
 <div align="center" style="padding-top: 6rem;">
@@ -70,12 +94,14 @@ title: Puked - 让舒适度可量化
       <p>专为车内交互设计的深色 UI 与全方位触觉反馈。毛玻璃元素，让专注回归驾驶本身。</p>
     </div>
   </div>
+</div>
 
-  <footer>
-    <p>
-      基于 GPL-3.0 开源 · 隐私第一 · 所有数据本地存储<br>
-      <a href="https://github.com/hkgood/Puked" style="color: #0071e3; text-decoration: none;">View on GitHub</a><br><br>
-      © 2024 Puked Team.
-    </p>
-  </footer>
+<div class="custom-sticky-footer">
+  <p>
+    基于 GPL-3.0 开源 · 隐私第一 · 所有数据本地存储<br>
+    <a href="https://github.com/hkgood/Puked">GitHub 源代码</a> | 
+    <a href="mailto:support@puked.app">反馈建议</a>
+    <br>
+    © 2024 Puked Team.
+  </p>
 </div>

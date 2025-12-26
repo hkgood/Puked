@@ -7,7 +7,6 @@ import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
-import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/features/recording/providers/recording_provider.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {

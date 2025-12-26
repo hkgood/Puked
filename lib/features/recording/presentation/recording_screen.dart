@@ -330,100 +330,6 @@ class RecordingScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLandscapeHeader(BuildContext context, dynamic i18n) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              i18n.t('app_name').toUpperCase(),
-              style: TextStyle(
-                letterSpacing: 1,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-                color: onSurface,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SettingsScreen())),
-            icon: Icon(Icons.settings, size: 20, color: onSurface),
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const HistoryScreen())),
-            icon: Icon(Icons.history, size: 20, color: onSurface),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLandscapeStats(RecordingState state, dynamic i18n) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _RecordingStat(
-              label: i18n.t('distance'),
-              value: "${(state.currentDistance / 1000).toStringAsFixed(2)} km",
-              icon: Icons.straighten,
-              compact: true),
-          _RecordingStat(
-              label: i18n.t('peak_g'),
-              value: "${state.maxGForce.toStringAsFixed(2)}G",
-              icon: Icons.shutter_speed,
-              compact: true),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLandscapeSensorSection(BuildContext context, dynamic i18n) {
-    return Container(
-      height: 110, // 从 140 压缩至 110
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Consumer(
-        builder: (context, ref, child) {
-          final sensorDataAsync = ref.watch(sensorStreamProvider);
-          return sensorDataAsync.maybeWhen(
-            data: (data) => Row(
-              children: [
-                GForceBall(
-                  acceleration: data.processedAccel,
-                  gyroscope: data.gyroscope,
-                  size: 70, // 缩小球体
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _SensorWaveformSection(data: data, i18n: i18n),
-                ),
-              ],
-            ),
-            orElse: () => const Center(child: CircularProgressIndicator()),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildMainActionButton(BuildContext context, WidgetRef ref,
       RecordingState state, bool isRecording, bool isCalibrating, dynamic i18n,
       {bool isLandscape = false}) {
@@ -707,54 +613,6 @@ class RecordingScreen extends ConsumerWidget {
       ),
     );
   }
-
-  List<Widget> _buildEventBreakdown(
-      List<dynamic> events, BuildContext context) {
-    final counts = <String, int>{};
-    for (var e in events) {
-      counts[e.type] = (counts[e.type] ?? 0) + 1;
-    }
-    final types = [
-      {
-        'type': 'rapidAcceleration',
-        'icon': Icons.speed,
-        'color': const Color(0xFFFF9500)
-      },
-      {
-        'type': 'rapidDeceleration',
-        'icon': Icons.trending_down,
-        'color': const Color(0xFFFF3B30)
-      },
-      {
-        'type': 'jerk',
-        'icon': Icons.priority_high,
-        'color': const Color(0xFF5856D6)
-      },
-      {
-        'type': 'bump',
-        'icon': Icons.vibration,
-        'color': const Color(0xFFAF52DE)
-      },
-      {'type': 'wobble', 'icon': Icons.waves, 'color': const Color(0xFF007AFF)},
-    ];
-    return types.map((config) {
-      final count = counts[config['type']] ?? 0;
-      if (count == 0) return const SizedBox.shrink();
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(
-          children: [
-            Icon(config['icon'] as IconData,
-                size: 14, color: config['color'] as Color),
-            const SizedBox(height: 2),
-            Text("$count",
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          ],
-        ),
-      );
-    }).toList();
-  }
 }
 
 // 内部私有组件：波形图部分，独立管理历史记录以避免主页面刷新
@@ -807,58 +665,6 @@ class _SensorWaveformSectionState extends State<_SensorWaveformSection> {
   }
 }
 
-class _TagButtonsGrid extends StatelessWidget {
-  final WidgetRef ref;
-  final dynamic i18n;
-  final bool isLandscape;
-  const _TagButtonsGrid(
-      {required this.ref, required this.i18n, this.isLandscape = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2, // 强制双列，减少高度
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: isLandscape ? 3.0 : 2.5,
-      children: [
-        _TagButton(
-          label: i18n.t('rapid_accel'),
-          icon: Icons.speed,
-          color: const Color(0xFFFF9500),
-          onPressed: () => ref
-              .read(recordingProvider.notifier)
-              .tagEvent(EventType.rapidAcceleration),
-        ),
-        _TagButton(
-          label: i18n.t('rapid_decel'),
-          icon: Icons.trending_down,
-          color: const Color(0xFFFF3B30),
-          onPressed: () => ref
-              .read(recordingProvider.notifier)
-              .tagEvent(EventType.rapidDeceleration),
-        ),
-        _TagButton(
-          label: i18n.t('bump'),
-          icon: Icons.vibration,
-          color: const Color(0xFF5856D6),
-          onPressed: () =>
-              ref.read(recordingProvider.notifier).tagEvent(EventType.bump),
-        ),
-        _TagButton(
-          label: i18n.t('wobble'),
-          icon: Icons.waves,
-          color: const Color(0xFF007AFF),
-          onPressed: () =>
-              ref.read(recordingProvider.notifier).tagEvent(EventType.wobble),
-        ),
-      ],
-    );
-  }
-}
-
 class _RecordingStat extends StatelessWidget {
   final String label;
   final String value;
@@ -893,58 +699,6 @@ class _RecordingStat extends StatelessWidget {
         Text(label,
             style: TextStyle(
                 fontSize: compact ? 10 : 11, fontWeight: FontWeight.w500)),
-      ],
-    );
-  }
-}
-
-class _TagButtonsVerticalList extends StatelessWidget {
-  final WidgetRef ref;
-  final dynamic i18n;
-  const _TagButtonsVerticalList({required this.ref, required this.i18n});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        _TagButton(
-          label: i18n.t('rapid_accel'),
-          icon: Icons.speed,
-          color: const Color(0xFFFF9500),
-          onPressed: () => ref
-              .read(recordingProvider.notifier)
-              .tagEvent(EventType.rapidAcceleration),
-          compact: true,
-        ),
-        const SizedBox(height: 8),
-        _TagButton(
-          label: i18n.t('rapid_decel'),
-          icon: Icons.trending_down,
-          color: const Color(0xFFFF3B30),
-          onPressed: () => ref
-              .read(recordingProvider.notifier)
-              .tagEvent(EventType.rapidDeceleration),
-          compact: true,
-        ),
-        const SizedBox(height: 8),
-        _TagButton(
-          label: i18n.t('bump'),
-          icon: Icons.vibration,
-          color: const Color(0xFF5856D6),
-          onPressed: () =>
-              ref.read(recordingProvider.notifier).tagEvent(EventType.bump),
-          compact: true,
-        ),
-        const SizedBox(height: 8),
-        _TagButton(
-          label: i18n.t('wobble'),
-          icon: Icons.waves,
-          color: const Color(0xFF007AFF),
-          onPressed: () =>
-              ref.read(recordingProvider.notifier).tagEvent(EventType.wobble),
-          compact: true,
-        ),
       ],
     );
   }

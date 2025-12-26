@@ -5,6 +5,10 @@ import 'package:latlong2/latlong.dart';
 import 'package:puked/common/widgets/trip_map_view.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
+import 'package:puked/services/storage/storage_service.dart';
+import 'package:puked/features/recording/providers/recording_provider.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
   final Trip trip;
@@ -17,11 +21,37 @@ class TripDetailScreen extends ConsumerStatefulWidget {
 
 class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   LatLng? _focusedLocation;
+  late Trip _currentTrip;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTrip = widget.trip;
+  }
+
+  Future<void> _editVehicleInfo() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            VehicleInfoScreen(tripId: _currentTrip.id, isEdit: true),
+      ),
+    );
+
+    if (result == true && mounted) {
+      // 重新加载数据
+      final storage = ref.read(storageServiceProvider);
+      final trips = await storage.getAllTrips();
+      setState(() {
+        _currentTrip = trips.firstWhere((t) => t.id == _currentTrip.id);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final i18n = ref.watch(i18nProvider);
-    final trip = widget.trip;
+    final trip = _currentTrip;
     final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(trip.startTime);
     final trajectory = trip.trajectory.toList();
     final events = trip.events.toList();
@@ -39,6 +69,105 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // 0. 车辆信息卡片
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      color: Colors.transparent, // 无论模式，去掉 Logo 下方的二次背景色
+                      shape: BoxShape.circle,
+                    ),
+                    child: trip.adasBrand != null
+                        ? SvgPicture.asset(
+                            'assets/logos/${trip.adasBrand}.svg',
+                            colorFilter:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const ColorFilter.mode(
+                                        Colors.white, BlendMode.srcIn)
+                                    : null,
+                          )
+                        : const Icon(Icons.help_outline, color: Colors.grey),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              (trip.carModel != null &&
+                                      trip.carModel!.isNotEmpty)
+                                  ? trip.carModel!
+                                  : i18n.t('car_model'),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (trip.softwareVersion != null &&
+                            trip.softwareVersion!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              trip.softwareVersion!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: _editVehicleInfo,
+                    icon: const Icon(Icons.edit_note, size: 18),
+                    label: Text(
+                      i18n.t('edit'),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.08),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // 1. 轨迹地图展示 (进一步压缩高度)
             Container(
               height: 240, // 从 300 压缩到 240
@@ -96,20 +225,26 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _StatItem(
-                            label: i18n.t('total_events'),
-                            value: "${trip.eventCount}"),
-                        _StatItem(
-                          label: i18n.t('avg_speed'),
-                          value: trip.endTime != null && trip.distance > 0
-                              ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
-                              : "--",
+                        Expanded(
+                          child: _StatItem(
+                              label: i18n.t('total_events'),
+                              value: "${trip.eventCount}"),
                         ),
-                        _StatItem(
-                            label: i18n.t('duration'),
-                            value: trip.endTime != null
-                                ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}"
-                                : "--"),
+                        Expanded(
+                          child: _StatItem(
+                            label: i18n.t('avg_speed'),
+                            value: trip.endTime != null && trip.distance > 0
+                                ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
+                                : "--",
+                          ),
+                        ),
+                        Expanded(
+                          child: _StatItem(
+                              label: i18n.t('duration'),
+                              value: trip.endTime != null
+                                  ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}"
+                                  : "--"),
+                        ),
                       ],
                     ),
                   ),

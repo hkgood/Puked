@@ -17,38 +17,48 @@ const TripSchema = CollectionSchema(
   name: r'Trip',
   id: 2639069002795865543,
   properties: {
-    r'carModel': PropertySchema(
+    r'adasBrand': PropertySchema(
       id: 0,
+      name: r'adasBrand',
+      type: IsarType.string,
+    ),
+    r'carModel': PropertySchema(
+      id: 1,
       name: r'carModel',
       type: IsarType.string,
     ),
     r'distance': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'distance',
       type: IsarType.double,
     ),
     r'endTime': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'endTime',
       type: IsarType.dateTime,
     ),
     r'eventCount': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'eventCount',
       type: IsarType.long,
     ),
     r'notes': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'notes',
       type: IsarType.string,
     ),
+    r'softwareVersion': PropertySchema(
+      id: 6,
+      name: r'softwareVersion',
+      type: IsarType.string,
+    ),
     r'startTime': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'startTime',
       type: IsarType.dateTime,
     ),
     r'uuid': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -101,6 +111,12 @@ int _tripEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.adasBrand;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.carModel;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -108,6 +124,12 @@ int _tripEstimateSize(
   }
   {
     final value = object.notes;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.softwareVersion;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -122,13 +144,15 @@ void _tripSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.carModel);
-  writer.writeDouble(offsets[1], object.distance);
-  writer.writeDateTime(offsets[2], object.endTime);
-  writer.writeLong(offsets[3], object.eventCount);
-  writer.writeString(offsets[4], object.notes);
-  writer.writeDateTime(offsets[5], object.startTime);
-  writer.writeString(offsets[6], object.uuid);
+  writer.writeString(offsets[0], object.adasBrand);
+  writer.writeString(offsets[1], object.carModel);
+  writer.writeDouble(offsets[2], object.distance);
+  writer.writeDateTime(offsets[3], object.endTime);
+  writer.writeLong(offsets[4], object.eventCount);
+  writer.writeString(offsets[5], object.notes);
+  writer.writeString(offsets[6], object.softwareVersion);
+  writer.writeDateTime(offsets[7], object.startTime);
+  writer.writeString(offsets[8], object.uuid);
 }
 
 Trip _tripDeserialize(
@@ -138,14 +162,16 @@ Trip _tripDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Trip();
-  object.carModel = reader.readStringOrNull(offsets[0]);
-  object.distance = reader.readDouble(offsets[1]);
-  object.endTime = reader.readDateTimeOrNull(offsets[2]);
-  object.eventCount = reader.readLong(offsets[3]);
+  object.adasBrand = reader.readStringOrNull(offsets[0]);
+  object.carModel = reader.readStringOrNull(offsets[1]);
+  object.distance = reader.readDouble(offsets[2]);
+  object.endTime = reader.readDateTimeOrNull(offsets[3]);
+  object.eventCount = reader.readLong(offsets[4]);
   object.id = id;
-  object.notes = reader.readStringOrNull(offsets[4]);
-  object.startTime = reader.readDateTime(offsets[5]);
-  object.uuid = reader.readString(offsets[6]);
+  object.notes = reader.readStringOrNull(offsets[5]);
+  object.softwareVersion = reader.readStringOrNull(offsets[6]);
+  object.startTime = reader.readDateTime(offsets[7]);
+  object.uuid = reader.readString(offsets[8]);
   return object;
 }
 
@@ -159,16 +185,20 @@ P _tripDeserializeProp<P>(
     case 0:
       return (reader.readStringOrNull(offset)) as P;
     case 1:
-      return (reader.readDouble(offset)) as P;
-    case 2:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 3:
-      return (reader.readLong(offset)) as P;
-    case 4:
       return (reader.readStringOrNull(offset)) as P;
+    case 2:
+      return (reader.readDouble(offset)) as P;
+    case 3:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 4:
+      return (reader.readLong(offset)) as P;
     case 5:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 6:
+      return (reader.readStringOrNull(offset)) as P;
+    case 7:
+      return (reader.readDateTime(offset)) as P;
+    case 8:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -364,6 +394,152 @@ extension TripQueryWhere on QueryBuilder<Trip, Trip, QWhereClause> {
 }
 
 extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'adasBrand',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'adasBrand',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'adasBrand',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'adasBrand',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'adasBrand',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'adasBrand',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'adasBrand',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'adasBrand',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'adasBrand',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'adasBrand',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'adasBrand',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'adasBrand',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> carModelIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -888,6 +1064,152 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'softwareVersion',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'softwareVersion',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'softwareVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'softwareVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'softwareVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'softwareVersion',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'softwareVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'softwareVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'softwareVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'softwareVersion',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'softwareVersion',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> softwareVersionIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'softwareVersion',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> startTimeEqualTo(
       DateTime value) {
     return QueryBuilder.apply(this, (query) {
@@ -1187,6 +1509,18 @@ extension TripQueryLinks on QueryBuilder<Trip, Trip, QFilterCondition> {
 }
 
 extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAdasBrand() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'adasBrand', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAdasBrandDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'adasBrand', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByCarModel() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'carModel', Sort.asc);
@@ -1247,6 +1581,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortBySoftwareVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'softwareVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortBySoftwareVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'softwareVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByStartTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'startTime', Sort.asc);
@@ -1273,6 +1619,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
 }
 
 extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAdasBrand() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'adasBrand', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAdasBrandDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'adasBrand', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByCarModel() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'carModel', Sort.asc);
@@ -1345,6 +1703,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenBySoftwareVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'softwareVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenBySoftwareVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'softwareVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByStartTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'startTime', Sort.asc);
@@ -1371,6 +1741,13 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
 }
 
 extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
+  QueryBuilder<Trip, Trip, QDistinct> distinctByAdasBrand(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'adasBrand', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByCarModel(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1403,6 +1780,14 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QDistinct> distinctBySoftwareVersion(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'softwareVersion',
+          caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByStartTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'startTime');
@@ -1421,6 +1806,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
   QueryBuilder<Trip, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> adasBrandProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'adasBrand');
     });
   }
 
@@ -1451,6 +1842,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
   QueryBuilder<Trip, String?, QQueryOperations> notesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'notes');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> softwareVersionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'softwareVersion');
     });
   }
 

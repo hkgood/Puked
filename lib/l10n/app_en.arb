@@ -9,9 +9,9 @@
   "chinese": "Chinese",
   "english": "English",
   "sensitivity": "Auto-tagging Sensitivity",
-  "sensitivityLow": "Low (Default)",
+  "sensitivityLow": "Low",
   "sensitivityMedium": "Medium (Sensitive)",
-  "sensitivityHigh": "High (Most Sensitive)",
+  "sensitivityHigh": "High (Most Sensitive - Default)",
   "sensitivityLowDesc": "Accel > 3.0m/s², Brake > 3.5m/s²",
   "sensitivityMediumDesc": "Accel > 2.4m/s², Brake > 2.8m/s²",
   "sensitivityHighDesc": "Accel > 1.8m/s², Brake > 2.1m/s²",
@@ -22,7 +22,19 @@
   "wobble": "Wobble",
   "start_trip": "START TRIP",
   "stop_trip": "STOP TRIP",
-  "calibrating": "Calibrating...",
-  "calibration_tip": "Keep the phone stable for vehicle alignment"
+    "calibrating": "Calibrating...",
+    "calibration_tip": "Keep the phone stable for vehicle alignment",
+    "edit": "Edit",
+    "modify_vehicle_info": "Modify Vehicle Info",
+    "vehicle_info": "Vehicle Info",
+    "car_model": "Vehicle Model",
+    "software_version": "Software Version",
+    "model_hint": "Enter model (e.g. Model 3)",
+    "version_hint": "Enter version (e.g. v12.5)",
+    "skip": "Skip",
+    "save": "Save",
+    "about": "About",
+    "current_version": "Current Version",
+    "check_update": "Check for Update"
 }
 

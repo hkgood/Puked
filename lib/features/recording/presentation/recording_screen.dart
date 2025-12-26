@@ -7,6 +7,7 @@ import 'package:puked/common/widgets/trip_map_view.dart';
 import 'package:puked/features/history/presentation/history_screen.dart';
 import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/features/settings/presentation/settings_screen.dart';
+import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/models/trip_event.dart';
 import 'dart:collection';
@@ -206,15 +207,19 @@ class RecordingScreen extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _RecordingStat(
-                      label: i18n.t('distance'),
-                      value:
-                          "${(state.currentDistance / 1000).toStringAsFixed(2)} km",
-                      icon: Icons.straighten),
-                  _RecordingStat(
-                      label: i18n.t('peak_g'),
-                      value: "${state.maxGForce.toStringAsFixed(2)}G",
-                      icon: Icons.shutter_speed),
+                  Expanded(
+                    child: _RecordingStat(
+                        label: i18n.t('distance'),
+                        value:
+                            "${(state.currentDistance / 1000).toStringAsFixed(2)} km",
+                        icon: Icons.straighten),
+                  ),
+                  Expanded(
+                    child: _RecordingStat(
+                        label: i18n.t('peak_g'),
+                        value: "${state.maxGForce.toStringAsFixed(2)}G",
+                        icon: Icons.shutter_speed),
+                  ),
                   ..._buildEventBreakdown(state.events, context),
                 ],
               ),
@@ -236,9 +241,21 @@ class RecordingScreen extends ConsumerWidget {
               ),
               onPressed: isCalibrating
                   ? null
-                  : () {
+                  : () async {
                       if (isRecording) {
-                        ref.read(recordingProvider.notifier).stopRecording();
+                        final tripId = state.currentTrip?.id;
+                        await ref
+                            .read(recordingProvider.notifier)
+                            .stopRecording();
+                        if (tripId != null && context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  VehicleInfoScreen(tripId: tripId),
+                            ),
+                          );
+                        }
                       } else {
                         ref.read(recordingProvider.notifier).startRecording();
                       }

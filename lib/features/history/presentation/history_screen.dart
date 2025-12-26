@@ -6,6 +6,7 @@ import 'package:puked/services/export/export_service.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/features/history/presentation/trip_detail_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 final exportServiceProvider = Provider((ref) => ExportService());
 
@@ -260,40 +261,111 @@ class _TripCard extends ConsumerWidget {
                     const SizedBox(width: 8),
                   ],
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
+                    width: 52,
+                    height: 52,
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Colors.transparent, // 无论模式，去掉 Logo 下方的二次背景色
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.route,
-                        color: Theme.of(context).colorScheme.primary),
+                    child: trip.adasBrand != null
+                        ? SvgPicture.asset(
+                            'assets/logos/${trip.adasBrand}.svg',
+                            colorFilter:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const ColorFilter.mode(
+                                        Colors.white, BlendMode.srcIn)
+                                    : null,
+                            placeholderBuilder: (context) => const Icon(
+                                Icons.help_outline,
+                                size: 20,
+                                color: Colors.grey),
+                          )
+                        : Icon(Icons.route,
+                            color: Theme.of(context).colorScheme.primary),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          dateStr,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (trip.carModel != null &&
+                                        trip.carModel!.isNotEmpty)
+                                    ? trip.carModel!
+                                    : i18n.t('car_model'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 17,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (trip.softwareVersion != null &&
+                                trip.softwareVersion!.isNotEmpty)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  trip.softwareVersion!,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "${trip.carModel ?? i18n.t('car_model')} · ${i18n.t('events_count', args: [
-                                trip.eventCount.toString()
-                              ])} · ${(trip.distance / 1000).toStringAsFixed(2)} km",
+                          dateStr,
                           style: TextStyle(
                             color:
                                 Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.event_note_outlined,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.outline),
+                            const SizedBox(width: 4),
+                            Text(
+                              i18n.t('events_count',
+                                  args: [trip.eventCount.toString()]),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.outline),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(Icons.straighten_outlined,
+                                size: 12,
+                                color: Theme.of(context).colorScheme.outline),
+                            const SizedBox(width: 4),
+                            Text(
+                              "${(trip.distance / 1000).toStringAsFixed(2)} km",
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.outline),
+                            ),
+                          ],
                         ),
                       ],
                     ),

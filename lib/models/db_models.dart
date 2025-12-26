@@ -13,6 +13,8 @@ class Trip {
   DateTime? endTime;
 
   String? carModel;
+  String? adasBrand;
+  String? softwareVersion;
   String? notes;
 
   // 轨迹点列表

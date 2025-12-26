@@ -6,6 +6,7 @@ import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/recording/presentation/recording_screen.dart';
 import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
+import 'package:upgrader/upgrader.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -116,7 +117,13 @@ class PukedApp extends ConsumerWidget {
         ),
       ),
 
-      home: const RecordingScreen(),
+      home: UpgradeAlert(
+        dialogStyle: UpgradeDialogStyle.cupertino,
+        showIgnore: false,
+        showLater: true,
+        upgrader: Upgrader(),
+        child: const RecordingScreen(),
+      ),
     );
   }
 }

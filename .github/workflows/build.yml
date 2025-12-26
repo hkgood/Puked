@@ -46,23 +46,43 @@ jobs:
 
       - name: Build APK
         run: |
+          # 提取版本号，去除 v 前缀 (例如 v1.0.3 -> 1.0.3)
+          VERSION_NAME=$(echo ${{ github.ref_name }} | sed 's/^v//')
+          # 如果不是从 tag 触发，则使用默认版本
+          if [[ ! ${{ github.ref_name }} =~ ^v ]]; then
+            VERSION_NAME="1.0.3"
+          fi
+          
           flutter pub get
-          flutter build apk --release
+          # 使用 tag 作为版本名，使用 run_number 作为构建号
+          flutter build apk --release \
+            --build-name=$VERSION_NAME \
+            --build-number=${{ github.run_number }}
+          
+          # 重命名 APK 方便辨识
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Puked-$VERSION_NAME.apk
 
       # 始终上传 Artifact，方便在 Actions 页面直接下载
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: Puked-APK
+          path: build/app/outputs/flutter-apk/Puked-*.apk
 
       # 仅在推送以 v 开头的标签时才创建 GitHub Release
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
-          name: Release ${{ github.ref_name }}
+          files: build/app/outputs/flutter-apk/Puked-*.apk
+          name: Puked ${{ github.ref_name }}
+          body: |
+            ## Puked ${{ github.ref_name }}
+            
+            这是自动构建的版本。
+            
+            ### 更新日志
+            ${{ github.event.head_commit.message }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

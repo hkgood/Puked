@@ -46,6 +46,14 @@ class I18n {
       'cancel': 'Cancel',
       'delete': 'Delete',
       'select_items': 'Select Items',
+      'edit': 'Edit',
+      'modifyVehicleInfo': 'Modify Vehicle Info',
+      'vehicleInfo': 'Vehicle Info',
+      'softwareVersion': 'Software Version',
+      'modelHint': 'Enter model (e.g. Model 3)',
+      'versionHint': 'Enter version (e.g. v12.5)',
+      'skip': 'Skip',
+      'save': 'Save',
     },
     'zh': {
       'app_name': '吐槽',
@@ -84,11 +92,21 @@ class I18n {
       'cancel': '取消',
       'delete': '删除',
       'select_items': '选择项目',
+      'edit': '编辑',
+      'modifyVehicleInfo': '修改车辆信息',
+      'vehicleInfo': '车辆信息',
+      'softwareVersion': '软件版本',
+      'modelHint': '输入车型 (如 Model 3)',
+      'versionHint': '输入软件版本 (如 v12.5)',
+      'skip': '跳过',
+      'save': '保存',
     },
   };
 
   String t(String key, {List<String>? args}) {
-    String value = _localizedValues[locale.languageCode]?[key] ?? key;
+    // 兼容 zh-CN, en-US 等格式，只取前两个字符
+    final lang = locale.languageCode.split('-')[0].split('_')[0];
+    String value = _localizedValues[lang]?[key] ?? key;
     if (args != null) {
       for (var arg in args) {
         value = value.replaceFirst('{}', arg);

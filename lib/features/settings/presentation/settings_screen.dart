@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:upgrader/upgrader.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
+
+// 版本信息 Provider
+final packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
+  return await PackageInfo.fromPlatform();
+});
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -10,6 +17,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final l10n = AppLocalizations.of(context)!;
+    final packageInfo = ref.watch(packageInfoProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -104,10 +112,51 @@ class SettingsScreen extends ConsumerWidget {
               l10n.sensitivityTip,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey,
-                    fontFamily: 'PingFang SC', // 使用系统黑体相关字体
+                    fontFamily: 'PingFang SC',
                   ),
             ),
           ),
+
+          const Divider(),
+
+          // 关于与更新
+          _buildSectionHeader(context, l10n.about),
+          ListTile(
+            title: Text(
+              l10n.current_version,
+              style: const TextStyle(fontFamily: 'PingFang SC'),
+            ),
+            trailing: packageInfo.when(
+              data: (info) => Text(
+                'v${info.version}',
+                style: const TextStyle(color: Colors.grey),
+              ),
+              loading: () => const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              error: (_, __) => const Text('Unknown'),
+            ),
+          ),
+          ListTile(
+            title: Text(
+              l10n.check_update,
+              style: const TextStyle(fontFamily: 'PingFang SC'),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.check_update),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+              // 触发重新初始化检查
+              Upgrader().initialize();
+            },
+          ),
+          const SizedBox(height: 32),
         ],
       ),
     );

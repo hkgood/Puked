@@ -9,9 +9,9 @@
   "chinese": "中文",
   "english": "英文",
   "sensitivity": "自动打标敏感度",
-  "sensitivityLow": "低 (默认)",
+  "sensitivityLow": "低",
   "sensitivityMedium": "中 (更灵敏)",
-  "sensitivityHigh": "高 (最灵敏)",
+  "sensitivityHigh": "高 (最灵敏, 默认)",
   "sensitivityLowDesc": "急加速 > 3.0m/s², 急刹车 > 3.5m/s²",
   "sensitivityMediumDesc": "急加速 > 2.4m/s², 急刹车 > 2.8m/s²",
   "sensitivityHighDesc": "急加速 > 1.8m/s², 急刹车 > 2.1m/s²",
@@ -22,7 +22,19 @@
   "wobble": "摆动",
   "start_trip": "开始行程",
   "stop_trip": "结束行程",
-  "calibrating": "校准中...",
-  "calibration_tip": "请保持手机静止以对齐车辆坐标系"
+    "calibrating": "校准中...",
+    "calibration_tip": "请保持手机静止以对齐车辆坐标系",
+    "edit": "编辑",
+    "modify_vehicle_info": "修改车辆信息",
+    "vehicle_info": "车辆信息",
+    "car_model": "测试车型",
+    "software_version": "软件版本",
+    "model_hint": "输入车型 (如 Model 3)",
+    "version_hint": "输入软件版本 (如 v12.5)",
+    "skip": "跳过",
+    "save": "保存",
+    "about": "关于",
+    "current_version": "当前版本",
+    "check_update": "检查更新"
 }
 

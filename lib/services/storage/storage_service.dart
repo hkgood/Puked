@@ -75,6 +75,21 @@ class StorageService {
     });
   }
 
+  Future<void> updateTripVehicleInfo(int tripId,
+      {String? adasBrand, String? carModel, String? softwareVersion}) async {
+    final isar = _isar;
+    if (isar == null) return;
+    await isar.writeTxn(() async {
+      final trip = await isar.trips.get(tripId);
+      if (trip != null) {
+        trip.adasBrand = adasBrand;
+        trip.carModel = carModel;
+        trip.softwareVersion = softwareVersion;
+        await isar.trips.put(trip);
+      }
+    });
+  }
+
   Future<List<Trip>> getAllTrips() async {
     await init();
     return await _isar!.trips.where().sortByStartTimeDesc().findAll();

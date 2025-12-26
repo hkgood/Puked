@@ -161,7 +161,7 @@ abstract class AppLocalizations {
   /// No description provided for @sensitivityLow.
   ///
   /// In en, this message translates to:
-  /// **'Low (Default)'**
+  /// **'Low'**
   String get sensitivityLow;
 
   /// No description provided for @sensitivityMedium.
@@ -173,7 +173,7 @@ abstract class AppLocalizations {
   /// No description provided for @sensitivityHigh.
   ///
   /// In en, this message translates to:
-  /// **'High (Most Sensitive)'**
+  /// **'High (Most Sensitive - Default)'**
   String get sensitivityHigh;
 
   /// No description provided for @sensitivityLowDesc.
@@ -247,6 +247,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep the phone stable for vehicle alignment'**
   String get calibration_tip;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @modify_vehicle_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Modify Vehicle Info'**
+  String get modify_vehicle_info;
+
+  /// No description provided for @vehicle_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle Info'**
+  String get vehicle_info;
+
+  /// No description provided for @car_model.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle Model'**
+  String get car_model;
+
+  /// No description provided for @software_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Software Version'**
+  String get software_version;
+
+  /// No description provided for @model_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter model (e.g. Model 3)'**
+  String get model_hint;
+
+  /// No description provided for @version_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter version (e.g. v12.5)'**
+  String get version_hint;
+
+  /// No description provided for @skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get skip;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// No description provided for @current_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Version'**
+  String get current_version;
+
+  /// No description provided for @check_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for Update'**
+  String get check_update;
 }
 
 class _AppLocalizationsDelegate

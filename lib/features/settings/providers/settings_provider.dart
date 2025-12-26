@@ -17,7 +17,7 @@ class SettingsState {
   SettingsState({
     required this.themeMode,
     this.locale,
-    this.sensitivity = SensitivityLevel.low,
+    this.sensitivity = SensitivityLevel.high,
   });
 
   SettingsState copyWith({
@@ -58,7 +58,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
     // 加载敏感度
     final sensitivityIndex =
-        prefs.getInt(_sensitivityKey) ?? SensitivityLevel.low.index;
+        prefs.getInt(_sensitivityKey) ?? SensitivityLevel.high.index;
     final sensitivity = SensitivityLevel.values[sensitivityIndex];
 
     state = SettingsState(

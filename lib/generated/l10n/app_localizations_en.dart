@@ -39,13 +39,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sensitivity => 'Auto-tagging Sensitivity';
 
   @override
-  String get sensitivityLow => 'Low (Default)';
+  String get sensitivityLow => 'Low';
 
   @override
   String get sensitivityMedium => 'Medium (Sensitive)';
 
   @override
-  String get sensitivityHigh => 'High (Most Sensitive)';
+  String get sensitivityHigh => 'High (Most Sensitive - Default)';
 
   @override
   String get sensitivityLowDesc => 'Accel > 3.0m/s², Brake > 3.5m/s²';
@@ -83,4 +83,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calibration_tip => 'Keep the phone stable for vehicle alignment';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get modify_vehicle_info => 'Modify Vehicle Info';
+
+  @override
+  String get vehicle_info => 'Vehicle Info';
+
+  @override
+  String get car_model => 'Vehicle Model';
+
+  @override
+  String get software_version => 'Software Version';
+
+  @override
+  String get model_hint => 'Enter model (e.g. Model 3)';
+
+  @override
+  String get version_hint => 'Enter version (e.g. v12.5)';
+
+  @override
+  String get skip => 'Skip';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get current_version => 'Current Version';
+
+  @override
+  String get check_update => 'Check for Update';
 }

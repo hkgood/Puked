@@ -39,13 +39,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sensitivity => '自动打标敏感度';
 
   @override
-  String get sensitivityLow => '低 (默认)';
+  String get sensitivityLow => '低';
 
   @override
   String get sensitivityMedium => '中 (更灵敏)';
 
   @override
-  String get sensitivityHigh => '高 (最灵敏)';
+  String get sensitivityHigh => '高 (最灵敏, 默认)';
 
   @override
   String get sensitivityLowDesc => '急加速 > 3.0m/s², 急刹车 > 3.5m/s²';
@@ -82,4 +82,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get calibration_tip => '请保持手机静止以对齐车辆坐标系';
+
+  @override
+  String get edit => '编辑';
+
+  @override
+  String get modify_vehicle_info => '修改车辆信息';
+
+  @override
+  String get vehicle_info => '车辆信息';
+
+  @override
+  String get car_model => '测试车型';
+
+  @override
+  String get software_version => '软件版本';
+
+  @override
+  String get model_hint => '输入车型 (如 Model 3)';
+
+  @override
+  String get version_hint => '输入软件版本 (如 v12.5)';
+
+  @override
+  String get skip => '跳过';
+
+  @override
+  String get save => '保存';
+
+  @override
+  String get about => '关于';
+
+  @override
+  String get current_version => '当前版本';
+
+  @override
+  String get check_update => '检查更新';
 }

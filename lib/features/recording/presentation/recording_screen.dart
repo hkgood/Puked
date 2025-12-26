@@ -34,12 +34,13 @@ class RecordingScreen extends ConsumerWidget {
               builder: (context, orientation) {
                 if (orientation == Orientation.portrait) {
                   return SafeArea(
-                    child:
-                        _buildPortraitLayout(context, ref, recordingState, i18n),
+                    child: _buildPortraitLayout(
+                        context, ref, recordingState, i18n),
                   );
                 } else {
                   // 横屏下自定义 SafeArea 处理，保证全屏地图感
-                  return _buildLandscapeLayout(context, ref, recordingState, i18n);
+                  return _buildLandscapeLayout(
+                      context, ref, recordingState, i18n);
                 }
               },
             ),
@@ -115,18 +116,18 @@ class RecordingScreen extends ConsumerWidget {
 
   Widget _buildLandscapeHUD(BuildContext context, dynamic i18n) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         // 动态适配白天/黑夜模式的 HUD 背景
-        color: isDark 
-            ? Colors.black.withValues(alpha: 0.5) 
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.5)
             : Colors.white.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDark 
-              ? Colors.white.withValues(alpha: 0.1) 
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.1)
               : Colors.black.withValues(alpha: 0.05),
           width: 0.5,
         ),
@@ -249,7 +250,7 @@ class RecordingScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             Expanded(
               child: GridView.count(
                 padding: EdgeInsets.zero,
@@ -280,16 +281,18 @@ class RecordingScreen extends ConsumerWidget {
                     label: i18n.t('bump'),
                     icon: Icons.vibration,
                     color: const Color(0xFF5856D6),
-                    onPressed: () =>
-                        ref.read(recordingProvider.notifier).tagEvent(EventType.bump),
+                    onPressed: () => ref
+                        .read(recordingProvider.notifier)
+                        .tagEvent(EventType.bump),
                     compact: true,
                   ),
                   _TagButton(
                     label: i18n.t('wobble'),
                     icon: Icons.waves,
                     color: const Color(0xFF007AFF),
-                    onPressed: () =>
-                        ref.read(recordingProvider.notifier).tagEvent(EventType.wobble),
+                    onPressed: () => ref
+                        .read(recordingProvider.notifier)
+                        .tagEvent(EventType.wobble),
                     compact: true,
                   ),
                 ],
@@ -321,7 +324,8 @@ class RecordingScreen extends ConsumerWidget {
                 color: color,
                 letterSpacing: -0.5)),
         Text(label.toUpperCase(),
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+            style: const TextStyle(
+                fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
       ],
     );
   }
@@ -351,10 +355,8 @@ class RecordingScreen extends ConsumerWidget {
             icon: Icon(Icons.settings, size: 20, color: onSurface),
           ),
           IconButton(
-            onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const HistoryScreen())),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (context) => const HistoryScreen())),
             icon: Icon(Icons.history, size: 20, color: onSurface),
           ),
         ],
@@ -422,13 +424,8 @@ class RecordingScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMainActionButton(
-      BuildContext context,
-      WidgetRef ref,
-      RecordingState state,
-      bool isRecording,
-      bool isCalibrating,
-      dynamic i18n,
+  Widget _buildMainActionButton(BuildContext context, WidgetRef ref,
+      RecordingState state, bool isRecording, bool isCalibrating, dynamic i18n,
       {bool isLandscape = false}) {
     return SizedBox(
       width: double.infinity,
@@ -440,7 +437,8 @@ class RecordingScreen extends ConsumerWidget {
           foregroundColor: Colors.white,
           padding: EdgeInsets.symmetric(vertical: isLandscape ? 14 : 18),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         onPressed: isCalibrating
             ? null
@@ -495,10 +493,8 @@ class RecordingScreen extends ConsumerWidget {
             icon: Icon(Icons.settings_outlined, color: onSurface),
           ),
           IconButton(
-            onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const HistoryScreen())),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (context) => const HistoryScreen())),
             icon: Icon(Icons.history_outlined, color: onSurface),
           ),
         ],
@@ -519,7 +515,8 @@ class RecordingScreen extends ConsumerWidget {
                   .colorScheme
                   .surfaceContainerHighest
                   .withValues(alpha: 0.1),
-              borderRadius: isLandscape ? BorderRadius.zero : BorderRadius.circular(24),
+              borderRadius:
+                  isLandscape ? BorderRadius.zero : BorderRadius.circular(24),
               border: isLandscape
                   ? null
                   : Border.all(
@@ -529,7 +526,8 @@ class RecordingScreen extends ConsumerWidget {
                           .withValues(alpha: 0.5)),
             ),
             child: ClipRRect(
-              borderRadius: isLandscape ? BorderRadius.zero : BorderRadius.circular(24),
+              borderRadius:
+                  isLandscape ? BorderRadius.zero : BorderRadius.circular(24),
               child: TripMapView(
                 trajectory: state.trajectory,
                 events: state.events,
@@ -660,16 +658,18 @@ class RecordingScreen extends ConsumerWidget {
                   label: i18n.t('bump'),
                   icon: Icons.vibration,
                   color: const Color(0xFF5856D6),
-                  onPressed: () =>
-                      ref.read(recordingProvider.notifier).tagEvent(EventType.bump),
+                  onPressed: () => ref
+                      .read(recordingProvider.notifier)
+                      .tagEvent(EventType.bump),
                   compact: true,
                 ),
                 _TagButton(
                   label: i18n.t('wobble'),
                   icon: Icons.waves,
                   color: const Color(0xFF007AFF),
-                  onPressed: () =>
-                      ref.read(recordingProvider.notifier).tagEvent(EventType.wobble),
+                  onPressed: () => ref
+                      .read(recordingProvider.notifier)
+                      .tagEvent(EventType.wobble),
                   compact: true,
                 ),
               ],

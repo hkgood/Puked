@@ -10,13 +10,30 @@ import 'package:puked/features/settings/presentation/settings_screen.dart';
 import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/models/trip_event.dart';
+import 'package:puked/services/update_service.dart';
 import 'dart:collection';
 
-class RecordingScreen extends ConsumerWidget {
+class RecordingScreen extends ConsumerStatefulWidget {
   const RecordingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RecordingScreen> createState() => _RecordingScreenState();
+}
+
+class _RecordingScreenState extends ConsumerState<RecordingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 启动时检查更新：延迟3秒，确保进入首页后环境已完全准备好
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        UpdateService.checkUpdate(context);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final recordingState = ref.watch(recordingProvider);
     final isCalibrating = recordingState.isCalibrating;
     final i18n = ref.watch(i18nProvider);

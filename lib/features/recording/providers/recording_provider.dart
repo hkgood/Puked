@@ -127,7 +127,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
   RecordingNotifier(this._engine, this._storage, this._ref)
       : super(RecordingState(isRecording: false)) {
-    _initializeLocation();
+    // 延迟启动定位初始化，避免 Android 12+ 启动时的前台服务限制
+    Future.microtask(() => _initializeLocation());
     // 确保引擎启动，以便缓冲区开始填充数据
     _engine.start();
   }

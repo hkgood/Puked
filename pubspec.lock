@@ -414,7 +414,7 @@ packages:
     source: hosted
     version: "0.15.6"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -613,14 +613,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.6"
-  os_detect:
-    dependency: transitive
+  ota_update:
+    dependency: "direct main"
     description:
-      name: os_detect
-      sha256: "7d87c0dd98c6faf110d5aa498e9a6df02ffce4bb78cc9cfc8ad02929be9bb71f"
+      name: ota_update
+      sha256: "1f4c7c3c4f306729a6c00b84435096ce2d8b28439013f7237173acc699b2abc8"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.3"
+    version: "7.1.0"
   package_config:
     dependency: transitive
     description:
@@ -1018,16 +1018,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.1"
-  upgrader:
-    dependency: "direct main"
-    description:
-      name: upgrader
-      sha256: "4ba3f840691ffa43c6d71a93a6ad3ae01590c7895c3eb33f9f683513f736a9f7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "12.3.0"
   url_launcher:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: url_launcher
       sha256: f6a7e5c4835bb4e3026a04793a4199ca2d14c739ec378fdfe23fc8075d0439f8
@@ -1130,14 +1122,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  version:
-    dependency: transitive
-    description:
-      name: version
-      sha256: "3d4140128e6ea10d83da32fef2fa4003fccbf6852217bb854845802f04191f94"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.2"
   vm_service:
     dependency: transitive
     description:

@@ -6,7 +6,7 @@ import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/recording/presentation/recording_screen.dart';
 import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
-import 'package:upgrader/upgrader.dart';
+import 'package:puked/services/update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,11 +23,16 @@ void main() async {
   );
 }
 
-class PukedApp extends ConsumerWidget {
+class PukedApp extends ConsumerStatefulWidget {
   const PukedApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PukedApp> createState() => _PukedAppState();
+}
+
+class _PukedAppState extends ConsumerState<PukedApp> {
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
 
     // 通用的黑体字体回退序列
@@ -117,13 +122,7 @@ class PukedApp extends ConsumerWidget {
         ),
       ),
 
-      home: UpgradeAlert(
-        dialogStyle: UpgradeDialogStyle.cupertino,
-        showIgnore: false,
-        showLater: true,
-        upgrader: Upgrader(),
-        child: const RecordingScreen(),
-      ),
+      home: const RecordingScreen(),
     );
   }
 }

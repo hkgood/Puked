@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:upgrader/upgrader.dart';
+import 'package:puked/services/update_service.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
 
@@ -146,14 +146,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             trailing: const Icon(Icons.chevron_right, color: Colors.grey),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(l10n.check_update),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-              // 触发重新初始化检查
-              Upgrader().initialize();
+              UpdateService.checkUpdate(context, showNoUpdate: true);
             },
           ),
           const SizedBox(height: 32),

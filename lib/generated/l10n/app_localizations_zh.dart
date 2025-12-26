@@ -66,6 +66,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rapidDeceleration => '急减速';
 
   @override
+  String get jerk => '顿挫';
+
+  @override
   String get bump => '颠簸';
 
   @override

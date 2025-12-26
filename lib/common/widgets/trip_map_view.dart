@@ -154,6 +154,57 @@ class _TripMapViewState extends State<TripMapView>
     controller.forward();
   }
 
+  List<Polyline> _buildPolylines() {
+    if (widget.trajectory.isEmpty) return [];
+
+    final List<Polyline> lines = [];
+    List<LatLng> currentSegment = [];
+    bool currentIsLowConf = widget.trajectory.first.isLowConfidence ?? false;
+
+    for (var i = 0; i < widget.trajectory.length; i++) {
+      final p = widget.trajectory[i];
+      final isLow = p.isLowConfidence ?? false;
+
+      if (isLow != currentIsLowConf) {
+        // 状态切换，保存当前段
+        if (currentSegment.length >= 2) {
+          lines.add(Polyline(
+            points: List.from(currentSegment),
+            color: currentIsLowConf
+                ? Colors.orange.withValues(alpha: 0.5)
+                : Colors.greenAccent,
+            strokeWidth: 4,
+            isDotted: currentIsLowConf,
+          ));
+        }
+        // 开始新的一段，为了线段连续，需要包含上一个点的终点
+        currentSegment = [
+          currentSegment.isNotEmpty
+              ? currentSegment.last
+              : LatLng(p.lat, p.lng),
+          LatLng(p.lat, p.lng)
+        ];
+        currentIsLowConf = isLow;
+      } else {
+        currentSegment.add(LatLng(p.lat, p.lng));
+      }
+    }
+
+    // 添加最后一段
+    if (currentSegment.length >= 2) {
+      lines.add(Polyline(
+        points: currentSegment,
+        color: currentIsLowConf
+            ? Colors.orange.withValues(alpha: 0.5)
+            : Colors.greenAccent,
+        strokeWidth: 4,
+        isDotted: currentIsLowConf,
+      ));
+    }
+
+    return lines;
+  }
+
   @override
   void dispose() {
     _recenterTimer?.cancel();
@@ -284,14 +335,7 @@ class _TripMapViewState extends State<TripMapView>
 
           // 2. 轨迹线 (WGS-84)
           PolylineLayer(
-            polylines: [
-              Polyline(
-                points:
-                    widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList(),
-                color: Colors.greenAccent,
-                strokeWidth: 4,
-              ),
-            ],
+            polylines: _buildPolylines(),
           ),
 
           // 3. 事件标记 (根据类型差异化图标和颜色)

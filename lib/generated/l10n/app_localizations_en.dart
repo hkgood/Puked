@@ -67,6 +67,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rapidDeceleration => 'Rapid Deceleration';
 
   @override
+  String get jerk => 'Jerk';
+
+  @override
   String get bump => 'Bump';
 
   @override

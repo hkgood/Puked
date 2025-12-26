@@ -124,8 +124,11 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount:
+                    MediaQuery.of(context).orientation == Orientation.landscape
+                        ? 8
+                        : 4,
                 mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
                 childAspectRatio: 1,
@@ -166,11 +169,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color:
-                                  Colors.transparent, // 无论模式，去掉 Logo 下方的二次背景色
-                              borderRadius: BorderRadius.circular(12),
-                            ),
                             child: SvgPicture.asset(
                               'assets/logos/$brand.svg',
                               // 深色模式下将黑色 Logo 滤镜为白色，解决可见性问题
@@ -209,10 +207,25 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
             const SizedBox(height: 24),
             TextField(
               controller: _modelController,
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.95)
+                    : Theme.of(context).colorScheme.onSurface,
+              ),
               decoration: InputDecoration(
                 labelText: i18n.t('car_model'),
-                labelStyle: const TextStyle(fontWeight: FontWeight.w900),
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 hintText: i18n.t('modelHint'),
+                hintStyle: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.3)
+                      : null,
+                ),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.directions_car),
               ),
@@ -220,10 +233,25 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _versionController,
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.95)
+                    : Theme.of(context).colorScheme.onSurface,
+              ),
               decoration: InputDecoration(
                 labelText: i18n.t('softwareVersion'),
-                labelStyle: const TextStyle(fontWeight: FontWeight.w900),
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 hintText: i18n.t('versionHint'),
+                hintStyle: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.3)
+                      : null,
+                ),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.code),
               ),

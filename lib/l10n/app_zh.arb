@@ -18,6 +18,7 @@
   "sensitivityTip": "敏感度越高，触发急加速、急刹车等事件所需的加速度阈值就越小。",
   "rapidAcceleration": "急加速",
   "rapidDeceleration": "急减速",
+  "jerk": "顿挫",
   "bump": "颠簸",
   "wobble": "摆动",
   "start_trip": "开始行程",

@@ -264,8 +264,10 @@ class _TripCard extends ConsumerWidget {
                     width: 52,
                     height: 52,
                     padding: const EdgeInsets.all(10),
-                    decoration: const BoxDecoration(
-                      color: Colors.transparent, // 无论模式，去掉 Logo 下方的二次背景色
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.black.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: trip.adasBrand != null
@@ -289,21 +291,21 @@ class _TripCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Expanded(
-                              child: Text(
-                                (trip.carModel != null &&
-                                        trip.carModel!.isNotEmpty)
-                                    ? trip.carModel!
-                                    : i18n.t('car_model'),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 17,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              (trip.carModel != null &&
+                                      trip.carModel!.isNotEmpty)
+                                  ? trip.carModel!
+                                  : i18n.t('car_model'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.95)
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             if (trip.softwareVersion != null &&

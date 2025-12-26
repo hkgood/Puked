@@ -212,6 +212,12 @@ abstract class AppLocalizations {
   /// **'Rapid Deceleration'**
   String get rapidDeceleration;
 
+  /// No description provided for @jerk.
+  ///
+  /// In en, this message translates to:
+  /// **'Jerk'**
+  String get jerk;
+
   /// No description provided for @bump.
   ///
   /// In en, this message translates to:

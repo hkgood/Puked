@@ -5,6 +5,7 @@ enum EventType {
   rapidDeceleration,
   bump,
   wobble,
+  jerk, // 顿挫（含点刹、起步突踩、停车点头）
   manual, // 用户手动标记
 }
 

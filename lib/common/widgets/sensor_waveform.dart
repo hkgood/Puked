@@ -10,8 +10,8 @@ class SensorWaveform extends StatelessWidget {
     super.key,
     required this.data,
     required this.color,
-    required this.label,
-    this.limit = 10.0, // 默认显示范围 +/- 10 m/s^2
+    this.label = '',
+    this.limit = 10.0,
   });
 
   @override
@@ -20,34 +20,39 @@ class SensorWaveform extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-              color: isDarkMode
-                  ? Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant
-                      .withValues(alpha: 0.7)
-                  : Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.8),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            )),
-        const SizedBox(height: 2),
-        SizedBox(
-          height: 48, // 减小高度从 60 到 48
-          width: double.infinity,
-          child: CustomPaint(
-            painter: WaveformPainter(
-              data: data,
-              color: color,
-              limit: limit,
-              gridColor: Theme.of(context)
-                  .colorScheme
-                  .outlineVariant
-                  .withValues(alpha: 0.2),
+        if (label.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(label,
+                style: TextStyle(
+                  color: isDarkMode
+                      ? Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withValues(alpha: 0.7)
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.8),
+                  fontSize: 10, // 稍微缩小字体
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                )),
+          ),
+        // 使用 Expanded 代替固定高度 SizedBox，让波形图自适应容器
+        Expanded(
+          child: SizedBox(
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WaveformPainter(
+                data: data,
+                color: color,
+                limit: limit,
+                gridColor: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.2),
+              ),
             ),
           ),
         ),

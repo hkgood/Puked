@@ -44,6 +44,7 @@ class RecordingState {
   final int locationUpdateCount; // 位置更新计数
   final String debugMessage; // 调试信息
   final LocationPermission? permissionStatus; // 权限状态
+  final bool isLowConfidenceGPS; // 是否处于弱信号/地库模式
 
   RecordingState({
     required this.isRecording,
@@ -58,6 +59,7 @@ class RecordingState {
     this.locationUpdateCount = 0,
     this.debugMessage = '',
     this.permissionStatus,
+    this.isLowConfidenceGPS = false,
   });
 
   RecordingState copyWith({
@@ -73,6 +75,7 @@ class RecordingState {
     int? locationUpdateCount,
     String? debugMessage,
     LocationPermission? permissionStatus,
+    bool? isLowConfidenceGPS,
   }) {
     return RecordingState(
       isRecording: isRecording ?? this.isRecording,
@@ -87,6 +90,7 @@ class RecordingState {
       locationUpdateCount: locationUpdateCount ?? this.locationUpdateCount,
       debugMessage: debugMessage ?? this.debugMessage,
       permissionStatus: permissionStatus ?? this.permissionStatus,
+      isLowConfidenceGPS: isLowConfidenceGPS ?? this.isLowConfidenceGPS,
     );
   }
 }
@@ -103,14 +107,19 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   static const double _thresholdDecel = -3.5; // 急刹车
   static const double _thresholdWobbleSpan = 1.8; // 摆动跨度阈值
   static const double _thresholdBump = 2.5; // 颠簸 (Z轴突变)
+  static const double _thresholdJerk = 8.0; // 顿挫阈值 (m/s³) - 加速度变化率
 
   // 保护期和检测窗口
   static const Duration _startProtectionDuration = Duration(seconds: 5);
   static const Duration _wobbleWindow = Duration(milliseconds: 1000);
+  static const Duration _jerkWindow = Duration(milliseconds: 300); // Jerk 计算窗口
   DateTime? _recordingStartTime;
 
-  // X轴历史记录 (用于检测摆动)
+  // 传感器历史记录
   final ListQueue<MapEntry<DateTime, double>> _xHistory = ListQueue();
+  final ListQueue<MapEntry<DateTime, double>> _yHistory =
+      ListQueue(); // 增加 Y 轴历史用于检测 Jerk
+  final ListQueue<MapEntry<DateTime, double>> _yawRateHistory = ListQueue();
 
   // 防抖计时器 (防止短时间内重复触发同一类型事件)
   final Map<String, DateTime> _lastTriggered = {};
@@ -119,6 +128,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   RecordingNotifier(this._engine, this._storage, this._ref)
       : super(RecordingState(isRecording: false)) {
     _initializeLocation();
+    // 确保引擎启动，以便缓冲区开始填充数据
+    _engine.start();
   }
 
   Future<void> _initializeLocation() async {
@@ -210,11 +221,14 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     // 动态精度阈值：宽容期 200m，稳定期 50m
     final double accuracyThreshold = isInGracePeriod ? 200.0 : 50.0;
     final bool isReliable = position.accuracy <= accuracyThreshold;
+    final bool isLowConfidence =
+        position.accuracy > 40.0; // 只要精度大于 40m，我们就认为是弱信号/室内场景
 
     state = state.copyWith(
       currentPosition: position,
       lastLocationTime: now,
       locationUpdateCount: state.locationUpdateCount + 1,
+      isLowConfidenceGPS: isLowConfidence,
       debugMessage: isReliable
           ? 'GPS OK (${position.accuracy.toStringAsFixed(0)}m)'
           : 'Poor Signal (${position.accuracy.toStringAsFixed(0)}m)',
@@ -240,7 +254,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         ..lng = position.longitude
         ..altitude = position.altitude
         ..speed = position.speed
-        ..timestamp = now;
+        ..timestamp = now
+        ..isLowConfidence = isLowConfidence;
 
       final newDistance = state.currentDistance + addedDistance;
       _storage.addTrajectoryPoint(state.currentTrip!.id, point,
@@ -261,16 +276,45 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     }
 
     final accel = data.filteredAccel;
+    final gyro = data.processedGyro;
+
     _xHistory.addLast(MapEntry(now, accel.x));
+    _yHistory.addLast(MapEntry(now, accel.y));
+    _yawRateHistory.addLast(MapEntry(now, gyro.z));
+
     while (_xHistory.isNotEmpty &&
         now.difference(_xHistory.first.key) > _wobbleWindow) {
       _xHistory.removeFirst();
     }
+    while (_yHistory.isNotEmpty &&
+        now.difference(_yHistory.first.key) >
+            const Duration(milliseconds: 1500)) {
+      _yHistory.removeFirst();
+    }
+    while (_yawRateHistory.isNotEmpty &&
+        now.difference(_yawRateHistory.first.key) > _wobbleWindow) {
+      _yawRateHistory.removeFirst();
+    }
 
     final sensitivity = _ref.read(settingsProvider).sensitivity;
-    double multiplier = 1.0;
-    if (sensitivity == SensitivityLevel.medium) multiplier = 0.8;
-    if (sensitivity == SensitivityLevel.high) multiplier = 0.6;
+    double sensitivityMultiplier = 1.0;
+    if (sensitivity == SensitivityLevel.medium) sensitivityMultiplier = 0.8;
+    if (sensitivity == SensitivityLevel.high) sensitivityMultiplier = 0.6;
+
+    // --- 动态速度敏感度计算 ---
+    double speedMultiplier = 1.0;
+    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+
+    if (currentSpeedKmh < 10.0) {
+      speedMultiplier = 0.6;
+    } else if (currentSpeedKmh < 60.0) {
+      // 10km/h 到 60km/h 线性从 0.6 增长到 1.0
+      speedMultiplier = 0.6 + 0.4 * ((currentSpeedKmh - 10.0) / 50.0);
+    } else if (currentSpeedKmh > 80.0) {
+      speedMultiplier = 1.2;
+    }
+
+    final finalMultiplier = sensitivityMultiplier * speedMultiplier;
 
     bool isDebounced(String type) {
       final last = _lastTriggered[type];
@@ -278,16 +322,68 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       return now.difference(last) < _debounceDuration;
     }
 
-    if (accel.y < (_thresholdDecel * multiplier) &&
+    // --- 1. 急加速/急减速检测 (结合动态阈值) ---
+    if (accel.y < (_thresholdDecel * finalMultiplier) &&
         !isDebounced('rapidDeceleration')) {
       _lastTriggered['rapidDeceleration'] = now;
       tagEvent(EventType.rapidDeceleration, source: 'AUTO');
-    } else if (accel.y > (_thresholdAccel * multiplier) &&
+    } else if (accel.y > (_thresholdAccel * finalMultiplier) &&
         !isDebounced('rapidAcceleration')) {
       _lastTriggered['rapidAcceleration'] = now;
       tagEvent(EventType.rapidAcceleration, source: 'AUTO');
     }
 
+    // --- 2. Jerk (顿挫/点刹) 检测 ---
+    if (!isDebounced('jerk') && _yHistory.length > 5) {
+      // 计算最近 150ms 的加速度变化率
+      final recentY =
+          _yHistory.where((e) => now.difference(e.key) < _jerkWindow).toList();
+      if (recentY.length >= 3) {
+        final deltaA = recentY.last.value - recentY.first.value;
+        final deltaT =
+            recentY.last.key.difference(recentY.first.key).inMilliseconds /
+                1000.0;
+        final jerk = deltaA / deltaT;
+
+        // 如果 Jerk 超过阈值 (这里使用绝对值，因为点刹和猛踩都算顿挫)
+        // 且由于低速时更敏感，我们也给 Jerk 加上 finalMultiplier (注意：Jerk 越小越容易触发)
+        if (jerk.abs() > (_thresholdJerk * speedMultiplier)) {
+          _lastTriggered['jerk'] = now;
+          tagEvent(EventType.jerk, source: 'AUTO');
+        }
+      }
+    }
+
+    // --- 3. 停车回弹 (点头) 检测 ---
+    // 逻辑：如果最近 1 秒内加速度有从明显的负值（刹车）到 0 以上的突变，且当前加速度回归静止
+    if (!isDebounced('jerk') && _yHistory.length > 20) {
+      // 寻找最近 1 秒内的最小值（最强刹车点）和随后的回弹
+      double minAy = 0;
+      double maxAfterMin = -999;
+      bool foundMin = false;
+
+      for (var entry in _yHistory) {
+        if (entry.value < minAy) {
+          minAy = entry.value;
+          foundMin = true;
+          maxAfterMin = -999; // 重置最小值之后的搜索
+        }
+        if (foundMin && entry.value > maxAfterMin) {
+          maxAfterMin = entry.value;
+        }
+      }
+
+      // 如果最小值小于 -1.5 (说明有刹车动作) 且回弹幅度大于 1.5
+      if (minAy < -1.5 && (maxAfterMin - minAy) > 1.8) {
+        // 检查是否处于准静止状态 (速度极低或加速度计平稳)
+        if (currentSpeedKmh < 2.0 || accel.y.abs() < 0.2) {
+          _lastTriggered['jerk'] = now;
+          tagEvent(EventType.jerk, source: 'AUTO');
+        }
+      }
+    }
+
+    // --- 4. 摆动检测 ---
     if (!isDebounced('wobble') && _xHistory.length > 10) {
       double minX = 0;
       double maxX = 0;
@@ -306,7 +402,25 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       }
 
       final span = maxX - minX;
-      if (span > (_thresholdWobbleSpan * multiplier)) {
+
+      // 计算窗口内的累积转角 (弧度)
+      double totalYawChange = 0;
+      if (_yawRateHistory.length > 1) {
+        for (int i = 1; i < _yawRateHistory.length; i++) {
+          final dt = _yawRateHistory
+                  .elementAt(i)
+                  .key
+                  .difference(_yawRateHistory.elementAt(i - 1).key)
+                  .inMilliseconds /
+              1000.0;
+          totalYawChange += _yawRateHistory.elementAt(i).value * dt;
+        }
+      }
+
+      // 如果 1 秒内转角超过 15 度 (约 0.26 弧度)，大概率是正在转弯，过滤掉摆动报警
+      bool isTurning = totalYawChange.abs() > 0.26;
+
+      if (span > (_thresholdWobbleSpan * sensitivityMultiplier) && !isTurning) {
         if (maxX > 0.4 && minX < -0.4) {
           if (minTime != null && maxTime != null) {
             final jumpDuration = maxTime.difference(minTime).abs();
@@ -319,7 +433,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       }
     }
 
-    if (accel.z.abs() > (_thresholdBump * multiplier) && !isDebounced('bump')) {
+    if (accel.z.abs() > (_thresholdBump * sensitivityMultiplier) &&
+        !isDebounced('bump')) {
       _lastTriggered['bump'] = now;
       tagEvent(EventType.bump, source: 'AUTO');
     }
@@ -340,6 +455,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       final trip = await _storage.startTrip(carModel: carModel, notes: notes);
       _recordingStartTime = DateTime.now();
       _xHistory.clear();
+      _yHistory.clear();
+      _yawRateHistory.clear();
 
       // 【核心改进】点击开始瞬间，如果有位置，立即存入作为起点
       List<TrajectoryPoint> initialTrajectory = [];

@@ -23,6 +23,7 @@ class ExportService {
                 "lat": p.lat,
                 "lng": p.lng,
                 "speed": p.speed,
+                "low_conf": p.isLowConfidence ?? false,
               })
           .toList(),
       "events": trip.events

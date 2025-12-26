@@ -18,6 +18,7 @@
   "sensitivityTip": "Higher sensitivity means lower acceleration thresholds for auto-tagging events.",
   "rapidAcceleration": "Rapid Acceleration",
   "rapidDeceleration": "Rapid Deceleration",
+  "jerk": "Jerk",
   "bump": "Bump",
   "wobble": "Wobble",
   "start_trip": "START TRIP",

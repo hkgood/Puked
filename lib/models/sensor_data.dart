@@ -11,8 +11,9 @@ class SensorData {
   final Vector3 magnetometer;
 
   // 处理后的数据 (Processed data in vehicle coordinate system)
-  // 通过校准矩阵变换后的加速度
+  // 通过校准矩阵变换后的加速度和陀螺仪
   final Vector3 processedAccel;
+  final Vector3 processedGyro;
 
   // 经过低通滤波平滑后的加速度 (用于稳定显示和 Peak G)
   final Vector3 filteredAccel;
@@ -23,8 +24,10 @@ class SensorData {
     required this.gyroscope,
     required this.magnetometer,
     Vector3? processedAccel,
+    Vector3? processedGyro,
     Vector3? filteredAccel,
   })  : processedAccel = processedAccel ?? Vector3.zero(),
+        processedGyro = processedGyro ?? Vector3.zero(),
         filteredAccel = filteredAccel ?? Vector3.zero();
 
   Map<String, dynamic> toJson() => {

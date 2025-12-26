@@ -37,6 +37,7 @@ class TrajectoryPoint {
   late double altitude;
   late double speed;
   late DateTime timestamp;
+  bool? isLowConfidence; // 是否为弱信号点
 }
 
 @collection

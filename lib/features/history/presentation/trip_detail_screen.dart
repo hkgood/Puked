@@ -88,8 +88,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     width: 60,
                     height: 60,
                     padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: Colors.transparent, // 无论模式，去掉 Logo 下方的二次背景色
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.black.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: trip.adasBrand != null
@@ -115,9 +117,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                       trip.carModel!.isNotEmpty)
                                   ? trip.carModel!
                                   : i18n.t('car_model'),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.95)
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -130,9 +136,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               trip.softwareVersion!,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.6)
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -318,8 +327,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             eventColor = const Color(0xFFFF3B30);
                             eventIcon = Icons.trending_down;
                             break;
-                          case 'bump':
+                          case 'jerk':
                             eventColor = const Color(0xFF5856D6);
+                            eventIcon = Icons.priority_high;
+                            break;
+                          case 'bump':
+                            eventColor = const Color(0xFFAF52DE);
                             eventIcon = Icons.vibration;
                             break;
                           case 'wobble':
@@ -477,7 +490,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final types = [
       {'type': 'rapidAcceleration', 'color': const Color(0xFFFF9500)},
       {'type': 'rapidDeceleration', 'color': const Color(0xFFFF3B30)},
-      {'type': 'bump', 'color': const Color(0xFF5856D6)},
+      {'type': 'jerk', 'color': const Color(0xFF5856D6)},
+      {'type': 'bump', 'color': const Color(0xFFAF52DE)},
       {'type': 'wobble', 'color': const Color(0xFF007AFF)},
       {'type': 'manual', 'color': const Color(0xFF34C759)},
     ];

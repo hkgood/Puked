@@ -33,12 +33,17 @@ class SensorEngine {
   StreamSubscription? _gyroSub;
   StreamSubscription? _magSub;
   Timer? _samplingTimer;
+  bool _isRunning = false;
+  bool get isRunning => _isRunning;
 
   // 广播流，供 UI 订阅
   final _dataController = StreamController<SensorData>.broadcast();
   Stream<SensorData> get sensorStream => _dataController.stream;
 
   void start() {
+    if (_isRunning) return;
+    _isRunning = true;
+
     // 监听原始传感器流
     _accelSub = accelerometerEventStream()
         .listen((e) => _latestAccel.setValues(e.x, e.y, e.z));
@@ -58,6 +63,7 @@ class SensorEngine {
 
     // 1. 应用旋转矩阵对齐设备坐标到车辆坐标
     final rotatedAccel = _rotationMatrix.transformed(_latestAccel);
+    final rotatedGyro = _rotationMatrix.transformed(_latestGyro);
 
     // 2. 实时估计重力分量 (坡道/斜坡优化)
     // 在平稳行驶时，长期加速度的平均值方向就是重力方向
@@ -86,6 +92,7 @@ class SensorEngine {
       gyroscope: _latestGyro.clone(),
       magnetometer: _latestMag.clone(),
       processedAccel: processedAccel,
+      processedGyro: rotatedGyro,
       filteredAccel: processedFilteredAccel,
     );
 

@@ -96,7 +96,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vehicle_info => '车辆信息';
 
   @override
-  String get car_model => '测试车型';
+  String get car_model => '车型';
 
   @override
   String get software_version => '软件版本';
@@ -121,4 +121,78 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get check_update => '检查更新';
+
+  @override
+  String get account => '账号';
+
+  @override
+  String get login => '登录';
+
+  @override
+  String get logout => '退出登录';
+
+  @override
+  String get sync_data => '同步数据';
+
+  @override
+  String get login_to_sync => '登录以同步数据并分享行程';
+
+  @override
+  String connected_as(Object name) {
+    return '已连接为: $name';
+  }
+
+  @override
+  String get brand => '我的智驾';
+
+  @override
+  String get my_car => '我的爱车';
+
+  @override
+  String get password => '密码';
+
+  @override
+  String get name => '昵称';
+
+  @override
+  String get register => '注册';
+
+  @override
+  String get no_account => '还没有账号？去注册';
+
+  @override
+  String get has_account => '已有账号？去登录';
+
+  @override
+  String get login_failed => '登录失败';
+
+  @override
+  String get register_failed => '注册失败';
+
+  @override
+  String get forgot_password => '忘记密码？';
+
+  @override
+  String get reset_email_sent => '重置邮件已发送，请检查收件箱';
+
+  @override
+  String get verify_email => '验证邮箱';
+
+  @override
+  String get verification_sent => '验证邮件已发送';
+
+  @override
+  String get not_verified => '账号未验证 (点击验证)';
+
+  @override
+  String get error_email_taken => 'Email已被注册';
+
+  @override
+  String get error_invalid_credentials => '邮箱或密码错误';
+
+  @override
+  String get error_password_too_short => '密码至少需要8位';
+
+  @override
+  String get verification_success => '验证成功！';
 }

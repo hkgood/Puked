@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final exportServiceProvider = Provider((ref) => ExportService());
 
 class ExportService {
   /// 将单个行程导出为 JSON 文件并触发分享

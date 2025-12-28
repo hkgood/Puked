@@ -13,9 +13,12 @@ class Trip {
   DateTime? endTime;
 
   String? carModel;
-  String? adasBrand;
+  String? brand;
   String? softwareVersion;
   String? notes;
+
+  // 云端关联 ID (PocketBase Record ID)
+  String? cloudId;
 
   // 轨迹点列表
   final trajectory = IsarLinks<TrajectoryPoint>();

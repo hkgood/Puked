@@ -4,14 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/recording/presentation/recording_screen.dart';
-import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
+import 'package:puked/services/pocketbase_service.dart';
+import 'package:puked/services/storage/storage_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 初始化持久化存储
+  final prefs = await SharedPreferences.getInstance();
+
   // 初始化 ProviderContainer
-  final container = ProviderContainer();
+  final container = ProviderContainer(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ],
+  );
+
   await container.read(storageServiceProvider).init();
 
   runApp(
@@ -110,8 +120,15 @@ class _PukedAppState extends ConsumerState<PukedApp> {
           onSurface: Color(0xFFF2F2F7),
           surfaceContainerHighest:
               Color(0xFF2C2C2E), // Apple System Gray 4 Dark
-          onSurfaceVariant: Color(0xFF8E8E93), // Apple System Gray
+          onSurfaceVariant: Color(0xFFE5E5EA), // 显著加亮次要文字 (Apple System Gray 4)
           outlineVariant: Color(0xFF3A3A3C), // Apple System Gray 3 Dark
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Color(0xFFF2F2F7)),
+          bodyMedium: TextStyle(color: Color(0xFFF2F2F7)),
+          bodySmall: TextStyle(color: Color(0xFFE5E5EA)), // 次要文字使用较亮的灰色
+          labelSmall:
+              TextStyle(color: Color(0xFFE5E5EA), fontWeight: FontWeight.w600),
         ),
         cardTheme: CardThemeData(
           color: const Color(0xFF1C1C1E),

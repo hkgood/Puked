@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:puked/services/update_service.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
+import 'package:puked/features/auth/providers/auth_provider.dart';
+import 'package:puked/features/auth/presentation/login_screen.dart';
+import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
+import 'package:puked/services/pocketbase_service.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -16,8 +21,16 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
+    final auth = ref.watch(authProvider);
     final l10n = AppLocalizations.of(context)!;
     final packageInfo = ref.watch(packageInfoProvider);
+
+    // 进入页面时静默刷新一次用户信息，以更新验证状态
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (auth.isAuthenticated) {
+        ref.read(authProvider.notifier).refreshUserFromServer();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -25,6 +38,168 @@ class SettingsScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
+          // 账号系统
+          _buildSectionHeader(context, l10n.account),
+          if (!auth.isAuthenticated)
+            ListTile(
+              leading: const Icon(Icons.account_circle_outlined),
+              title: Text(l10n.login),
+              subtitle: Text(l10n.login_to_sync),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // 跳转到独立登录页面
+                _showAuthPage(context);
+              },
+            )
+          else
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage:
+                    ref.watch(pbServiceProvider).currentAvatarUrl != null
+                        ? NetworkImage(
+                            ref.watch(pbServiceProvider).currentAvatarUrl!)
+                        : null,
+                child: ref.watch(pbServiceProvider).currentAvatarUrl == null
+                    ? const Icon(Icons.person)
+                    : null,
+              ),
+              title: Text(auth.user?.getStringValue('name') ?? 'User'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n
+                      .connected_as(auth.user?.getStringValue('email') ?? '')),
+                  if (auth.user?.getBoolValue('verified') == false)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: GestureDetector(
+                        onTap: () async {
+                          // 点击时先尝试刷新状态，如果还是未验证，再提示发送邮件
+                          await ref
+                              .read(authProvider.notifier)
+                              .refreshUserFromServer();
+
+                          if (ref
+                                  .read(authProvider)
+                                  .user
+                                  ?.getBoolValue('verified') ==
+                              true) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(l10n.verification_success),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                            return;
+                          }
+
+                          await ref
+                              .read(authProvider.notifier)
+                              .requestVerification();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(l10n.verification_sent),
+                                  backgroundColor: Colors.green),
+                            );
+                          }
+                        },
+                        child: Text(
+                          l10n.not_verified,
+                          style: const TextStyle(
+                              color: Colors.orange,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              trailing: TextButton(
+                onPressed: () async {
+                  // 使用 Future.wait 并行处理，提高响应速度，但要 await 确保逻辑完成
+                  await Future.wait([
+                    ref.read(authProvider.notifier).logout(),
+                    ref.read(settingsProvider.notifier).clearVehicleSettings(),
+                  ]);
+                },
+                child: Text(l10n.logout,
+                    style: const TextStyle(color: Colors.red)),
+              ),
+            ),
+
+          const Divider(),
+
+          // 账号关联的智驾设置
+          if (auth.isAuthenticated) ...[
+            _buildSectionHeader(context, l10n.brand),
+            ListTile(
+              leading: settings.brand != null
+                  ? Container(
+                      width: 40,
+                      height: 40,
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SvgPicture.asset(
+                        'assets/logos/${settings.brand}.svg',
+                        colorFilter:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? const ColorFilter.mode(
+                                    Colors.white, BlendMode.srcIn)
+                                : null,
+                      ),
+                    )
+                  : const Icon(Icons.directions_car_filled_outlined, size: 32),
+              title: Text(
+                settings.brand ?? l10n.brand,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                [
+                  if (settings.carModel != null &&
+                      settings.carModel!.isNotEmpty)
+                    settings.carModel,
+                  if (settings.softwareVersion != null &&
+                      settings.softwareVersion!.isNotEmpty)
+                    settings.softwareVersion,
+                ].join(' • ').isEmpty
+                    ? l10n.model_hint
+                    : [
+                        if (settings.carModel != null &&
+                            settings.carModel!.isNotEmpty)
+                          settings.carModel,
+                        if (settings.softwareVersion != null &&
+                            settings.softwareVersion!.isNotEmpty)
+                          settings.softwareVersion,
+                      ].join(' • '),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const VehicleInfoScreen(
+                      isSettingsMode: true,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+          ],
+
           // 主题设置
           _buildSectionHeader(context, l10n.theme),
           ListTile(
@@ -152,6 +327,13 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 32),
         ],
       ),
+    );
+  }
+
+  void _showAuthPage(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
     );
   }
 

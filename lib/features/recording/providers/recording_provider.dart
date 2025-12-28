@@ -12,11 +12,6 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'dart:async';
 import 'dart:collection';
 
-// Storage Provider
-final storageServiceProvider = Provider<StorageService>((ref) {
-  return StorageService();
-});
-
 // 传感器引擎 Provider
 final sensorEngineProvider = Provider<SensorEngine>((ref) {
   final engine = SensorEngine();

@@ -6,8 +6,10 @@ import 'package:puked/common/widgets/trip_map_view.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:puked/common/widgets/trip_acceleration_chart.dart';
 import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
-import 'package:puked/features/recording/providers/recording_provider.dart';
+import 'package:puked/services/export/export_service.dart';
+import 'package:puked/services/storage/storage_service.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
   final Trip trip;
@@ -26,6 +28,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   void initState() {
     super.initState();
     _currentTrip = widget.trip;
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    // 确保轨迹和事件数据已加载
+    if (!_currentTrip.trajectory.isLoaded || !_currentTrip.events.isLoaded) {
+      await _currentTrip.trajectory.load();
+      await _currentTrip.events.load();
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _editVehicleInfo() async {
@@ -64,6 +76,24 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         backgroundColor: Colors.transparent,
         iconTheme:
             IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(i18n.t('exporting')),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+              await ref.read(exportServiceProvider).exportTrip(trip);
+            },
+            icon: Icon(
+              Icons.share_outlined,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -94,9 +124,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           : Colors.black.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: trip.adasBrand != null
+                    child: trip.brand != null
                         ? SvgPicture.asset(
-                            'assets/logos/${trip.adasBrand}.svg',
+                            'assets/logos/${trip.brand}.svg',
                             colorFilter:
                                 Theme.of(context).brightness == Brightness.dark
                                     ? const ColorFilter.mode(
@@ -263,8 +293,25 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildEventDistributionBar(events),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
                   ],
+
+                  // 3. 加速度图表展示
+                  TripAccelerationChart(
+                    trajectory: trajectory,
+                    label: i18n.t('longitudinal'),
+                    color: Colors.blue,
+                    isLongitudinal: true,
+                  ),
+                  const SizedBox(height: 16),
+                  TripAccelerationChart(
+                    trajectory: trajectory,
+                    label: i18n.t('lateral'),
+                    color: Colors.green,
+                    isLongitudinal: false,
+                  ),
+                  const SizedBox(height: 8),
+
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Divider(

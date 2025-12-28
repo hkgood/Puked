@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/features/history/presentation/trip_detail_screen.dart';
+import 'package:puked/features/settings/providers/settings_provider.dart';
 import 'package:puked/common/utils/i18n.dart';
+import 'package:puked/services/storage/storage_service.dart';
 
 class VehicleInfoScreen extends ConsumerStatefulWidget {
-  final int tripId;
+  final int? tripId;
   final bool isEdit;
+  final bool isSettingsMode;
 
-  const VehicleInfoScreen(
-      {super.key, required this.tripId, this.isEdit = false});
+  const VehicleInfoScreen({
+    super.key,
+    this.tripId,
+    this.isEdit = false,
+    this.isSettingsMode = false,
+  });
 
   @override
   ConsumerState<VehicleInfoScreen> createState() => _VehicleInfoScreenState();
@@ -47,20 +53,38 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   @override
   void initState() {
     super.initState();
-    _loadExistingInfo();
+    _loadInitialInfo();
   }
 
-  Future<void> _loadExistingInfo() async {
-    final storage = ref.read(storageServiceProvider);
-    final trips = await storage.getAllTrips();
-    final trip = trips.firstWhere((t) => t.id == widget.tripId);
+  Future<void> _loadInitialInfo() async {
+    if (widget.isSettingsMode) {
+      final settings = ref.read(settingsProvider);
+      setState(() {
+        _modelController.text = settings.carModel ?? '';
+        _versionController.text = settings.softwareVersion ?? '';
+        _selectedBrand = settings.brand;
+        _isLoading = false;
+      });
+    } else if (widget.tripId != null) {
+      final storage = ref.read(storageServiceProvider);
+      final trips = await storage.getAllTrips();
+      final trip = trips.firstWhere((t) => t.id == widget.tripId);
 
-    setState(() {
-      _modelController.text = trip.carModel ?? '';
-      _versionController.text = trip.softwareVersion ?? '';
-      _selectedBrand = trip.adasBrand;
-      _isLoading = false;
-    });
+      // 如果是新纪录且未设置过，优先使用设置中的默认值
+      final settings = ref.read(settingsProvider);
+
+      setState(() {
+        _modelController.text = trip.carModel ?? settings.carModel ?? '';
+        _versionController.text =
+            trip.softwareVersion ?? settings.softwareVersion ?? '';
+        _selectedBrand = trip.brand ?? settings.brand;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -71,12 +95,26 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   }
 
   Future<void> _saveInfo(bool skip) async {
+    if (widget.isSettingsMode) {
+      if (!skip) {
+        await ref.read(settingsProvider.notifier).setVehicleInfo(
+              brand: _selectedBrand,
+              model: _modelController.text.trim(),
+              version: _versionController.text.trim(),
+            );
+      }
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    if (widget.tripId == null) return;
+
     final storage = ref.read(storageServiceProvider);
 
     if (!skip) {
       await storage.updateTripVehicleInfo(
-        widget.tripId,
-        adasBrand: _selectedBrand,
+        widget.tripId!,
+        brand: _selectedBrand,
         carModel: _modelController.text.trim(),
         softwareVersion: _versionController.text.trim(),
       );
@@ -84,10 +122,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
 
     if (mounted) {
       if (widget.isEdit) {
-        // 编辑模式下直接返回并通知更新
         Navigator.of(context).pop(true);
       } else {
-        // 新增模式下跳转到详情页
         final trips = await storage.getAllTrips();
         final trip = trips.firstWhere((t) => t.id == widget.tripId);
         if (mounted) {
@@ -107,13 +143,23 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    String title;
+    if (widget.isSettingsMode) {
+      title = i18n.t('my_car');
+    } else {
+      title = widget.isEdit
+          ? i18n.t('modify_vehicle_info')
+          : i18n.t('vehicle_info');
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.isEdit ? i18n.t('modifyVehicleInfo') : i18n.t('vehicleInfo'),
+          title,
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
-        automaticallyImplyLeading: widget.isEdit, // 编辑模式允许点击左上角返回
+        automaticallyImplyLeading: widget.isEdit || widget.isSettingsMode,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -153,9 +199,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                       ),
                       borderRadius: BorderRadius.circular(16),
                       color: isSelected
-                          ? Theme.of(context)
-                              .primaryColor
-                              .withValues(alpha: 0.1)
+                          ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
                           : Theme.of(context)
                               .colorScheme
                               .surfaceContainerHighest
@@ -171,7 +215,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                             padding: const EdgeInsets.all(8),
                             child: SvgPicture.asset(
                               'assets/logos/$brand.svg',
-                              // 深色模式下将黑色 Logo 滤镜为白色，解决可见性问题
                               colorFilter: Theme.of(context).brightness ==
                                       Brightness.dark
                                   ? const ColorFilter.mode(
@@ -220,7 +263,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                       ? Colors.white.withValues(alpha: 0.7)
                       : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                hintText: i18n.t('modelHint'),
+                hintText: i18n.t('model_hint'),
                 hintStyle: TextStyle(
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.white.withValues(alpha: 0.3)
@@ -239,14 +282,14 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                     : Theme.of(context).colorScheme.onSurface,
               ),
               decoration: InputDecoration(
-                labelText: i18n.t('softwareVersion'),
+                labelText: i18n.t('software_version'),
                 labelStyle: TextStyle(
                   fontWeight: FontWeight.w900,
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.white.withValues(alpha: 0.7)
                       : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                hintText: i18n.t('versionHint'),
+                hintText: i18n.t('version_hint'),
                 hintStyle: TextStyle(
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.white.withValues(alpha: 0.3)

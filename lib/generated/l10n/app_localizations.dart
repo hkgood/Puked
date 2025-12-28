@@ -275,7 +275,7 @@ abstract class AppLocalizations {
   /// No description provided for @car_model.
   ///
   /// In en, this message translates to:
-  /// **'Vehicle Model'**
+  /// **'Car Model'**
   String get car_model;
 
   /// No description provided for @software_version.
@@ -325,6 +325,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check for Update'**
   String get check_update;
+
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// No description provided for @login.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get login;
+
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logout;
+
+  /// No description provided for @sync_data.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Data'**
+  String get sync_data;
+
+  /// No description provided for @login_to_sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Login to sync data and share trips'**
+  String get login_to_sync;
+
+  /// No description provided for @connected_as.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected as: {name}'**
+  String connected_as(Object name);
+
+  /// No description provided for @brand.
+  ///
+  /// In en, this message translates to:
+  /// **'My ADAS'**
+  String get brand;
+
+  /// No description provided for @my_car.
+  ///
+  /// In en, this message translates to:
+  /// **'My Car'**
+  String get my_car;
+
+  /// No description provided for @password.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get password;
+
+  /// No description provided for @name.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname'**
+  String get name;
+
+  /// No description provided for @register.
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get register;
+
+  /// No description provided for @no_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account? Register'**
+  String get no_account;
+
+  /// No description provided for @has_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Login'**
+  String get has_account;
+
+  /// No description provided for @login_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Login failed'**
+  String get login_failed;
+
+  /// No description provided for @register_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration failed'**
+  String get register_failed;
+
+  /// No description provided for @forgot_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot Password?'**
+  String get forgot_password;
+
+  /// No description provided for @reset_email_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset email sent, please check your inbox'**
+  String get reset_email_sent;
+
+  /// No description provided for @verify_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify Email'**
+  String get verify_email;
+
+  /// No description provided for @verification_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification email sent'**
+  String get verification_sent;
+
+  /// No description provided for @not_verified.
+  ///
+  /// In en, this message translates to:
+  /// **'Not verified (Tap to verify)'**
+  String get not_verified;
+
+  /// No description provided for @error_email_taken.
+  ///
+  /// In en, this message translates to:
+  /// **'Email already registered'**
+  String get error_email_taken;
+
+  /// No description provided for @error_invalid_credentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email or password'**
+  String get error_invalid_credentials;
+
+  /// No description provided for @error_password_too_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be at least 8 characters'**
+  String get error_password_too_short;
+
+  /// No description provided for @verification_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification successful!'**
+  String get verification_success;
 }
 
 class _AppLocalizationsDelegate

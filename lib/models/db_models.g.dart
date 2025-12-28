@@ -17,9 +17,9 @@ const TripSchema = CollectionSchema(
   name: r'Trip',
   id: 2639069002795865543,
   properties: {
-    r'adasBrand': PropertySchema(
+    r'brand': PropertySchema(
       id: 0,
-      name: r'adasBrand',
+      name: r'brand',
       type: IsarType.string,
     ),
     r'carModel': PropertySchema(
@@ -27,38 +27,43 @@ const TripSchema = CollectionSchema(
       name: r'carModel',
       type: IsarType.string,
     ),
-    r'distance': PropertySchema(
+    r'cloudId': PropertySchema(
       id: 2,
+      name: r'cloudId',
+      type: IsarType.string,
+    ),
+    r'distance': PropertySchema(
+      id: 3,
       name: r'distance',
       type: IsarType.double,
     ),
     r'endTime': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'endTime',
       type: IsarType.dateTime,
     ),
     r'eventCount': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'eventCount',
       type: IsarType.long,
     ),
     r'notes': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'notes',
       type: IsarType.string,
     ),
     r'softwareVersion': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'softwareVersion',
       type: IsarType.string,
     ),
     r'startTime': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'startTime',
       type: IsarType.dateTime,
     ),
     r'uuid': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -111,13 +116,19 @@ int _tripEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
-    final value = object.adasBrand;
+    final value = object.brand;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
   }
   {
     final value = object.carModel;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.cloudId;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -144,15 +155,16 @@ void _tripSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.adasBrand);
+  writer.writeString(offsets[0], object.brand);
   writer.writeString(offsets[1], object.carModel);
-  writer.writeDouble(offsets[2], object.distance);
-  writer.writeDateTime(offsets[3], object.endTime);
-  writer.writeLong(offsets[4], object.eventCount);
-  writer.writeString(offsets[5], object.notes);
-  writer.writeString(offsets[6], object.softwareVersion);
-  writer.writeDateTime(offsets[7], object.startTime);
-  writer.writeString(offsets[8], object.uuid);
+  writer.writeString(offsets[2], object.cloudId);
+  writer.writeDouble(offsets[3], object.distance);
+  writer.writeDateTime(offsets[4], object.endTime);
+  writer.writeLong(offsets[5], object.eventCount);
+  writer.writeString(offsets[6], object.notes);
+  writer.writeString(offsets[7], object.softwareVersion);
+  writer.writeDateTime(offsets[8], object.startTime);
+  writer.writeString(offsets[9], object.uuid);
 }
 
 Trip _tripDeserialize(
@@ -162,16 +174,17 @@ Trip _tripDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Trip();
-  object.adasBrand = reader.readStringOrNull(offsets[0]);
+  object.brand = reader.readStringOrNull(offsets[0]);
   object.carModel = reader.readStringOrNull(offsets[1]);
-  object.distance = reader.readDouble(offsets[2]);
-  object.endTime = reader.readDateTimeOrNull(offsets[3]);
-  object.eventCount = reader.readLong(offsets[4]);
+  object.cloudId = reader.readStringOrNull(offsets[2]);
+  object.distance = reader.readDouble(offsets[3]);
+  object.endTime = reader.readDateTimeOrNull(offsets[4]);
+  object.eventCount = reader.readLong(offsets[5]);
   object.id = id;
-  object.notes = reader.readStringOrNull(offsets[5]);
-  object.softwareVersion = reader.readStringOrNull(offsets[6]);
-  object.startTime = reader.readDateTime(offsets[7]);
-  object.uuid = reader.readString(offsets[8]);
+  object.notes = reader.readStringOrNull(offsets[6]);
+  object.softwareVersion = reader.readStringOrNull(offsets[7]);
+  object.startTime = reader.readDateTime(offsets[8]);
+  object.uuid = reader.readString(offsets[9]);
   return object;
 }
 
@@ -187,18 +200,20 @@ P _tripDeserializeProp<P>(
     case 1:
       return (reader.readStringOrNull(offset)) as P;
     case 2:
-      return (reader.readDouble(offset)) as P;
-    case 3:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 4:
-      return (reader.readLong(offset)) as P;
-    case 5:
       return (reader.readStringOrNull(offset)) as P;
+    case 3:
+      return (reader.readDouble(offset)) as P;
+    case 4:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 5:
+      return (reader.readLong(offset)) as P;
     case 6:
       return (reader.readStringOrNull(offset)) as P;
     case 7:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 8:
+      return (reader.readDateTime(offset)) as P;
+    case 9:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -394,36 +409,36 @@ extension TripQueryWhere on QueryBuilder<Trip, Trip, QWhereClause> {
 }
 
 extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsNull() {
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'adasBrand',
+        property: r'brand',
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsNotNull() {
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'adasBrand',
+        property: r'brand',
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandEqualTo(
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandEqualTo(
     String? value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'adasBrand',
+        property: r'brand',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandGreaterThan(
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandGreaterThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
@@ -431,14 +446,14 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
-        property: r'adasBrand',
+        property: r'brand',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandLessThan(
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandLessThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
@@ -446,14 +461,14 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
-        property: r'adasBrand',
+        property: r'brand',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandBetween(
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandBetween(
     String? lower,
     String? upper, {
     bool includeLower = true,
@@ -462,7 +477,7 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
-        property: r'adasBrand',
+        property: r'brand',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -472,69 +487,67 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandStartsWith(
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandStartsWith(
     String value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'adasBrand',
+        property: r'brand',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandEndsWith(
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandEndsWith(
     String value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'adasBrand',
+        property: r'brand',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandContains(
-      String value,
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandContains(String value,
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.contains(
-        property: r'adasBrand',
+        property: r'brand',
         value: value,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandMatches(
-      String pattern,
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandMatches(String pattern,
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.matches(
-        property: r'adasBrand',
+        property: r'brand',
         wildcard: pattern,
         caseSensitive: caseSensitive,
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsEmpty() {
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandIsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'adasBrand',
+        property: r'brand',
         value: '',
       ));
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterFilterCondition> adasBrandIsNotEmpty() {
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brandIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'adasBrand',
+        property: r'brand',
         value: '',
       ));
     });
@@ -680,6 +693,150 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'carModel',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'cloudId',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'cloudId',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'cloudId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdContains(String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdMatches(String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'cloudId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cloudId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> cloudIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'cloudId',
         value: '',
       ));
     });
@@ -1509,15 +1666,15 @@ extension TripQueryLinks on QueryBuilder<Trip, Trip, QFilterCondition> {
 }
 
 extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
-  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAdasBrand() {
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByBrand() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'adasBrand', Sort.asc);
+      return query.addSortBy(r'brand', Sort.asc);
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAdasBrandDesc() {
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByBrandDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'adasBrand', Sort.desc);
+      return query.addSortBy(r'brand', Sort.desc);
     });
   }
 
@@ -1530,6 +1687,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByCarModelDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'carModel', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByCloudId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByCloudIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.desc);
     });
   }
 
@@ -1619,15 +1788,15 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
 }
 
 extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
-  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAdasBrand() {
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByBrand() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'adasBrand', Sort.asc);
+      return query.addSortBy(r'brand', Sort.asc);
     });
   }
 
-  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAdasBrandDesc() {
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByBrandDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'adasBrand', Sort.desc);
+      return query.addSortBy(r'brand', Sort.desc);
     });
   }
 
@@ -1640,6 +1809,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByCarModelDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'carModel', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByCloudId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByCloudIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.desc);
     });
   }
 
@@ -1741,10 +1922,10 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
 }
 
 extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
-  QueryBuilder<Trip, Trip, QDistinct> distinctByAdasBrand(
+  QueryBuilder<Trip, Trip, QDistinct> distinctByBrand(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'adasBrand', caseSensitive: caseSensitive);
+      return query.addDistinctBy(r'brand', caseSensitive: caseSensitive);
     });
   }
 
@@ -1752,6 +1933,13 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'carModel', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QDistinct> distinctByCloudId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'cloudId', caseSensitive: caseSensitive);
     });
   }
 
@@ -1809,15 +1997,21 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
     });
   }
 
-  QueryBuilder<Trip, String?, QQueryOperations> adasBrandProperty() {
+  QueryBuilder<Trip, String?, QQueryOperations> brandProperty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'adasBrand');
+      return query.addPropertyName(r'brand');
     });
   }
 
   QueryBuilder<Trip, String?, QQueryOperations> carModelProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'carModel');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> cloudIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'cloudId');
     });
   }
 
@@ -1880,23 +2074,28 @@ const TrajectoryPointSchema = CollectionSchema(
       name: r'altitude',
       type: IsarType.double,
     ),
-    r'lat': PropertySchema(
+    r'isLowConfidence': PropertySchema(
       id: 1,
+      name: r'isLowConfidence',
+      type: IsarType.bool,
+    ),
+    r'lat': PropertySchema(
+      id: 2,
       name: r'lat',
       type: IsarType.double,
     ),
     r'lng': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'lng',
       type: IsarType.double,
     ),
     r'speed': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'speed',
       type: IsarType.double,
     ),
     r'timestamp': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'timestamp',
       type: IsarType.dateTime,
     )
@@ -1931,10 +2130,11 @@ void _trajectoryPointSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeDouble(offsets[0], object.altitude);
-  writer.writeDouble(offsets[1], object.lat);
-  writer.writeDouble(offsets[2], object.lng);
-  writer.writeDouble(offsets[3], object.speed);
-  writer.writeDateTime(offsets[4], object.timestamp);
+  writer.writeBool(offsets[1], object.isLowConfidence);
+  writer.writeDouble(offsets[2], object.lat);
+  writer.writeDouble(offsets[3], object.lng);
+  writer.writeDouble(offsets[4], object.speed);
+  writer.writeDateTime(offsets[5], object.timestamp);
 }
 
 TrajectoryPoint _trajectoryPointDeserialize(
@@ -1946,10 +2146,11 @@ TrajectoryPoint _trajectoryPointDeserialize(
   final object = TrajectoryPoint();
   object.altitude = reader.readDouble(offsets[0]);
   object.id = id;
-  object.lat = reader.readDouble(offsets[1]);
-  object.lng = reader.readDouble(offsets[2]);
-  object.speed = reader.readDouble(offsets[3]);
-  object.timestamp = reader.readDateTime(offsets[4]);
+  object.isLowConfidence = reader.readBoolOrNull(offsets[1]);
+  object.lat = reader.readDouble(offsets[2]);
+  object.lng = reader.readDouble(offsets[3]);
+  object.speed = reader.readDouble(offsets[4]);
+  object.timestamp = reader.readDateTime(offsets[5]);
   return object;
 }
 
@@ -1963,12 +2164,14 @@ P _trajectoryPointDeserializeProp<P>(
     case 0:
       return (reader.readDouble(offset)) as P;
     case 1:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readBoolOrNull(offset)) as P;
     case 2:
       return (reader.readDouble(offset)) as P;
     case 3:
       return (reader.readDouble(offset)) as P;
     case 4:
+      return (reader.readDouble(offset)) as P;
+    case 5:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -2188,6 +2391,34 @@ extension TrajectoryPointQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterFilterCondition>
+      isLowConfidenceIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'isLowConfidence',
+      ));
+    });
+  }
+
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterFilterCondition>
+      isLowConfidenceIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'isLowConfidence',
+      ));
+    });
+  }
+
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterFilterCondition>
+      isLowConfidenceEqualTo(bool? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isLowConfidence',
+        value: value,
       ));
     });
   }
@@ -2469,6 +2700,20 @@ extension TrajectoryPointQuerySortBy
     });
   }
 
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterSortBy>
+      sortByIsLowConfidence() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLowConfidence', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterSortBy>
+      sortByIsLowConfidenceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLowConfidence', Sort.desc);
+    });
+  }
+
   QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterSortBy> sortByLat() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lat', Sort.asc);
@@ -2549,6 +2794,20 @@ extension TrajectoryPointQuerySortThenBy
     });
   }
 
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterSortBy>
+      thenByIsLowConfidence() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLowConfidence', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterSortBy>
+      thenByIsLowConfidenceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLowConfidence', Sort.desc);
+    });
+  }
+
   QueryBuilder<TrajectoryPoint, TrajectoryPoint, QAfterSortBy> thenByLat() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lat', Sort.asc);
@@ -2610,6 +2869,13 @@ extension TrajectoryPointQueryWhereDistinct
     });
   }
 
+  QueryBuilder<TrajectoryPoint, TrajectoryPoint, QDistinct>
+      distinctByIsLowConfidence() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isLowConfidence');
+    });
+  }
+
   QueryBuilder<TrajectoryPoint, TrajectoryPoint, QDistinct> distinctByLat() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lat');
@@ -2647,6 +2913,13 @@ extension TrajectoryPointQueryProperty
   QueryBuilder<TrajectoryPoint, double, QQueryOperations> altitudeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'altitude');
+    });
+  }
+
+  QueryBuilder<TrajectoryPoint, bool?, QQueryOperations>
+      isLowConfidenceProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isLowConfidence');
     });
   }
 

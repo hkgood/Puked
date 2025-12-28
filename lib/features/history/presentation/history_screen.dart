@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/services/export/export_service.dart';
+import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/features/history/presentation/trip_detail_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
-final exportServiceProvider = Provider((ref) => ExportService());
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -270,9 +268,9 @@ class _TripCard extends ConsumerWidget {
                           : Colors.black.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: trip.adasBrand != null
+                    child: trip.brand != null
                         ? SvgPicture.asset(
-                            'assets/logos/${trip.adasBrand}.svg',
+                            'assets/logos/${trip.brand}.svg',
                             colorFilter:
                                 Theme.of(context).brightness == Brightness.dark
                                     ? const ColorFilter.mode(

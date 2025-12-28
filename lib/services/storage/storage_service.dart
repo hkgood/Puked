@@ -1,7 +1,12 @@
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:uuid/uuid.dart';
+
+final storageServiceProvider = Provider<StorageService>((ref) {
+  return StorageService();
+});
 
 class StorageService {
   Isar? _isar;
@@ -75,14 +80,26 @@ class StorageService {
     });
   }
 
-  Future<void> updateTripVehicleInfo(int tripId,
-      {String? adasBrand, String? carModel, String? softwareVersion}) async {
+  Future<void> updateTripCloudId(int tripId, String cloudId) async {
     final isar = _isar;
     if (isar == null) return;
     await isar.writeTxn(() async {
       final trip = await isar.trips.get(tripId);
       if (trip != null) {
-        trip.adasBrand = adasBrand;
+        trip.cloudId = cloudId;
+        await isar.trips.put(trip);
+      }
+    });
+  }
+
+  Future<void> updateTripVehicleInfo(int tripId,
+      {String? brand, String? carModel, String? softwareVersion}) async {
+    final isar = _isar;
+    if (isar == null) return;
+    await isar.writeTxn(() async {
+      final trip = await isar.trips.get(tripId);
+      if (trip != null) {
+        trip.brand = brand;
         trip.carModel = carModel;
         trip.softwareVersion = softwareVersion;
         await isar.trips.put(trip);

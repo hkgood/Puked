@@ -331,6 +331,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   }
 
   Widget _buildQuickStat(String label, String value, {Color? color}) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -338,11 +339,13 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
-                color: color,
+                color: color ?? colorScheme.onSurface,
                 letterSpacing: -0.5)),
         Text(label.toUpperCase(),
-            style: const TextStyle(
-                fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800, // 增加字重从 bold 到 w800
+                color: colorScheme.onSurfaceVariant)), // 使用主题定义的次要文字色
       ],
     );
   }
@@ -696,6 +699,7 @@ class _RecordingStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         Row(
@@ -703,19 +707,20 @@ class _RecordingStat extends StatelessWidget {
           children: [
             Icon(icon,
                 size: compact ? 12 : 14,
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.7)),
+                color: colorScheme.primary), // 移除不必要的透明度，直接使用主色
             const SizedBox(width: 4),
             Text(value,
                 style: TextStyle(
-                    fontSize: compact ? 16 : 18, fontWeight: FontWeight.w800)),
+                    fontSize: compact ? 16 : 18,
+                    fontWeight: FontWeight.w900, // 增加字重
+                    color: colorScheme.onSurface)),
           ],
         ),
-        Text(label,
+        Text(label.toUpperCase(), // 统一使用大写并加亮
             style: TextStyle(
-                fontSize: compact ? 10 : 11, fontWeight: FontWeight.w500)),
+                fontSize: compact ? 10 : 11,
+                fontWeight: FontWeight.w800,
+                color: colorScheme.onSurfaceVariant)),
       ],
     );
   }

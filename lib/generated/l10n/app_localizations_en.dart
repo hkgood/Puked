@@ -97,7 +97,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vehicle_info => 'Vehicle Info';
 
   @override
-  String get car_model => 'Vehicle Model';
+  String get car_model => 'Car Model';
 
   @override
   String get software_version => 'Software Version';
@@ -122,4 +122,79 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get check_update => 'Check for Update';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get login => 'Login';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get sync_data => 'Sync Data';
+
+  @override
+  String get login_to_sync => 'Login to sync data and share trips';
+
+  @override
+  String connected_as(Object name) {
+    return 'Connected as: $name';
+  }
+
+  @override
+  String get brand => 'My ADAS';
+
+  @override
+  String get my_car => 'My Car';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get name => 'Nickname';
+
+  @override
+  String get register => 'Register';
+
+  @override
+  String get no_account => 'Don\'t have an account? Register';
+
+  @override
+  String get has_account => 'Already have an account? Login';
+
+  @override
+  String get login_failed => 'Login failed';
+
+  @override
+  String get register_failed => 'Registration failed';
+
+  @override
+  String get forgot_password => 'Forgot Password?';
+
+  @override
+  String get reset_email_sent => 'Reset email sent, please check your inbox';
+
+  @override
+  String get verify_email => 'Verify Email';
+
+  @override
+  String get verification_sent => 'Verification email sent';
+
+  @override
+  String get not_verified => 'Not verified (Tap to verify)';
+
+  @override
+  String get error_email_taken => 'Email already registered';
+
+  @override
+  String get error_invalid_credentials => 'Invalid email or password';
+
+  @override
+  String get error_password_too_short =>
+      'Password must be at least 8 characters';
+
+  @override
+  String get verification_success => 'Verification successful!';
 }

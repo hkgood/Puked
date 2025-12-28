@@ -44,6 +44,14 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Configure Keystore
+        run: |
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=upload-keystore.jks" >> android/key.properties
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > android/app/upload-keystore.jks
+
       - name: Build APK
         run: |
           # 提取版本号，去除 v 前缀 (例如 v1.0.3 -> 1.0.3)

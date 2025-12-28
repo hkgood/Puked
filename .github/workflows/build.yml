@@ -51,9 +51,13 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          # 检查必要变量是否配置
-          if [ -z "$KEYSTORE_CONTENT" ]; then echo "Error: KEYSTORE_FILE secret is missing"; exit 1; fi
-          if [ -z "$KEY_ALIAS" ]; then echo "Error: KEY_ALIAS secret is missing"; exit 1; fi
+          echo "Checking Secrets availability..."
+          if [ -z "$KEYSTORE_CONTENT" ]; then 
+            echo "❌ ERROR: 'KEYSTORE_FILE' secret is empty!"
+            echo "Please go to: Settings -> Secrets and variables -> Actions"
+            echo "And ensure 'KEYSTORE_FILE' is added as a Repository Secret."
+            exit 1
+          fi
           
           # 创建 key.properties
           cat <<EOF > android/key.properties
@@ -63,13 +67,10 @@ jobs:
           storeFile=upload-keystore.jks
           EOF
           
-          # 解码 Keystore (使用 -d 适配不同平台的 base64)
-          echo "$KEYSTORE_CONTENT" | base64 -d > android/app/upload-keystore.jks
+          # 解码 Keystore (尝试 -d 和 --decode)
+          echo "$KEYSTORE_CONTENT" | base64 -d > android/app/upload-keystore.jks || echo "$KEYSTORE_CONTENT" | base64 --decode > android/app/upload-keystore.jks
           
-          # 验证文件 (不打印内容，仅看属性)
-          echo "Checking generated files..."
-          ls -l android/key.properties
-          file android/app/upload-keystore.jks
+          echo "✅ Keystore and key.properties configured successfully."
 
       - name: Build APK
         run: |

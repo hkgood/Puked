@@ -50,6 +50,7 @@ app.*.map.json
 *.p12
 *.cer
 *.key
+key.properties
 local.properties
 google-services.json
 ios/Runner/GoogleService-Info.plist

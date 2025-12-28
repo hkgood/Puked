@@ -287,7 +287,6 @@ class SettingsScreen extends ConsumerWidget {
               l10n.sensitivityTip,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey,
-                    fontFamily: 'PingFang SC',
                   ),
             ),
           ),
@@ -299,7 +298,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             title: Text(
               l10n.current_version,
-              style: const TextStyle(fontFamily: 'PingFang SC'),
+              style: const TextStyle(),
             ),
             trailing: packageInfo.when(
               data: (info) => Text(
@@ -317,7 +316,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             title: Text(
               l10n.check_update,
-              style: const TextStyle(fontFamily: 'PingFang SC'),
+              style: const TextStyle(),
             ),
             trailing: const Icon(Icons.chevron_right, color: Colors.grey),
             onTap: () {
@@ -347,12 +346,11 @@ class SettingsScreen extends ConsumerWidget {
     return ListTile(
       title: Text(
         title,
-        style: const TextStyle(fontFamily: 'PingFang SC'),
+        style: const TextStyle(),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
-          fontFamily: 'PingFang SC',
           color: Colors.grey.shade600,
           fontSize: 12,
         ),

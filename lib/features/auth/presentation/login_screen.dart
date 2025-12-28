@@ -72,8 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         title: Text(
           l10n.forgot_password,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontFamily: 'PingFang SC'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         content: SizedBox(
           width: MediaQuery.of(context).size.width,
@@ -83,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 8),
               TextField(
                 controller: controller,
-                style: const TextStyle(fontFamily: 'PingFang SC'),
+                style: const TextStyle(),
                 decoration: _buildInputDecoration('Email', Icons.email_outlined,
                     hint: 'example@email.com'),
                 keyboardType: TextInputType.emailAddress,
@@ -98,8 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(l10n.skip,
-                      style: const TextStyle(
-                          color: Colors.grey, fontFamily: 'PingFang SC')),
+                      style: const TextStyle(color: Colors.grey)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -123,8 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(l10n.reset_email_sent,
-                              style:
-                                  const TextStyle(fontFamily: 'PingFang SC')),
+                              style: const TextStyle()),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -132,8 +129,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   },
                   child: Text(l10n.save,
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'PingFang SC')),
+                        fontWeight: FontWeight.bold,
+                      )),
                 ),
               ),
             ],
@@ -150,14 +147,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       labelText: label,
       hintText: hint,
       prefixIcon: Icon(icon, color: colorScheme.onSurfaceVariant, size: 20),
-      labelStyle: const TextStyle(
-          color: Color(0xFF8E8E93), fontSize: 14, fontFamily: 'PingFang SC'),
+      labelStyle: const TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
       floatingLabelStyle: TextStyle(
-          color: colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'PingFang SC'),
-      hintStyle: const TextStyle(
-          color: Color(0xFF636366), fontSize: 14, fontFamily: 'PingFang SC'),
+        color: colorScheme.primary,
+        fontWeight: FontWeight.bold,
+      ),
+      hintStyle: const TextStyle(color: Color(0xFF636366), fontSize: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: colorScheme.outlineVariant, width: 1.5),
@@ -180,8 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.login,
-            style: const TextStyle(
-                fontFamily: 'PingFang SC', fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
@@ -199,7 +193,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _emailController,
-                  style: const TextStyle(fontFamily: 'PingFang SC'),
+                  style: const TextStyle(),
                   decoration: _buildInputDecoration(
                       'Email', Icons.email_outlined,
                       hint: 'example@email.com'),
@@ -210,7 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
-                  style: const TextStyle(fontFamily: 'PingFang SC'),
+                  style: const TextStyle(),
                   decoration:
                       _buildInputDecoration(l10n.password, Icons.lock_outline),
                   obscureText: true,
@@ -224,9 +218,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () => _showForgotPasswordDialog(context),
                     child: Text(l10n.forgot_password,
                         style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontSize: 13,
-                            fontFamily: 'PingFang SC')),
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 13,
+                        )),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -248,9 +242,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               strokeWidth: 2, color: Colors.white))
                       : Text(l10n.login,
                           style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'PingFang SC')),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          )),
                 ),
                 const SizedBox(height: 24),
                 TextButton(
@@ -263,8 +257,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   },
                   child: Text(l10n.no_account,
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontFamily: 'PingFang SC')),
+                        color: Theme.of(context).colorScheme.primary,
+                      )),
                 ),
               ],
             ),

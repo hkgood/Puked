@@ -85,14 +85,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       labelText: label,
       hintText: hint,
       prefixIcon: Icon(icon, color: colorScheme.onSurfaceVariant, size: 20),
-      labelStyle: const TextStyle(
-          color: Color(0xFF8E8E93), fontSize: 14, fontFamily: 'PingFang SC'),
+      labelStyle: const TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
       floatingLabelStyle: TextStyle(
-          color: colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'PingFang SC'),
-      hintStyle: const TextStyle(
-          color: Color(0xFF636366), fontSize: 14, fontFamily: 'PingFang SC'),
+        color: colorScheme.primary,
+        fontWeight: FontWeight.bold,
+      ),
+      hintStyle: const TextStyle(color: Color(0xFF636366), fontSize: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: colorScheme.outlineVariant, width: 1.5),
@@ -115,8 +113,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.register,
-            style: const TextStyle(
-                fontFamily: 'PingFang SC', fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
@@ -134,7 +131,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _nameController,
-                  style: const TextStyle(fontFamily: 'PingFang SC'),
+                  style: const TextStyle(),
                   decoration:
                       _buildInputDecoration(l10n.name, Icons.person_outline),
                   validator: (v) =>
@@ -143,7 +140,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _emailController,
-                  style: const TextStyle(fontFamily: 'PingFang SC'),
+                  style: const TextStyle(),
                   decoration: _buildInputDecoration(
                       'Email', Icons.email_outlined,
                       hint: 'example@email.com'),
@@ -154,7 +151,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
-                  style: const TextStyle(fontFamily: 'PingFang SC'),
+                  style: const TextStyle(),
                   decoration:
                       _buildInputDecoration(l10n.password, Icons.lock_outline),
                   obscureText: true,
@@ -164,7 +161,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _confirmPasswordController,
-                  style: const TextStyle(fontFamily: 'PingFang SC'),
+                  style: const TextStyle(),
                   decoration: _buildInputDecoration(
                       l10n.password, Icons.lock_reset_outlined,
                       hint: 'Repeat password'),
@@ -191,17 +188,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               strokeWidth: 2, color: Colors.white))
                       : Text(l10n.register,
                           style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'PingFang SC')),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          )),
                 ),
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(l10n.has_account,
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontFamily: 'PingFang SC')),
+                        color: Theme.of(context).colorScheme.primary,
+                      )),
                 ),
               ],
             ),

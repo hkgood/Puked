@@ -46,7 +46,6 @@ class _PukedAppState extends ConsumerState<PukedApp> {
 
     // 通用的黑体字体回退序列
     const fontFallback = [
-      'PingFang SC',
       'Heiti SC',
       'Microsoft YaHei',
       'Source Han Sans SC',
@@ -56,7 +55,6 @@ class _PukedAppState extends ConsumerState<PukedApp> {
 
     final baseTheme = ThemeData(
       useMaterial3: true,
-      fontFamily: 'PingFang SC',
       fontFamilyFallback: fontFallback,
     );
 

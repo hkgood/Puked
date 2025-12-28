@@ -199,7 +199,9 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                       ),
                       borderRadius: BorderRadius.circular(16),
                       color: isSelected
-                          ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+                          ? Theme.of(context)
+                              .primaryColor
+                              .withValues(alpha: 0.1)
                           : Theme.of(context)
                               .colorScheme
                               .surfaceContainerHighest

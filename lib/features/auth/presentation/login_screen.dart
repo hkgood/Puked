@@ -26,29 +26,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final messenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context)!;
+    final navigator = Navigator.of(context);
+
     try {
       await ref.read(authProvider.notifier).login(
             _emailController.text.trim(),
             _passwordController.text,
           );
-      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      navigator.pop();
     } catch (e) {
-      if (mounted) {
-        final errorKey = ref.read(authProvider).error;
-        String errorMsg;
-        if (errorKey == 'error_invalid_credentials') {
-          errorMsg = AppLocalizations.of(context)!.error_invalid_credentials;
-        } else {
-          errorMsg = AppLocalizations.of(context)!.login_failed;
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMsg),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (!mounted) return;
+      final errorKey = ref.read(authProvider).error;
+      String errorMsg;
+      if (errorKey == 'error_invalid_credentials') {
+        errorMsg = localizations.error_invalid_credentials;
+      } else {
+        errorMsg = localizations.login_failed;
       }
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -114,17 +118,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       await ref
                           .read(authProvider.notifier)
                           .requestPasswordReset(controller.text.trim());
-                      if (mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(l10n.reset_email_sent,
-                                style:
-                                    const TextStyle(fontFamily: 'PingFang SC')),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.reset_email_sent,
+                              style:
+                                  const TextStyle(fontFamily: 'PingFang SC')),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
                     }
                   },
                   child: Text(l10n.save,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -398,32 +399,49 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         // 计算事件参数 (G值)
                         String parameter = "--";
                         if (e.sensorData.isNotEmpty) {
-                          double maxVal = 0;
-                          for (var p in e.sensorData) {
+                          // 1. 先将所有采样点转为模长 (Magnitude)
+                          final magnitudes = e.sensorData.map((p) {
                             if (e.type == 'rapidAcceleration' ||
                                 e.type == 'rapidDeceleration') {
-                              if (p.ay != null && p.ay!.abs() > maxVal.abs()) {
-                                maxVal = p.ay!;
-                              }
+                              return (p.ay ?? 0).abs();
                             } else if (e.type == 'wobble') {
-                              if (p.ax != null && p.ax!.abs() > maxVal.abs()) {
-                                maxVal = p.ax!;
-                              }
+                              return (p.ax ?? 0).abs();
                             } else if (e.type == 'bump') {
-                              if (p.az != null && p.az!.abs() > maxVal.abs()) {
-                                maxVal = p.az!;
-                              }
+                              return (p.az ?? 0).abs();
                             } else {
-                              // 其他类型取合力加速度
-                              final g = (p.ax ?? 0) * (p.ax ?? 0) +
+                              // 合力加速度 (m/s^2)，先计算平方和再开方 (修复了原本缺少 sqrt 的 bug)
+                              return math.sqrt((p.ax ?? 0) * (p.ax ?? 0) +
                                   (p.ay ?? 0) * (p.ay ?? 0) +
-                                  (p.az ?? 0) * (p.az ?? 0);
-                              if (g > maxVal) maxVal = g;
+                                  (p.az ?? 0) * (p.az ?? 0));
                             }
+                          }).toList();
+
+                          // 2. 使用约 100ms 滑动窗口平滑 (30Hz 下约 3 个采样点)
+                          // 理由：人体感知的顿挫是具有持续时间的，单帧 33ms 的物理尖峰通常是支架颤动，不代表真实体感。
+                          double maxSmoothedVal = 0;
+                          const windowSize = 3;
+
+                          if (magnitudes.length >= windowSize) {
+                            for (int i = 0;
+                                i <= magnitudes.length - windowSize;
+                                i++) {
+                              double sum = 0;
+                              for (int j = 0; j < windowSize; j++) {
+                                sum += magnitudes[i + j];
+                              }
+                              final avg = sum / windowSize;
+                              if (avg > maxSmoothedVal) maxSmoothedVal = avg;
+                            }
+                          } else if (magnitudes.isNotEmpty) {
+                            maxSmoothedVal =
+                                magnitudes.reduce((a, b) => a + b) /
+                                    magnitudes.length;
                           }
-                          // 如果是合力，记得开方。如果是单轴，直接取绝对值并转为 G
-                          double finalG =
-                              e.type == 'manual' ? 0 : (maxVal.abs() / 9.80665);
+
+                          // 转换为 G 值 (标准重力加速度 9.80665)
+                          double finalG = e.type == 'manual'
+                              ? 0
+                              : (maxSmoothedVal / 9.80665);
                           parameter = "${finalG.toStringAsFixed(2)} G";
                         }
 

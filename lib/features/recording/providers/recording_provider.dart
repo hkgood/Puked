@@ -115,6 +115,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   final ListQueue<MapEntry<DateTime, double>> _yHistory =
       ListQueue(); // 增加 Y 轴历史用于检测 Jerk
   final ListQueue<MapEntry<DateTime, double>> _yawRateHistory = ListQueue();
+  final ListQueue<double> _realtimeGHistory = ListQueue(); // 增加实时 G 值平滑缓冲区
 
   // 防抖计时器 (防止短时间内重复触发同一类型事件)
   final Map<String, DateTime> _lastTriggered = {};
@@ -453,6 +454,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       _xHistory.clear();
       _yHistory.clear();
       _yawRateHistory.clear();
+      _realtimeGHistory.clear();
 
       // 【核心改进】点击开始瞬间，如果有位置，立即存入作为起点
       List<TrajectoryPoint> initialTrajectory = [];
@@ -474,9 +476,18 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
           next.whenData((sensorData) {
             if (state.isRecording) {
               final accelForPeak = sensorData.filteredAccel;
-              final currentG = accelForPeak.length / 9.80665;
-              if (currentG > state.maxGForce) {
-                state = state.copyWith(maxGForce: currentG);
+              final rawG = accelForPeak.length / 9.80665;
+
+              // 100ms 实时平滑 (30Hz 采样下约 3 帧)
+              // 理由：防止单帧高频振动导致实时最大 G 值虚高
+              _realtimeGHistory.addLast(rawG);
+              if (_realtimeGHistory.length > 3) _realtimeGHistory.removeFirst();
+
+              final smoothedG = _realtimeGHistory.reduce((a, b) => a + b) /
+                  _realtimeGHistory.length;
+
+              if (smoothedG > state.maxGForce) {
+                state = state.copyWith(maxGForce: smoothedG);
               }
               _detectAutoEvents(sensorData);
             }

@@ -1,7 +1,7 @@
-# Picky Passenger 产品需求文档 (PRD)
+# Puked 产品需求文档 (PRD)
 
 ## 1. 项目概况
-- **项目名称**: Picky Passenger (挑剔乘客)
+- **项目名称**: Puked (吐槽)
 - **目标平台**: iOS, Android
 - **技术栈**: Flutter (基于 Dart)
 - **核心定位**: 为自动驾驶产品经理 (PM) 和工程师设计的行驶舒适度量化工具。

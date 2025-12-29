@@ -250,7 +250,7 @@ class UpdateService {
                   url,
                   destinationFilename: 'puked_update.apk',
                   androidProviderAuthority:
-                      'com.example.puked.ota_update_provider',
+                      'com.osglab.puked.ota_update_provider',
                 ),
                 builder: (context, snapshot) {
                   double progress = 0;

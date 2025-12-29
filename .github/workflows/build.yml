@@ -78,7 +78,7 @@ jobs:
           VERSION_NAME=$(echo ${{ github.ref_name }} | sed 's/^v//')
           # 如果不是从 tag 触发，则使用默认版本
           if [[ ! ${{ github.ref_name }} =~ ^v ]]; then
-            VERSION_NAME="1.0.7"
+            VERSION_NAME="1.0.8"
           fi
           
           flutter pub get

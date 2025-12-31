@@ -15,9 +15,156 @@ class StorageService {
     if (_isar != null) return;
     final dir = await getApplicationDocumentsDirectory();
     _isar = await Isar.open(
-      [TripSchema, TrajectoryPointSchema, RecordedEventSchema],
+      [
+        TripSchema,
+        TrajectoryPointSchema,
+        RecordedEventSchema,
+        BrandSchema,
+        SoftwareVersionSchema
+      ],
       directory: dir.path,
     );
+    await seedInitialData();
+  }
+
+  Future<void> seedInitialData() async {
+    final count = await _isar!.brands.count();
+    if (count > 0) return;
+
+    final initialBrands = [
+      'Tesla',
+      'Xpeng',
+      'LiAuto',
+      'Nio',
+      'Xiaomi',
+      'Huawei',
+      'Zeekr',
+      'Onvo',
+      'ApolloGo',
+      'PONYai',
+      'WeRide',
+      'Waymo',
+      'Zoox',
+      'Wayve',
+      'Momenta',
+      'Nvidia',
+      'Horizon',
+      'Deeproute',
+      'Leapmotor'
+    ];
+
+    await _isar!.writeTxn(() async {
+      for (var name in initialBrands) {
+        final brand = Brand()
+          ..name = name
+          ..displayName = name
+          ..logoUrl = null // 初始使用本地资产逻辑，后续同步更新为远程 URL
+          ..isCustom = false;
+        await _isar!.brands.put(brand);
+      }
+    });
+  }
+
+  Future<List<Brand>> getAllBrands() async {
+    await init();
+    return await _isar!.brands
+        .filter()
+        .isEnabledEqualTo(true)
+        .sortByOrder()
+        .findAll();
+  }
+
+  /// 监听品牌表的变化
+  Stream<List<Brand>> watchBrands() async* {
+    await init();
+    yield* _isar!.brands
+        .filter()
+        .isEnabledEqualTo(true)
+        .sortByOrder()
+        .watch(fireImmediately: true);
+  }
+
+  Future<List<SoftwareVersion>> getVersionsForBrand(String brandName) async {
+    await init();
+    final brand =
+        await _isar!.brands.filter().nameEqualTo(brandName).findFirst();
+    if (brand == null) return [];
+
+    return await _isar!.softwareVersions
+        .filter()
+        .brand((q) => q.nameEqualTo(brandName))
+        .and()
+        .isEnabledEqualTo(true)
+        .findAll();
+  }
+
+  Future<void> addBrand(Brand brand) async {
+    await init();
+    await _isar!.writeTxn(() async {
+      await _isar!.brands.put(brand);
+    });
+  }
+
+  Future<void> addVersion(String brandName, String versionString,
+      {bool isCustom = true}) async {
+    await init();
+    final brand =
+        await _isar!.brands.filter().nameEqualTo(brandName).findFirst();
+    if (brand == null) return;
+
+    // 检查版本是否已存在，防止重复
+    final existing = await _isar!.softwareVersions
+        .filter()
+        .versionStringEqualTo(versionString)
+        .and()
+        .brand((q) => q.nameEqualTo(brandName))
+        .findFirst();
+    if (existing != null) return;
+
+    await _isar!.writeTxn(() async {
+      final version = SoftwareVersion()
+        ..versionString = versionString
+        ..isCustom = isCustom;
+      version.brand.value = brand;
+      await _isar!.softwareVersions.put(version);
+      await version.brand.save();
+    });
+  }
+
+  /// 从远程同步更新品牌数据（全量对齐）
+  Future<void> updateBrandsFromRemote(List<Brand> remoteBrands) async {
+    await init();
+    await _isar!.writeTxn(() async {
+      final remoteNames = remoteBrands.map((e) => e.name).toSet();
+
+      // 1. 更新或新增云端返回的品牌
+      for (var remote in remoteBrands) {
+        final local =
+            await _isar!.brands.filter().nameEqualTo(remote.name).findFirst();
+
+        if (local != null) {
+          local.displayName = remote.displayName;
+          local.logoUrl = remote.logoUrl;
+          local.order = remote.order;
+          local.isEnabled = remote.isEnabled;
+          local.isCustom = remote.isCustom;
+          local.updatedAt = remote.updatedAt;
+          await _isar!.brands.put(local);
+        } else {
+          await _isar!.brands.put(remote);
+        }
+      }
+
+      // 2. 【关键】处理本地多余的旧数据
+      // 如果本地品牌在云端不存在，且不是用户自定义的，则将其设为禁用
+      final allLocalBrands = await _isar!.brands.where().findAll();
+      for (var local in allLocalBrands) {
+        if (!remoteNames.contains(local.name) && !local.isCustom) {
+          local.isEnabled = false;
+          await _isar!.brands.put(local);
+        }
+      }
+    });
   }
 
   Future<Trip> startTrip({String? carModel, String? notes}) async {
@@ -87,9 +234,40 @@ class StorageService {
       final trip = await isar.trips.get(tripId);
       if (trip != null) {
         trip.cloudId = cloudId;
+        trip.isUploaded = true;
         await isar.trips.put(trip);
       }
     });
+  }
+
+  /// 批量根据云端 UUID 列表同步本地上传状态
+  /// [cloudUuids] 云端存在的 UUID 列表
+  /// 返回本地状态发生变化的行程数量
+  Future<int> syncTripsStatus(List<String> cloudUuids) async {
+    final isar = _isar;
+    if (isar == null) return 0;
+    int changeCount = 0;
+
+    final cloudSet = cloudUuids.toSet();
+
+    await isar.writeTxn(() async {
+      final allTrips = await isar.trips.where().findAll();
+
+      for (final trip in allTrips) {
+        final shouldBeUploaded = cloudSet.contains(trip.uuid);
+
+        if (trip.isUploaded != shouldBeUploaded) {
+          trip.isUploaded = shouldBeUploaded;
+          // 如果云端不存在了，也清理掉本地存储的 cloudId
+          if (!shouldBeUploaded) {
+            trip.cloudId = null;
+          }
+          await isar.trips.put(trip);
+          changeCount++;
+        }
+      }
+    });
+    return changeCount;
   }
 
   Future<void> updateTripVehicleInfo(int tripId,
@@ -109,7 +287,58 @@ class StorageService {
 
   Future<List<Trip>> getAllTrips() async {
     await init();
-    return await _isar!.trips.where().sortByStartTimeDesc().findAll();
+    final trips = await _isar!.trips.where().sortByStartTimeDesc().findAll();
+    // 预加载关联数据（如果需要）
+    for (final trip in trips) {
+      await trip.events.load();
+    }
+    return trips;
+  }
+
+  /// 监听所有行程变化
+  Stream<List<Trip>> watchTrips() async* {
+    await init();
+    // 监听 trips 集合的变化
+    yield* _isar!.trips
+        .where()
+        .sortByStartTimeDesc()
+        .watch(fireImmediately: true)
+        .asyncMap((trips) async {
+      // 加载每个行程的关联事件，以便进行统计
+      for (final trip in trips) {
+        await trip.events.load();
+      }
+      return trips;
+    });
+  }
+
+  Future<Trip?> getTripById(int id) async {
+    await init();
+    final trip = await _isar!.trips.get(id);
+    if (trip != null) {
+      await trip.trajectory.load();
+      await trip.events.load();
+    }
+    return trip;
+  }
+
+  Future<void> deleteEvent(int tripId, int eventId) async {
+    final isar = _isar;
+    if (isar == null) return;
+    await isar.writeTxn(() async {
+      final trip = await isar.trips.get(tripId);
+      final event = await isar.recordedEvents.get(eventId);
+
+      if (trip != null && event != null) {
+        // 从行程关联中移除
+        trip.events.remove(event);
+        if (trip.eventCount > 0) trip.eventCount--;
+
+        await isar.trips.put(trip);
+        await isar.recordedEvents.delete(eventId);
+        await trip.events.save();
+      }
+    });
   }
 
   Future<void> deleteTrips(List<int> ids) async {

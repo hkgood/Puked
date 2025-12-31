@@ -121,6 +121,11 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   final Map<String, DateTime> _lastTriggered = {};
   static const Duration _debounceDuration = Duration(seconds: 2);
 
+  // --- 聚合引擎相关成员 ---
+  final List<_PendingEvent> _pendingEvents = [];
+  Timer? _fusionTimer;
+  static const Duration _fusionWindow = Duration(milliseconds: 3000);
+
   RecordingNotifier(this._engine, this._storage, this._ref)
       : super(RecordingState(isRecording: false)) {
     // 延迟启动定位初始化，避免 Android 12+ 启动时的前台服务限制
@@ -323,11 +328,11 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     if (accel.y < (_thresholdDecel * finalMultiplier) &&
         !isDebounced('rapidDeceleration')) {
       _lastTriggered['rapidDeceleration'] = now;
-      tagEvent(EventType.rapidDeceleration, source: 'AUTO');
+      _enqueueEvent(EventType.rapidDeceleration, now);
     } else if (accel.y > (_thresholdAccel * finalMultiplier) &&
         !isDebounced('rapidAcceleration')) {
       _lastTriggered['rapidAcceleration'] = now;
-      tagEvent(EventType.rapidAcceleration, source: 'AUTO');
+      _enqueueEvent(EventType.rapidAcceleration, now);
     }
 
     // --- 2. Jerk (顿挫/点刹) 检测 ---
@@ -346,7 +351,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         // 且由于低速时更敏感，我们也给 Jerk 加上 finalMultiplier (注意：Jerk 越小越容易触发)
         if (jerk.abs() > (_thresholdJerk * speedMultiplier)) {
           _lastTriggered['jerk'] = now;
-          tagEvent(EventType.jerk, source: 'AUTO');
+          _enqueueEvent(EventType.jerk, now);
         }
       }
     }
@@ -375,7 +380,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         // 检查是否处于准静止状态 (速度极低或加速度计平稳)
         if (currentSpeedKmh < 2.0 || accel.y.abs() < 0.2) {
           _lastTriggered['jerk'] = now;
-          tagEvent(EventType.jerk, source: 'AUTO');
+          _enqueueEvent(EventType.jerk, now);
         }
       }
     }
@@ -423,7 +428,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
             final jumpDuration = maxTime.difference(minTime).abs();
             if (jumpDuration < const Duration(milliseconds: 800)) {
               _lastTriggered['wobble'] = now;
-              tagEvent(EventType.wobble, source: 'AUTO');
+              _enqueueEvent(EventType.wobble, now);
             }
           }
         }
@@ -433,7 +438,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     if (accel.z.abs() > (_thresholdBump * sensitivityMultiplier) &&
         !isDebounced('bump')) {
       _lastTriggered['bump'] = now;
-      tagEvent(EventType.bump, source: 'AUTO');
+      _enqueueEvent(EventType.bump, now);
     }
   }
 
@@ -533,7 +538,8 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     );
   }
 
-  Future<void> tagEvent(EventType type, {String source = 'MANUAL'}) async {
+  Future<void> tagEvent(EventType type,
+      {String source = 'MANUAL', String? notes}) async {
     if (!state.isRecording || state.currentTrip == null) return;
 
     final now = DateTime.now();
@@ -544,6 +550,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       ..timestamp = now
       ..type = type.name
       ..source = source
+      ..notes = notes ?? "" // 使用传入的备注
       ..sensorData = fragment
           .map((d) => SensorPointEmbedded()
             ..ax = d.processedAccel.x
@@ -567,6 +574,71 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     state = state.copyWith(events: [...state.events, event]);
   }
 
+  // --- 聚合引擎核心逻辑 ---
+
+  /// 将事件放入缓冲区待定
+  void _enqueueEvent(EventType type, DateTime timestamp) {
+    if (!state.isRecording) return;
+
+    _pendingEvents.add(_PendingEvent(
+      type: type,
+      timestamp: timestamp,
+      source: 'AUTO',
+      position: state.currentPosition,
+      speed: state.currentPosition?.speed ?? 0,
+    ));
+
+    // 如果计时器没启动，则启动它 (第一个入队的事件决定了窗口起始)
+    _fusionTimer ??= Timer(_fusionWindow, _processPendingEvents);
+  }
+
+  /// 处理缓冲区中的待定事件
+  void _processPendingEvents() {
+    _fusionTimer = null;
+    if (_pendingEvents.isEmpty) return;
+
+    // 1. 优先级定义 (数值越小优先级越高)
+    final priority = {
+      EventType.rapidAcceleration: 1,
+      EventType.rapidDeceleration: 1,
+      EventType.jerk: 2,
+      EventType.bump: 3,
+      EventType.wobble: 4,
+    };
+
+    // 按照优先级排序
+    _pendingEvents.sort(
+        (a, b) => (priority[a.type] ?? 99).compareTo(priority[b.type] ?? 99));
+
+    // 2. 选取优先级最高的作为“主事件”
+    var mainEvent = _pendingEvents.first;
+    // 获取其他被聚合的特征
+    final otherTypes =
+        _pendingEvents.skip(1).map((e) => e.type.name).toSet().toList();
+
+    // 3. 执行特殊的物理规则校验 (如车速门槛)
+    final speedKmh = mainEvent.speed * 3.6;
+    var finalType = mainEvent.type;
+
+    if (finalType == EventType.rapidDeceleration && speedKmh < 5.0) {
+      // 场景：极低速下的剧烈减速信号，通常是停稳瞬间的“点头”或过坎
+      // 决策：将其修正为“顿挫 (Jerk)”，因为此时不具备“危险驾驶”的急刹性质
+      finalType = EventType.jerk;
+    }
+
+    // 4. 构建备注信息 (保留物理真实性)
+    String? extraNotes;
+    if (otherTypes.isNotEmpty) {
+      extraNotes = "聚合特征: ${otherTypes.join(', ')}";
+    }
+
+    // 5. 最终上报/落库
+    tagEvent(finalType, source: mainEvent.source, notes: extraNotes);
+
+    // 6. 清空缓冲区，等待下一轮
+    _pendingEvents.clear();
+  }
+
   @override
   void dispose() {
     _positionSub?.cancel();
@@ -581,3 +653,20 @@ final recordingProvider =
   final storage = ref.watch(storageServiceProvider);
   return RecordingNotifier(engine, storage, ref);
 });
+
+/// 聚合引擎使用的待定事件实体
+class _PendingEvent {
+  final EventType type;
+  final DateTime timestamp;
+  final String source;
+  final Position? position;
+  final double speed;
+
+  _PendingEvent({
+    required this.type,
+    required this.timestamp,
+    required this.source,
+    this.position,
+    required this.speed,
+  });
+}

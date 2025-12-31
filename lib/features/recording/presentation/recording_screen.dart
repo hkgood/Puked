@@ -84,6 +84,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       child: Column(
         children: [
           _buildHeader(context, i18n),
+          const SizedBox(height: 8), // 统一标题和卡片间距
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 600),
@@ -160,7 +161,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
 
   Widget _buildFocusedSensorContent(BuildContext context, dynamic i18n,
       {bool noMargin = false, bool isLandscape = false}) {
-    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       key: ValueKey('focused_sensor_${isLandscape ? 'land' : 'port'}'),
       behavior: HitTestBehavior.opaque,
@@ -171,16 +171,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             : const EdgeInsets.symmetric(horizontal: 16),
         padding: EdgeInsets.all(isLandscape ? 12 : 16),
         decoration: BoxDecoration(
-          color: isLandscape
-              ? colorScheme.surface.withValues(alpha: 0.95)
-              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+          color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: Theme.of(context)
-                .colorScheme
-                .outlineVariant
-                .withValues(alpha: 0.5),
-          ),
+          border: null,
           boxShadow: [
             if (isLandscape)
               BoxShadow(
@@ -455,7 +448,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                 icon: Icon(Icons.settings_outlined, size: 20, color: onSurface),
               ),
               Text(
-                i18n.t('app_name').toUpperCase(),
+                'PUKED',
                 style: TextStyle(
                     fontSize: 12, // 缩小字体
                     letterSpacing: 1.2,
@@ -499,16 +492,20 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                         icon: Icons.straighten,
                         compact: true),
                   ),
-                  Container(
-                    width: 1,
-                    height: 16,
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
+                  _buildStatDivider(colorScheme, height: 16),
                   Expanded(
                     child: _RecordingStat(
                         label: i18n.t('peak_g'),
                         value: "${state.maxGForce.toStringAsFixed(2)}G",
                         icon: Icons.shutter_speed,
+                        compact: true),
+                  ),
+                  _buildStatDivider(colorScheme, height: 16),
+                  Expanded(
+                    child: _RecordingStat(
+                        label: i18n.t('neg_exp'),
+                        value: "${state.events.length}",
+                        icon: Icons.error_outline,
                         compact: true),
                   ),
                 ],
@@ -625,8 +622,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   }
 
   Widget _buildHeader(BuildContext context, dynamic i18n) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 10, 0, 4), // 减小左侧边距，因为外层已有 Padding
       child: Row(
@@ -634,25 +629,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           Expanded(
             child: Text(
               i18n.t('app_name').toUpperCase(),
-              style: TextStyle(
-                letterSpacing: 2,
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-                color: onSurface,
-              ),
+              style: Theme.of(context).appBarTheme.titleTextStyle,
             ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const SettingsScreen())),
-            icon: Icon(Icons.settings_outlined, color: onSurface),
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const HistoryScreen())),
-            icon: Icon(Icons.history_outlined, color: onSurface),
           ),
         ],
       ),
@@ -667,21 +645,13 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           Container(
             margin: (isLandscape || noMargin)
                 ? EdgeInsets.zero
-                : const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                : const EdgeInsets.only(
+                    bottom: 12), // 移除左右 16px 边距，由父容器 Padding 统一控制
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.1),
+              color: Theme.of(context).cardTheme.color,
               borderRadius:
                   isLandscape ? BorderRadius.zero : BorderRadius.circular(24),
-              border: isLandscape
-                  ? null
-                  : Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant
-                          .withValues(alpha: 0.5)),
+              border: null,
             ),
             child: ClipRRect(
               borderRadius:
@@ -696,21 +666,18 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           // 调试面板 (在横屏下更小)
           Positioned(
             top: (isLandscape || noMargin) ? 12 : 16,
-            left: (isLandscape || noMargin) ? 12 : 24,
+            left: (isLandscape || noMargin) ? 12 : 16, // 同步调整
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(8)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("GPS: ${state.debugMessage}",
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold)),
-                ],
+              child: Text(
+                "GPS: ${state.debugMessage}",
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -731,22 +698,12 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       },
       child: Container(
         height: height,
-        margin: noMargin
-            ? EdgeInsets.zero
-            : const EdgeInsets.symmetric(horizontal: 16),
+        margin: noMargin ? EdgeInsets.zero : EdgeInsets.zero, // 统一移除内边距
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context)
-              .colorScheme
-              .surfaceContainerHighest
-              .withValues(alpha: 0.1),
+          color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: Theme.of(context)
-                .colorScheme
-                .outlineVariant
-                .withValues(alpha: 0.5),
-          ),
+          border: null,
         ),
         child: Consumer(
           builder: (context, ref, child) {
@@ -809,16 +766,20 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                         icon: Icons.straighten,
                         compact: true),
                   ),
-                  Container(
-                    width: 1,
-                    height: 24,
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
+                  _buildStatDivider(colorScheme, height: 24),
                   Expanded(
                     child: _RecordingStat(
                         label: i18n.t('peak_g'),
                         value: "${state.maxGForce.toStringAsFixed(2)}G",
                         icon: Icons.shutter_speed,
+                        compact: true),
+                  ),
+                  _buildStatDivider(colorScheme, height: 24),
+                  Expanded(
+                    child: _RecordingStat(
+                        label: i18n.t('neg_exp'),
+                        value: "${state.events.length}",
+                        icon: Icons.error_outline,
                         compact: true),
                   ),
                 ],
@@ -878,6 +839,14 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
               context, ref, state, isRecording, isCalibrating, i18n),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatDivider(ColorScheme colorScheme, {double height = 24}) {
+    return Container(
+      width: 1,
+      height: height,
+      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
     );
   }
 

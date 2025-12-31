@@ -4,8 +4,9 @@
 
 # Puked - Ride Comfort Quantification Tool 🚗💨
 
+[![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)](https://github.com/YOUR_USERNAME/Puked)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Flutter](https://img.shields.io/badge/Flutter-v3.0+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-v3.16+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 
 <p align="center">
   <img src="assets/images/01.jpg" width="30%" />
@@ -21,22 +22,30 @@
 
 ## 🌟 核心特性 (Core Features)
 
-### 1. 高频传感器引擎 (High-Frequency Sensor Engine)
-- **100Hz 采集**: 深度提取加速度计与陀螺仪原始数据。
+### 1. 传感器引擎 (Sensor Engine)
+- **稳定采样**: 30Hz 稳定提取加速度计与陀螺仪原始数据，兼顾实时显示平顺度与数据精度。
 - **静态重力校准 (Gravity Alignment)**: 自动识别手机摆放角度，建立旋转矩阵，将数据从手机坐标系实时转换至车辆坐标系（纵向 $a_x$, 横向 $a_y$, 垂向 $a_z$）。
 
-### 2. 负体验回溯式标定 (Retroactive Tagging)
+### 2. 智驾竞技场 (The Arena) 🏆
+- **全球排行榜**: 实时统计各品牌及软件版本的“平均无负面体验里程 (km/Event)”。
+- **版本进化趋势**: 可视化展示同一品牌在不同软件版本下的舒适度演进曲线。
+- **症状深度拆解**: 详细分析急加、急减、顿挫、颠簸、晃动五大维度的表现。
+
+### 3. 横屏驾驶模式 (Landscape HUD) 📱
+- **全屏地图体验**: 针对车载手机支架优化的横屏布局。
+- **动态 HUD**: 在导航的同时，实时呈现 G-Force 球与 6 轴示波器波形。
+
+### 4. 云端同步 (Cloud Support) ☁️
+- **账号备份**: 支持 PocketBase 认证，行程数据多端同步，永不丢失。
+- **公开分享**: 一键分享行程，参与全球智驾舒适度大数据建设。
+
+### 5. 负体验回溯式标定 (Retroactive Tagging)
 - **15秒循环缓冲区**: 系统始终保存过去 15 秒的原始数据。
-- **真值标定**: 当用户感到不适时，点击记录即可截取“点击前 10 秒 + 点击后 5 秒”的数据片段，用于后续自动检测算法的迭代。
+- **真值标定**: 当用户感到不适时，点击记录即可截取“点击前 10 秒 + 点击后 5 秒”的数据片段，用于后续算法迭代。
 
-### 3. 实时可视化 (Real-time Visualization)
-- **G-Force 球**: 实时呈现合力方向与强度。
-- **6轴示波器**: 实时监测纵向和横向加速度波形。
-- **动态轨迹**: 自动完成 WGS-84 到 GCJ-02 (火星坐标系) 转换，地图匹配更精准。
-
-### 4. 数据管理 (Data Management)
+### 6. 数据管理 (Data Management)
 - **本地存储**: 完整的行程历史管理。
-- **JSON 导出**: 导出包含元数据、GPS 轨迹流及事件传感器片段的结构化 JSON。
+- **标准导出**: 导出包含元数据、GPS 轨迹流及事件传感器片段的结构化 JSON。
 
 ---
 
@@ -53,8 +62,8 @@
 ## 🛠 快速开始 (Quick Start)
 
 ### 依赖环境
-- Flutter SDK (>= 3.0.0)
-- Dart SDK (>= 3.0.0)
+- Flutter SDK (>= 3.16.0)
+- Dart SDK (>= 3.2.0)
 - Android Studio / Xcode
 
 ### 安装步骤
@@ -87,12 +96,13 @@
 
 # Puked - Ride Comfort Quantification Tool (English Summary)
 
-**Puked** is a professional tool for Autonomous Driving PMs and Engineers to quantify ride comfort. It transforms subjective feelings into objective, traceable data using high-frequency sensor capture and gravity alignment algorithms.
+**Puked** (吐槽) is a professional quantification tool for Autonomous Driving PMs and Engineers. Version 2.0 introduces **The Arena** and **Cloud Integration**, transforming it into a platform for comparing AD systems globally.
 
 ### Key Highlights:
-- **100Hz Sensor Sampling** with coordinate system transformation.
-- **Retroactive Tagging**: Capture 15s data snippets around the moment of discomfort.
-- **Glassmorphism UI** with haptic feedback.
-- **Standardized Export**: Structured JSON for further analysis.
+- **The Arena**: Global leaderboard for AD systems (Tesla, Xpeng, Nio, etc.) based on real-world comfort metrics.
+- **Cloud Sync**: Securely backup and sync your trips via PocketBase.
+- **Landscape HUD**: Optimized UI for car-mounted displays with real-time G-Force and waveform analysis.
+- **Retroactive Tagging**: Capture high-frequency sensor data around moments of discomfort.
+- **Standardized Export**: Structured JSON for professional data analysis.
 
 Licensed under **GPL-3.0**.

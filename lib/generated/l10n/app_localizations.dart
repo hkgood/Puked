@@ -110,6 +110,18 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
+  /// No description provided for @history.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get history;
+
+  /// No description provided for @arena.
+  ///
+  /// In en, this message translates to:
+  /// **'Arena'**
+  String get arena;
+
   /// No description provided for @language.
   ///
   /// In en, this message translates to:
@@ -469,6 +481,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Verification successful!'**
   String get verification_success;
+
+  /// No description provided for @syncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing cloud status...'**
+  String get syncing;
+
+  /// No description provided for @sync_complete.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete, marked {count} trips'**
+  String sync_complete(Object count);
+
+  /// No description provided for @no_cloud_records.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching cloud records found'**
+  String get no_cloud_records;
+
+  /// No description provided for @sync_cloud_status.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync upload status'**
+  String get sync_cloud_status;
+
+  /// No description provided for @arena_top10_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe Driving Top 10'**
+  String get arena_top10_title;
+
+  /// No description provided for @km_per_event_long.
+  ///
+  /// In en, this message translates to:
+  /// **'KM per Negative Event (Higher is better)'**
+  String get km_per_event_long;
+
+  /// No description provided for @by_brand.
+  ///
+  /// In en, this message translates to:
+  /// **'By Brand'**
+  String get by_brand;
+
+  /// No description provided for @by_version.
+  ///
+  /// In en, this message translates to:
+  /// **'By Version'**
+  String get by_version;
+
+  /// No description provided for @arena_total_mileage_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Mileage Leaderboard'**
+  String get arena_total_mileage_title;
+
+  /// No description provided for @arena_total_mileage_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Total mileage recorded per brand'**
+  String get arena_total_mileage_subtitle;
+
+  /// No description provided for @arena_brand_evolution_title.
+  ///
+  /// In en, this message translates to:
+  /// **'{brand} Evolution'**
+  String arena_brand_evolution_title(Object brand);
+
+  /// No description provided for @km_per_version_event_long.
+  ///
+  /// In en, this message translates to:
+  /// **'Comfort performance across software versions'**
+  String get km_per_version_event_long;
+
+  /// No description provided for @arena_details_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Negative Experience Breakdown'**
+  String get arena_details_title;
+
+  /// No description provided for @km_per_event.
+  ///
+  /// In en, this message translates to:
+  /// **'km/Event'**
+  String get km_per_event;
+
+  /// No description provided for @all_versions.
+  ///
+  /// In en, this message translates to:
+  /// **'All Versions'**
+  String get all_versions;
+
+  /// No description provided for @select_brand.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Brand'**
+  String get select_brand;
+
+  /// No description provided for @no_trips_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No trip data recorded yet. Start a trip to see statistics!'**
+  String get no_trips_yet;
+
+  /// No description provided for @no_data_for_brand.
+  ///
+  /// In en, this message translates to:
+  /// **'No data available for the selected brand or version.'**
+  String get no_data_for_brand;
+
+  /// No description provided for @events_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Events'**
+  String events_count(Object count);
+
+  /// No description provided for @trips_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Trips'**
+  String trips_count(Object count);
+
+  /// No description provided for @mileage_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Mileage'**
+  String get mileage_label;
+
+  /// No description provided for @car_cert_banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify your car to enable trip uploads'**
+  String get car_cert_banner;
+
+  /// No description provided for @upload_cert_photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Car Certification'**
+  String get upload_cert_photos;
+
+  /// No description provided for @upload_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please upload a photo showing your car model and VIN (usually found on the lower driver-side windshield or door pillar).'**
+  String get upload_hint;
+
+  /// No description provided for @file_limit_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to 3 photos (JPG/PNG, < 5MB each)'**
+  String get file_limit_hint;
+
+  /// No description provided for @submit_for_audit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit for Verification'**
+  String get submit_for_audit;
+
+  /// No description provided for @submit_success_tip.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification details submitted! We\'ll review them shortly.'**
+  String get submit_success_tip;
+
+  /// No description provided for @error_image_limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select up to 3 photos.'**
+  String get error_image_limit;
+
+  /// No description provided for @error_image_size.
+  ///
+  /// In en, this message translates to:
+  /// **'Each photo must be under 5MB.'**
+  String get error_image_size;
+
+  /// No description provided for @error_image_type.
+  ///
+  /// In en, this message translates to:
+  /// **'Only JPG and PNG photos are supported.'**
+  String get error_image_type;
+
+  /// No description provided for @delete_event_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Delete Event'**
+  String get delete_event_title;
+
+  /// No description provided for @delete_event_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted events cannot be recovered. Are you sure?'**
+  String get delete_event_desc;
 }
 
 class _AppLocalizationsDelegate

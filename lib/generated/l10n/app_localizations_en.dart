@@ -15,6 +15,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
+  String get history => 'History';
+
+  @override
+  String get arena => 'Arena';
+
+  @override
   String get language => 'Language';
 
   @override
@@ -197,4 +203,114 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verification_success => 'Verification successful!';
+
+  @override
+  String get syncing => 'Syncing cloud status...';
+
+  @override
+  String sync_complete(Object count) {
+    return 'Sync complete, marked $count trips';
+  }
+
+  @override
+  String get no_cloud_records => 'No matching cloud records found';
+
+  @override
+  String get sync_cloud_status => 'Sync upload status';
+
+  @override
+  String get arena_top10_title => 'Safe Driving Top 10';
+
+  @override
+  String get km_per_event_long => 'KM per Negative Event (Higher is better)';
+
+  @override
+  String get by_brand => 'By Brand';
+
+  @override
+  String get by_version => 'By Version';
+
+  @override
+  String get arena_total_mileage_title => 'Mileage Leaderboard';
+
+  @override
+  String get arena_total_mileage_subtitle => 'Total mileage recorded per brand';
+
+  @override
+  String arena_brand_evolution_title(Object brand) {
+    return '$brand Evolution';
+  }
+
+  @override
+  String get km_per_version_event_long =>
+      'Comfort performance across software versions';
+
+  @override
+  String get arena_details_title => 'Negative Experience Breakdown';
+
+  @override
+  String get km_per_event => 'km/Event';
+
+  @override
+  String get all_versions => 'All Versions';
+
+  @override
+  String get select_brand => 'Select Brand';
+
+  @override
+  String get no_trips_yet =>
+      'No trip data recorded yet. Start a trip to see statistics!';
+
+  @override
+  String get no_data_for_brand =>
+      'No data available for the selected brand or version.';
+
+  @override
+  String events_count(Object count) {
+    return '$count Events';
+  }
+
+  @override
+  String trips_count(Object count) {
+    return '$count Trips';
+  }
+
+  @override
+  String get mileage_label => 'Mileage';
+
+  @override
+  String get car_cert_banner => 'Verify your car to enable trip uploads';
+
+  @override
+  String get upload_cert_photos => 'Car Certification';
+
+  @override
+  String get upload_hint =>
+      'Please upload a photo showing your car model and VIN (usually found on the lower driver-side windshield or door pillar).';
+
+  @override
+  String get file_limit_hint => 'Up to 3 photos (JPG/PNG, < 5MB each)';
+
+  @override
+  String get submit_for_audit => 'Submit for Verification';
+
+  @override
+  String get submit_success_tip =>
+      'Verification details submitted! We\'ll review them shortly.';
+
+  @override
+  String get error_image_limit => 'Please select up to 3 photos.';
+
+  @override
+  String get error_image_size => 'Each photo must be under 5MB.';
+
+  @override
+  String get error_image_type => 'Only JPG and PNG photos are supported.';
+
+  @override
+  String get delete_event_title => 'Confirm Delete Event';
+
+  @override
+  String get delete_event_desc =>
+      'Deleted events cannot be recovered. Are you sure?';
 }

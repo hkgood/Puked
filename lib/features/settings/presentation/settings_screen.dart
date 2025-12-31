@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:puked/services/update_service.dart';
-import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/features/auth/presentation/login_screen.dart';
 import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
 import 'package:puked/services/pocketbase_service.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:puked/common/utils/i18n.dart';
+import 'package:puked/common/widgets/brand_logo.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -20,311 +20,353 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
-    final auth = ref.watch(authProvider);
-    final l10n = AppLocalizations.of(context)!;
-    final packageInfo = ref.watch(packageInfoProvider);
-
-    // 进入页面时静默刷新一次用户信息，以更新验证状态
+    // 页面构建时静默刷新用户信息，确保认证状态（如 audit_status）是最新的
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (auth.isAuthenticated) {
+      if (ref.read(authProvider).isAuthenticated) {
         ref.read(authProvider.notifier).refreshUserFromServer();
       }
     });
 
+    final settings = ref.watch(settingsProvider);
+    final auth = ref.watch(authProvider);
+    final i18n = ref.watch(i18nProvider);
+    final packageInfo = ref.watch(packageInfoProvider);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.settings),
+        title: Text(i18n.t('settings')),
       ),
-      body: ListView(
-        children: [
-          // 账号系统
-          _buildSectionHeader(context, l10n.account),
-          if (!auth.isAuthenticated)
-            ListTile(
-              leading: const Icon(Icons.account_circle_outlined),
-              title: Text(l10n.login),
-              subtitle: Text(l10n.login_to_sync),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                // 跳转到独立登录页面
-                _showAuthPage(context);
-              },
-            )
-          else
-            ListTile(
-              leading: CircleAvatar(
-                backgroundImage:
-                    ref.watch(pbServiceProvider).currentAvatarUrl != null
-                        ? NetworkImage(
-                            ref.watch(pbServiceProvider).currentAvatarUrl!)
+      body: SafeArea(
+        left: true,
+        right: true,
+        top: false,
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8), // 统一标题和内容间距
+          child: ListView(
+            children: [
+              // 账号系统
+              _buildSectionHeader(context, i18n.t('account')),
+              if (!auth.isAuthenticated)
+                ListTile(
+                  leading: const Icon(Icons.account_circle_outlined),
+                  title: Text(i18n.t('login')),
+                  subtitle: Text(i18n.t('login_to_sync')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    // 跳转到独立登录页面
+                    _showAuthPage(context);
+                  },
+                )
+              else
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage:
+                        ref.watch(pbServiceProvider).currentAvatarUrl != null
+                            ? NetworkImage(
+                                ref.watch(pbServiceProvider).currentAvatarUrl!)
+                            : null,
+                    child: ref.watch(pbServiceProvider).currentAvatarUrl == null
+                        ? const Icon(Icons.person)
                         : null,
-                child: ref.watch(pbServiceProvider).currentAvatarUrl == null
-                    ? const Icon(Icons.person)
-                    : null,
-              ),
-              title: Text(auth.user?.getStringValue('name') ?? 'User'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l10n
-                      .connected_as(auth.user?.getStringValue('email') ?? '')),
-                  if (auth.user?.getBoolValue('verified') == false)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: GestureDetector(
-                        onTap: () async {
-                          // 点击时先尝试刷新状态，如果还是未验证，再提示发送邮件
-                          await ref
-                              .read(authProvider.notifier)
-                              .refreshUserFromServer();
-
-                          if (ref
-                                  .read(authProvider)
-                                  .user
-                                  ?.getBoolValue('verified') ==
-                              true) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(l10n.verification_success),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                            return;
-                          }
-
-                          await ref
-                              .read(authProvider.notifier)
-                              .requestVerification();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(l10n.verification_sent),
-                                  backgroundColor: Colors.green),
-                            );
-                          }
-                        },
-                        child: Text(
-                          l10n.not_verified,
-                          style: const TextStyle(
-                              color: Colors.orange,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold),
+                  ),
+                  title: Row(
+                    children: [
+                      Text(auth.user?.getStringValue('name') ?? i18n.t('user')),
+                      if (auth.isPro) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFA500),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: const Text(
+                            'PRO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        auth.user?.getStringValue('email') ?? '',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      if (auth.isSuperUser)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            "SuperUser / Admin",
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      if (auth.user?.getBoolValue('verified') == false)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: GestureDetector(
+                            onTap: () async {
+                              // 点击时先尝试刷新状态，如果还是未验证，再提示发送邮件
+                              await ref
+                                  .read(authProvider.notifier)
+                                  .refreshUserFromServer();
+
+                              if (ref
+                                      .read(authProvider)
+                                      .user
+                                      ?.getBoolValue('verified') ==
+                                  true) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text(i18n.t('verification_success')),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+
+                              await ref
+                                  .read(authProvider.notifier)
+                                  .requestVerification();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content:
+                                          Text(i18n.t('verification_sent')),
+                                      backgroundColor: Colors.green),
+                                );
+                              }
+                            },
+                            child: Text(
+                              i18n.t('not_verified'),
+                              style: const TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      // 使用 Future.wait 并行处理，提高响应速度，但要 await 确保逻辑完成
+                      await Future.wait([
+                        ref.read(authProvider.notifier).logout(),
+                        ref
+                            .read(settingsProvider.notifier)
+                            .clearVehicleSettings(),
+                      ]);
+                    },
+                    child: Text(i18n.t('logout'),
+                        style: const TextStyle(color: Colors.red)),
+                  ),
+                ),
+
+              const Divider(),
+
+              // 账号关联的智驾设置
+              if (auth.isAuthenticated) ...[
+                _buildSectionHeader(context, i18n.t('my_car')),
+                ListTile(
+                  leading: BrandLogo(
+                    brandName: settings.brand,
+                    showBackground: true,
+                  ),
+                  title: Row(
+                    children: [
+                      Text(
+                        settings.brand ?? i18n.t('my_car'),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVerificationBadge(context, auth, i18n),
+                    ],
+                  ),
+                  subtitle: Text(
+                    [
+                      if (settings.carModel != null &&
+                          settings.carModel!.isNotEmpty)
+                        settings.carModel,
+                      if (settings.softwareVersion != null &&
+                          settings.softwareVersion!.isNotEmpty)
+                        settings.softwareVersion,
+                    ].join(' • ').isEmpty
+                        ? i18n.t('model_hint')
+                        : [
+                            if (settings.carModel != null &&
+                                settings.carModel!.isNotEmpty)
+                              settings.carModel,
+                            if (settings.softwareVersion != null &&
+                                settings.softwareVersion!.isNotEmpty)
+                              settings.softwareVersion,
+                          ].join(' • '),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
                     ),
-                ],
-              ),
-              trailing: TextButton(
-                onPressed: () async {
-                  // 使用 Future.wait 并行处理，提高响应速度，但要 await 确保逻辑完成
-                  await Future.wait([
-                    ref.read(authProvider.notifier).logout(),
-                    ref.read(settingsProvider.notifier).clearVehicleSettings(),
-                  ]);
-                },
-                child: Text(l10n.logout,
-                    style: const TextStyle(color: Colors.red)),
-              ),
-            ),
-
-          const Divider(),
-
-          // 账号关联的智驾设置
-          if (auth.isAuthenticated) ...[
-            _buildSectionHeader(context, l10n.brand),
-            ListTile(
-              leading: settings.brand != null
-                  ? Container(
-                      width: 40,
-                      height: 40,
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(8),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const VehicleInfoScreen(
+                          isSettingsMode: true,
+                        ),
                       ),
-                      child: SvgPicture.asset(
-                        'assets/logos/${settings.brand}.svg',
-                        colorFilter:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? const ColorFilter.mode(
-                                    Colors.white, BlendMode.srcIn)
-                                : null,
-                      ),
-                    )
-                  : const Icon(Icons.directions_car_filled_outlined, size: 32),
-              title: Text(
-                settings.brand ?? l10n.brand,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                    );
+                  },
+                ),
+                const Divider(),
+              ],
+
+              // 主题设置
+              _buildSectionHeader(context, i18n.t('theme')),
+              ListTile(
+                title: Text(i18n.t('theme_auto')),
+                trailing: settings.themeMode == ThemeMode.system
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () => ref
+                    .read(settingsProvider.notifier)
+                    .setThemeMode(ThemeMode.system),
               ),
-              subtitle: Text(
-                [
-                  if (settings.carModel != null &&
-                      settings.carModel!.isNotEmpty)
-                    settings.carModel,
-                  if (settings.softwareVersion != null &&
-                      settings.softwareVersion!.isNotEmpty)
-                    settings.softwareVersion,
-                ].join(' • ').isEmpty
-                    ? l10n.model_hint
-                    : [
-                        if (settings.carModel != null &&
-                            settings.carModel!.isNotEmpty)
-                          settings.carModel,
-                        if (settings.softwareVersion != null &&
-                            settings.softwareVersion!.isNotEmpty)
-                          settings.softwareVersion,
-                      ].join(' • '),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 12,
+              ListTile(
+                title: Text(i18n.t('theme_light')),
+                trailing: settings.themeMode == ThemeMode.light
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () => ref
+                    .read(settingsProvider.notifier)
+                    .setThemeMode(ThemeMode.light),
+              ),
+              ListTile(
+                title: Text(i18n.t('theme_dark')),
+                trailing: settings.themeMode == ThemeMode.dark
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () => ref
+                    .read(settingsProvider.notifier)
+                    .setThemeMode(ThemeMode.dark),
+              ),
+
+              const Divider(),
+
+              // 语言设置
+              _buildSectionHeader(context, i18n.t('language')),
+              ListTile(
+                title: Text(i18n.t('chinese')),
+                trailing: settings.locale?.languageCode == 'zh'
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () => ref
+                    .read(settingsProvider.notifier)
+                    .setLocale(const Locale('zh')),
+              ),
+              ListTile(
+                title: Text(i18n.t('english')),
+                trailing: settings.locale?.languageCode == 'en'
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () => ref
+                    .read(settingsProvider.notifier)
+                    .setLocale(const Locale('en')),
+              ),
+
+              const Divider(),
+
+              // 自动打标敏感度
+              _buildSectionHeader(context, i18n.t('sensitivity')),
+              _buildSensitivityTile(
+                context,
+                ref,
+                i18n.t('sensitivity_low'),
+                'Accel > 3.0m/s², Brake > 3.5m/s²', // Subtitles can stay as descriptions
+                SensitivityLevel.low,
+                settings.sensitivity,
+              ),
+              _buildSensitivityTile(
+                context,
+                ref,
+                i18n.t('sensitivity_medium'),
+                'Accel > 2.4m/s², Brake > 2.8m/s²',
+                SensitivityLevel.medium,
+                settings.sensitivity,
+              ),
+              _buildSensitivityTile(
+                context,
+                ref,
+                i18n.t('sensitivity_high'),
+                'Accel > 1.8m/s², Brake > 2.1m/s²',
+                SensitivityLevel.high,
+                settings.sensitivity,
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  i18n.t('sensitivity_tip'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey,
+                      ),
                 ),
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VehicleInfoScreen(
-                      isSettingsMode: true,
-                    ),
+
+              const Divider(),
+
+              // 关于与更新
+              _buildSectionHeader(context, i18n.t('about')),
+              ListTile(
+                title: Text(
+                  i18n.t('current_version'),
+                  style: const TextStyle(),
+                ),
+                trailing: packageInfo.when(
+                  data: (info) => Text(
+                    'v${info.version}',
+                    style: const TextStyle(color: Colors.grey),
                   ),
-                );
-              },
-            ),
-            const Divider(),
-          ],
-
-          // 主题设置
-          _buildSectionHeader(context, l10n.theme),
-          ListTile(
-            title: Text(l10n.themeAuto),
-            trailing: settings.themeMode == ThemeMode.system
-                ? const Icon(Icons.check, color: Colors.green)
-                : null,
-            onTap: () => ref
-                .read(settingsProvider.notifier)
-                .setThemeMode(ThemeMode.system),
-          ),
-          ListTile(
-            title: Text(l10n.themeLight),
-            trailing: settings.themeMode == ThemeMode.light
-                ? const Icon(Icons.check, color: Colors.green)
-                : null,
-            onTap: () => ref
-                .read(settingsProvider.notifier)
-                .setThemeMode(ThemeMode.light),
-          ),
-          ListTile(
-            title: Text(l10n.themeDark),
-            trailing: settings.themeMode == ThemeMode.dark
-                ? const Icon(Icons.check, color: Colors.green)
-                : null,
-            onTap: () => ref
-                .read(settingsProvider.notifier)
-                .setThemeMode(ThemeMode.dark),
-          ),
-
-          const Divider(),
-
-          // 语言设置
-          _buildSectionHeader(context, l10n.language),
-          ListTile(
-            title: Text(l10n.chinese),
-            trailing: settings.locale?.languageCode == 'zh'
-                ? const Icon(Icons.check, color: Colors.green)
-                : null,
-            onTap: () => ref
-                .read(settingsProvider.notifier)
-                .setLocale(const Locale('zh')),
-          ),
-          ListTile(
-            title: Text(l10n.english),
-            trailing: settings.locale?.languageCode == 'en'
-                ? const Icon(Icons.check, color: Colors.green)
-                : null,
-            onTap: () => ref
-                .read(settingsProvider.notifier)
-                .setLocale(const Locale('en')),
-          ),
-
-          const Divider(),
-
-          // 自动打标敏感度
-          _buildSectionHeader(context, l10n.sensitivity),
-          _buildSensitivityTile(
-            context,
-            ref,
-            l10n.sensitivityLow,
-            l10n.sensitivityLowDesc,
-            SensitivityLevel.low,
-            settings.sensitivity,
-          ),
-          _buildSensitivityTile(
-            context,
-            ref,
-            l10n.sensitivityMedium,
-            l10n.sensitivityMediumDesc,
-            SensitivityLevel.medium,
-            settings.sensitivity,
-          ),
-          _buildSensitivityTile(
-            context,
-            ref,
-            l10n.sensitivityHigh,
-            l10n.sensitivityHighDesc,
-            SensitivityLevel.high,
-            settings.sensitivity,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              l10n.sensitivityTip,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
+                  loading: () => const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-            ),
-          ),
-
-          const Divider(),
-
-          // 关于与更新
-          _buildSectionHeader(context, l10n.about),
-          ListTile(
-            title: Text(
-              l10n.current_version,
-              style: const TextStyle(),
-            ),
-            trailing: packageInfo.when(
-              data: (info) => Text(
-                'v${info.version}',
-                style: const TextStyle(color: Colors.grey),
+                  error: (_, __) => Text(i18n.t('unknown')),
+                ),
               ),
-              loading: () => const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              ListTile(
+                title: Text(
+                  i18n.t('check_update'),
+                  style: const TextStyle(),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  UpdateService.checkUpdate(context, showNoUpdate: true);
+                },
               ),
-              error: (_, __) => const Text('Unknown'),
-            ),
+              const SizedBox(height: 32),
+            ],
           ),
-          ListTile(
-            title: Text(
-              l10n.check_update,
-              style: const TextStyle(),
-            ),
-            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-            onTap: () {
-              UpdateService.checkUpdate(context, showNoUpdate: true);
-            },
-          ),
-          const SizedBox(height: 32),
-        ],
+        ),
       ),
     );
   }
@@ -371,6 +413,48 @@ class SettingsScreen extends ConsumerWidget {
               color: Theme.of(context).colorScheme.primary,
               fontWeight: FontWeight.bold,
             ),
+      ),
+    );
+  }
+
+  Widget _buildVerificationBadge(
+      BuildContext context, AuthState auth, dynamic i18n) {
+    final status = auth.user?.getStringValue('audit_status') ?? '';
+
+    Color bgColor;
+    String text;
+
+    switch (status) {
+      case 'approved':
+        bgColor = Colors.green.shade600;
+        text = i18n.t('approved');
+        break;
+      case 'pending':
+        bgColor = Colors.orange.shade600;
+        text = i18n.t('pending');
+        break;
+      case 'rejected':
+        bgColor = Colors.red.shade600;
+        text = i18n.t('rejected');
+        break;
+      default:
+        bgColor = Colors.grey.shade500;
+        text = i18n.t('unverified');
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

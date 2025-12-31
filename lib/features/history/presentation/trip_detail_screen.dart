@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:puked/common/widgets/trip_map_view.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/common/widgets/trip_acceleration_chart.dart';
 import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
 import 'package:puked/services/export/export_service.dart';
 import 'package:puked/services/storage/storage_service.dart';
+import 'package:puked/services/cloud_trip_service.dart';
+import 'package:puked/features/auth/providers/auth_provider.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
   final Trip trip;
@@ -60,6 +63,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     }
   }
 
+  // 统一的标题样式
+  TextStyle _headerStyle(BuildContext context) => TextStyle(
+        fontWeight: FontWeight.w900,
+        fontSize: 17,
+        color: Theme.of(context).colorScheme.onSurface,
+      );
+
   @override
   Widget build(BuildContext context) {
     final i18n = ref.watch(i18nProvider);
@@ -72,12 +82,91 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       appBar: AppBar(
         title: Text(
           dateStr,
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         ),
-        backgroundColor: Colors.transparent,
         iconTheme:
             IconThemeData(color: Theme.of(context).colorScheme.onSurface),
         actions: [
+          if (ref.watch(authProvider).isPro)
+            _currentTrip.isUploaded
+                ? Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.cloud_done,
+                      color: Colors.green,
+                      size: 24,
+                    ),
+                  )
+                : IconButton(
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(i18n.t('submit_trip')),
+                          content: Text(i18n.t('submit_trip_confirm')),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text(i18n.t('cancel')),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(i18n.t('upload')),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed == true) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(i18n.t('uploading'))),
+                        );
+                        try {
+                          final cloudId = await ref
+                              .read(cloudTripServiceProvider)
+                              .uploadTrip(_currentTrip);
+                          await ref
+                              .read(storageServiceProvider)
+                              .updateTripCloudId(_currentTrip.id, cloudId);
+
+                          // 刷新本地状态
+                          final updatedTrip = await ref
+                              .read(storageServiceProvider)
+                              .getTripById(_currentTrip.id);
+                          if (updatedTrip != null && mounted) {
+                            setState(() {
+                              _currentTrip = updatedTrip;
+                            });
+                          }
+
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(i18n.t('upload_success')),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(i18n.t('upload_failed')),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: Icon(
+                      Icons.cloud_upload_outlined,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
           IconButton(
             onPressed: () async {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -96,52 +185,31 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 0. 车辆信息卡片
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withValues(alpha: 0.5),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withValues(alpha: 0.1)
-                          : Colors.black.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: trip.brand != null
-                        ? SvgPicture.asset(
-                            'assets/logos/${trip.brand}.svg',
-                            colorFilter:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? const ColorFilter.mode(
-                                        Colors.white, BlendMode.srcIn)
-                                    : null,
-                          )
-                        : const Icon(Icons.help_outline, color: Colors.grey),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+      body: SafeArea(
+        left: true,
+        right: true,
+        top: false,
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          child: Column(
+            children: [
+              // 0. 车辆信息区域 (放入卡片)
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Row(
+                    children: [
+                      BrandLogo(
+                        brandName: trip.brand,
+                        size: 52,
+                        padding: 10,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               (trip.carModel != null &&
@@ -151,429 +219,364 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.white.withValues(alpha: 0.95)
-                                    : Theme.of(context).colorScheme.onSurface,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
+                            if (trip.softwareVersion != null &&
+                                trip.softwareVersion!.isNotEmpty)
+                              Text(
+                                trip.softwareVersion!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                           ],
                         ),
-                        if (trip.softwareVersion != null &&
-                            trip.softwareVersion!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              trip.softwareVersion!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.white.withValues(alpha: 0.6)
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: _editVehicleInfo,
-                    icon: const Icon(Icons.edit_note, size: 18),
-                    label: Text(
-                      i18n.t('edit'),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
                       ),
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.08),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
+                      TextButton.icon(
+                        onPressed: _editVehicleInfo,
+                        icon: const Icon(Icons.edit_note, size: 18),
+                        label: Text(i18n.t('edit'),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w900)),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.08),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-
-            // 1. 轨迹地图展示 (进一步压缩高度)
-            Container(
-              height: 240, // 从 300 压缩到 240
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 12), // 减小页边距
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20), // 稍小的圆角更硬朗
-                border: Border.all(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant
-                        .withValues(alpha: 0.5)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: TripMapView(
-                  trajectory: trajectory,
-                  events: events,
-                  isLive: false,
-                  focusPoint: _focusedLocation,
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
 
-            // 2. 数据概览 (移除统一的 horizontal padding，改为内部组件单独控制)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(i18n.t('trip_summary'),
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            )),
-                        Text(
-                          "${(trip.distance / 1000).toStringAsFixed(2)} km",
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
+              // 1. 轨迹地图展示 (移除卡片背景和描边，保持原样)
+              Container(
+                height: 240,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: TripMapView(
+                    trajectory: trajectory,
+                    events: events,
+                    isLive: false,
+                    focusPoint: _focusedLocation,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 2. 数据概览与图表合入同一张卡片
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 0),
+                        child: SizedBox(
+                          height: 32, // 统一标题高度
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(i18n.t('trip_summary'),
+                                  style: _headerStyle(context)),
+                              Text(
+                                "${(trip.distance / 1000).toStringAsFixed(2)} km",
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Expanded(
-                          child: _StatItem(
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _StatItem(
                               label: i18n.t('total_events'),
                               value: "${trip.eventCount}"),
-                        ),
-                        Expanded(
-                          child: _StatItem(
+                          _StatItem(
                             label: i18n.t('avg_speed'),
                             value: trip.endTime != null && trip.distance > 0
                                 ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
                                 : "--",
                           ),
-                        ),
-                        Expanded(
-                          child: _StatItem(
+                          _StatItem(
                               label: i18n.t('duration'),
                               value: trip.endTime != null
                                   ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}"
                                   : "--"),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // 事件比例分布条
-                  if (events.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildEventDistributionBar(events),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // 3. 加速度图表展示
-                  TripAccelerationChart(
-                    trajectory: trajectory,
-                    label: i18n.t('longitudinal'),
-                    color: Colors.blue,
-                    isLongitudinal: true,
-                  ),
-                  const SizedBox(height: 16),
-                  TripAccelerationChart(
-                    trajectory: trajectory,
-                    label: i18n.t('lateral'),
-                    color: Colors.green,
-                    isLongitudinal: false,
-                  ),
-                  const SizedBox(height: 8),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Divider(
-                        height: 24,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outlineVariant
-                            .withValues(alpha: 0.5)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(i18n.t('event_list'),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        )),
-                  ),
-                  const SizedBox(height: 4),
-                  // 事件列表
-                  if (events.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 20, horizontal: 20),
-                      child: Center(
-                          child: Text(i18n.t('no_trips'),
-                              style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.outline))),
-                    )
-                  else
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: events.length,
-                      separatorBuilder: (context, index) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Divider(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outlineVariant
-                                .withValues(alpha: 0.5),
-                            height: 1),
+                        ],
                       ),
-                      itemBuilder: (context, index) {
-                        final e = events[index];
-                        // 统一使用 i18nProvider 提供的方法进行翻译
-                        final typeLabel = i18n.t(e.type);
+                      const SizedBox(height: 24),
+                      TripAccelerationChart(
+                        trajectory: trajectory,
+                        label: i18n.t('longitudinal'),
+                        color: Theme.of(context).colorScheme.primary,
+                        isLongitudinal: true,
+                      ),
+                      const SizedBox(height: 16),
+                      TripAccelerationChart(
+                        trajectory: trajectory,
+                        label: i18n.t('lateral'),
+                        color: Theme.of(context).colorScheme.secondary,
+                        isLongitudinal: false,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
 
-                        // 定义不同事件类型的颜色和图标
-                        Color eventColor;
-                        IconData eventIcon;
+              // 3. 事件列表 (放入独立卡片)
+              if (events.isNotEmpty)
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                        child: SizedBox(
+                          height: 32, // 统一标题高度
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(i18n.t('event_list'),
+                                style: _headerStyle(context)),
+                          ),
+                        ),
+                      ),
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: events.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(indent: 20, endIndent: 20, height: 1),
+                        itemBuilder: (context, index) {
+                          final e = events[index];
+                          final typeLabel = i18n.t(e.type);
+                          Color eventColor;
+                          IconData eventIcon;
 
-                        switch (e.type) {
-                          case 'rapidAcceleration':
-                            eventColor = const Color(0xFFFF9500);
-                            eventIcon = Icons.speed;
-                            break;
-                          case 'rapidDeceleration':
-                            eventColor = const Color(0xFFFF3B30);
-                            eventIcon = Icons.trending_down;
-                            break;
-                          case 'jerk':
-                            eventColor = const Color(0xFF5856D6);
-                            eventIcon = Icons.priority_high;
-                            break;
-                          case 'bump':
-                            eventColor = const Color(0xFFAF52DE);
-                            eventIcon = Icons.vibration;
-                            break;
-                          case 'wobble':
-                            eventColor = const Color(0xFF007AFF);
-                            eventIcon = Icons.waves;
-                            break;
-                          case 'manual':
-                            eventColor = const Color(0xFF34C759);
-                            eventIcon = Icons.stars;
-                            break;
-                          default:
-                            eventColor = Colors.grey;
-                            eventIcon = Icons.event;
-                        }
-
-                        // 计算事件参数 (G值)
-                        String parameter = "--";
-                        if (e.sensorData.isNotEmpty) {
-                          // 1. 先将所有采样点转为模长 (Magnitude)
-                          final magnitudes = e.sensorData.map((p) {
-                            if (e.type == 'rapidAcceleration' ||
-                                e.type == 'rapidDeceleration') {
-                              return (p.ay ?? 0).abs();
-                            } else if (e.type == 'wobble') {
-                              return (p.ax ?? 0).abs();
-                            } else if (e.type == 'bump') {
-                              return (p.az ?? 0).abs();
-                            } else {
-                              // 合力加速度 (m/s^2)，先计算平方和再开方 (修复了原本缺少 sqrt 的 bug)
-                              return math.sqrt((p.ax ?? 0) * (p.ax ?? 0) +
-                                  (p.ay ?? 0) * (p.ay ?? 0) +
-                                  (p.az ?? 0) * (p.az ?? 0));
-                            }
-                          }).toList();
-
-                          // 2. 使用约 100ms 滑动窗口平滑 (30Hz 下约 3 个采样点)
-                          // 理由：人体感知的顿挫是具有持续时间的，单帧 33ms 的物理尖峰通常是支架颤动，不代表真实体感。
-                          double maxSmoothedVal = 0;
-                          const windowSize = 3;
-
-                          if (magnitudes.length >= windowSize) {
-                            for (int i = 0;
-                                i <= magnitudes.length - windowSize;
-                                i++) {
-                              double sum = 0;
-                              for (int j = 0; j < windowSize; j++) {
-                                sum += magnitudes[i + j];
-                              }
-                              final avg = sum / windowSize;
-                              if (avg > maxSmoothedVal) maxSmoothedVal = avg;
-                            }
-                          } else if (magnitudes.isNotEmpty) {
-                            maxSmoothedVal =
-                                magnitudes.reduce((a, b) => a + b) /
-                                    magnitudes.length;
+                          switch (e.type) {
+                            case 'rapidAcceleration':
+                              eventColor = const Color(0xFFFF9500);
+                              eventIcon = Icons.speed;
+                              break;
+                            case 'rapidDeceleration':
+                              eventColor = const Color(0xFFFF3B30);
+                              eventIcon = Icons.trending_down;
+                              break;
+                            case 'jerk':
+                              eventColor = const Color(0xFF5856D6);
+                              eventIcon = Icons.priority_high;
+                              break;
+                            case 'bump':
+                              eventColor = const Color(0xFFAF52DE);
+                              eventIcon = Icons.vibration;
+                              break;
+                            case 'wobble':
+                              eventColor = const Color(0xFF007AFF);
+                              eventIcon = Icons.waves;
+                              break;
+                            case 'manual':
+                              eventColor = const Color(0xFF34C759);
+                              eventIcon = Icons.stars;
+                              break;
+                            default:
+                              eventColor = Colors.grey;
+                              eventIcon = Icons.event;
                           }
 
-                          // 转换为 G 值 (标准重力加速度 9.80665)
-                          double finalG = e.type == 'manual'
-                              ? 0
-                              : (maxSmoothedVal / 9.80665);
-                          parameter = "${finalG.toStringAsFixed(2)} G";
-                        }
+                          // 计算事件参数 (G值)
+                          String parameter = "--";
+                          if (e.sensorData.isNotEmpty) {
+                            final magnitudes = e.sensorData.map((p) {
+                              if (e.type == 'rapidAcceleration' ||
+                                  e.type == 'rapidDeceleration') {
+                                return (p.ay ?? 0).abs();
+                              } else if (e.type == 'wobble') {
+                                return (p.ax ?? 0).abs();
+                              } else if (e.type == 'bump') {
+                                return (p.az ?? 0).abs();
+                              } else {
+                                return math.sqrt((p.ax ?? 0) * (p.ax ?? 0) +
+                                    (p.ay ?? 0) * (p.ay ?? 0) +
+                                    (p.az ?? 0) * (p.az ?? 0));
+                              }
+                            }).toList();
 
-                        return ListTile(
-                          onTap: () {
-                            if (e.lat != null && e.lng != null) {
-                              setState(() {
-                                _focusedLocation = LatLng(e.lat!, e.lng!);
-                              });
+                            double maxSmoothedVal = 0;
+                            const windowSize = 3;
+
+                            if (magnitudes.length >= windowSize) {
+                              for (int i = 0;
+                                  i <= magnitudes.length - windowSize;
+                                  i++) {
+                                double sum = 0;
+                                for (int j = 0; j < windowSize; j++) {
+                                  sum += magnitudes[i + j];
+                                }
+                                final avg = sum / windowSize;
+                                if (avg > maxSmoothedVal) maxSmoothedVal = avg;
+                              }
+                            } else if (magnitudes.isNotEmpty) {
+                              maxSmoothedVal =
+                                  magnitudes.reduce((a, b) => a + b) /
+                                      magnitudes.length;
                             }
-                          },
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 4, horizontal: 20),
-                          leading: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: eventColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              eventIcon,
-                              color: eventColor,
-                              size: 24,
-                            ),
-                          ),
-                          title: Row(
-                            children: [
-                              Text(
-                                typeLabel,
-                                style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                parameter,
-                                style: TextStyle(
-                                  color: eventColor,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Row(
-                              children: [
-                                Icon(Icons.access_time,
-                                    size: 12,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant
-                                        .withValues(alpha: 0.6)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  DateFormat('HH:mm:ss').format(e.timestamp),
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    e.source,
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+
+                            double finalG = e.type == 'manual'
+                                ? 0
+                                : (maxSmoothedVal / 9.80665);
+                            parameter = "${finalG.toStringAsFixed(2)} G";
+                          }
+
+                          return GestureDetector(
+                            onLongPressStart: (_) async {
+                              // 隐藏功能：长按 3 秒触发删除确认
+                              final startTime = DateTime.now();
+                              bool triggered = false;
+
+                              // 使用 Timer 检查长按时长
+                              Timer.periodic(const Duration(milliseconds: 500),
+                                  (timer) async {
+                                if (!triggered &&
+                                    DateTime.now()
+                                            .difference(startTime)
+                                            .inSeconds >=
+                                        3) {
+                                  timer.cancel();
+                                  triggered = true;
+
+                                  // 触发触感反馈（如果可用）
+                                  if (!context.mounted) return;
+
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: Text(i18n.t('delete_event_title')),
+                                      content:
+                                          Text(i18n.t('delete_event_desc')),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: Text(i18n.t('cancel')),
+                                        ),
+                                        TextButton(
+                                          style: TextButton.styleFrom(
+                                              foregroundColor: Colors.red),
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: Text(i18n.t('delete')),
+                                        ),
+                                      ],
                                     ),
-                                  ),
+                                  );
+
+                                  if (confirmed == true && context.mounted) {
+                                    await ref
+                                        .read(storageServiceProvider)
+                                        .deleteEvent(_currentTrip.id, e.id);
+                                    // 刷新页面数据
+                                    final updatedTrip = await ref
+                                        .read(storageServiceProvider)
+                                        .getTripById(_currentTrip.id);
+                                    if (updatedTrip != null && mounted) {
+                                      setState(() {
+                                        _currentTrip = updatedTrip;
+                                      });
+                                    }
+                                  }
+                                }
+                              });
+                            },
+                            child: ListTile(
+                              onTap: () {
+                                if (e.lat != null && e.lng != null) {
+                                  setState(() {
+                                    _focusedLocation = LatLng(e.lat!, e.lng!);
+                                  });
+                                }
+                              },
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 4, horizontal: 20),
+                              leading: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: eventColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ],
+                                child: Icon(eventIcon,
+                                    color: eventColor, size: 24),
+                              ),
+                              title: Row(
+                                children: [
+                                  Text(typeLabel,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
+                                  const Spacer(),
+                                  Text(parameter,
+                                      style: TextStyle(
+                                          color: eventColor,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 14)),
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    DateFormat('HH:mm:ss').format(e.timestamp),
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                  if (e.notes != null && e.notes!.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        e.notes!,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                              .withValues(alpha: 0.7),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventDistributionBar(List<dynamic> events) {
-    final counts = <String, int>{};
-    for (var e in events) {
-      counts[e.type] = (counts[e.type] ?? 0) + 1;
-    }
-
-    final types = [
-      {'type': 'rapidAcceleration', 'color': const Color(0xFFFF9500)},
-      {'type': 'rapidDeceleration', 'color': const Color(0xFFFF3B30)},
-      {'type': 'jerk', 'color': const Color(0xFF5856D6)},
-      {'type': 'bump', 'color': const Color(0xFFAF52DE)},
-      {'type': 'wobble', 'color': const Color(0xFF007AFF)},
-      {'type': 'manual', 'color': const Color(0xFF34C759)},
-    ];
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: SizedBox(
-        height: 8,
-        child: Row(
-          children: types.map((config) {
-            final count = counts[config['type']] ?? 0;
-            if (count == 0) return const SizedBox.shrink();
-            return Expanded(
-              flex: count,
-              child: Container(color: config['color'] as Color),
-            );
-          }).toList(),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

@@ -15,6 +15,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings => '设置';
 
   @override
+  String get history => '历史行程';
+
+  @override
+  String get arena => 'Arena';
+
+  @override
   String get language => '语言';
 
   @override
@@ -195,4 +201,108 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get verification_success => '验证成功！';
+
+  @override
+  String get syncing => '同步云端状态中...';
+
+  @override
+  String sync_complete(Object count) {
+    return '同步完成，已标记 $count 条行程';
+  }
+
+  @override
+  String get no_cloud_records => '云端没有找到相关记录';
+
+  @override
+  String get sync_cloud_status => '同步上传状态';
+
+  @override
+  String get arena_top10_title => '智驾安全 Top 10';
+
+  @override
+  String get km_per_event_long => '无负面体验里程 (越高越稳)';
+
+  @override
+  String get by_brand => '按品牌';
+
+  @override
+  String get by_version => '按版本';
+
+  @override
+  String get arena_total_mileage_title => '智驾里程榜';
+
+  @override
+  String get arena_total_mileage_subtitle => '各品牌累计智驾行程里程';
+
+  @override
+  String arena_brand_evolution_title(Object brand) {
+    return '$brand 进化趋势';
+  }
+
+  @override
+  String get km_per_version_event_long => '不同软件版本的舒适度表现趋势';
+
+  @override
+  String get arena_details_title => '负面体验详情分布';
+
+  @override
+  String get km_per_event => '公里/次';
+
+  @override
+  String get all_versions => '所有版本';
+
+  @override
+  String get select_brand => '选择品牌';
+
+  @override
+  String get no_trips_yet => '还没有行程数据，开始一段智驾行程来查看统计吧！';
+
+  @override
+  String get no_data_for_brand => '所选品牌或版本暂无数据。';
+
+  @override
+  String events_count(Object count) {
+    return '$count 次事件';
+  }
+
+  @override
+  String trips_count(Object count) {
+    return '$count 次行程';
+  }
+
+  @override
+  String get mileage_label => '里程';
+
+  @override
+  String get car_cert_banner => '完成爱车认证，开启行程提交功能';
+
+  @override
+  String get upload_cert_photos => '爱车认证';
+
+  @override
+  String get upload_hint => '请上传包含车牌号或 VIN 码的照片（通常在挡风玻璃左下角或车门柱上）';
+
+  @override
+  String get file_limit_hint => '最多 3 张，支持 JPG/PNG，单张 < 5MB';
+
+  @override
+  String get submit_for_audit => '提交认证';
+
+  @override
+  String get submit_success_tip => '认证资料已提交，我们会尽快完成审核。';
+
+  @override
+  String get error_image_limit => '最多只能选择 3 张照片';
+
+  @override
+  String get error_image_size => '单张照片不能超过 5MB';
+
+  @override
+  String get error_image_type => '仅支持 JPG 或 PNG 格式照片';
+
+  @override
+  String get delete_event_title => '确认删除事件';
+
+  @override
+  String get delete_event_desc => '删除后无法恢复，请确认删除么？';
 }

@@ -6,7 +6,10 @@ import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/features/history/presentation/trip_detail_screen.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:puked/common/widgets/brand_logo.dart';
+import 'package:puked/services/cloud_trip_service.dart';
+import 'package:puked/features/auth/providers/auth_provider.dart';
+import 'package:puked/features/history/providers/trip_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -44,7 +47,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        surfaceTintColor: Colors.transparent, // 禁用 M3 的紫色叠加
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: Row(
           children: [
@@ -118,23 +121,128 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final storage = ref.watch(storageServiceProvider);
+    final tripsAsync = ref.watch(tripsProvider);
     final i18n = ref.watch(i18nProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isDeleteMode ? i18n.t('select_items') : i18n.t('history'),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            )),
+        title: Text(_isDeleteMode ? i18n.t('select_items') : i18n.t('history')),
         actions: [
-          if (!_isDeleteMode)
+          if (!_isDeleteMode) ...[
+            IconButton(
+              icon: const Icon(Icons.sync),
+              onPressed: () async {
+                final cloudService = ref.read(cloudTripServiceProvider);
+                final storage = ref.read(storageServiceProvider);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(i18n.t('syncing'))),
+                );
+
+                final cloudUuids = await cloudService.getUploadedLocalUuids();
+                final syncedCount = await storage.syncTripsStatus(cloudUuids);
+
+                if (!context.mounted) return;
+                setState(() {});
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(i18n
+                        .t('sync_complete', args: [syncedCount.toString()])),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              tooltip: i18n.t('sync_cloud_status'),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_sweep_outlined),
               onPressed: _toggleDeleteMode,
-            )
-          else ...[
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ] else ...[
+            if (ref.watch(authProvider).isPro)
+              TextButton(
+                onPressed: _selectedIds.isEmpty
+                    ? null
+                    : () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text(i18n.t('submit_trip')),
+                            content: Text(i18n.t('bulk_upload_confirm',
+                                args: [_selectedIds.length.toString()])),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: Text(i18n.t('cancel')),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: Text(i18n.t('upload')),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirmed == true) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(i18n.t('uploading'))),
+                          );
+
+                          int successCount = 0;
+                          final storage = ref.read(storageServiceProvider);
+                          final cloudService =
+                              ref.read(cloudTripServiceProvider);
+
+                          for (final id in _selectedIds) {
+                            try {
+                              final trip = await storage.getTripById(id);
+                              if (trip != null && !trip.isUploaded) {
+                                final cloudId =
+                                    await cloudService.uploadTrip(trip);
+                                await storage.updateTripCloudId(
+                                    trip.id, cloudId);
+                                successCount++;
+                              } else if (trip != null && trip.isUploaded) {
+                                successCount++; // Already uploaded counts as success for bulk selection
+                              }
+                            } catch (e) {
+                              debugPrint('Bulk upload error for id $id: $e');
+                            }
+                          }
+
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(successCount == _selectedIds.length
+                                  ? i18n.t('upload_success')
+                                  : i18n.t('upload_failed')),
+                              backgroundColor:
+                                  successCount == _selectedIds.length
+                                      ? Colors.green
+                                      : Colors.orange,
+                            ),
+                          );
+
+                          if (successCount > 0) {
+                            setState(() {
+                              _selectedIds.clear();
+                              _isDeleteMode = false;
+                            });
+                          }
+                        }
+                      },
+                child: Text(
+                  i18n.t('upload'),
+                  style: TextStyle(
+                      color: _selectedIds.isEmpty
+                          ? Colors.grey
+                          : Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
             TextButton(
               onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
               child: Text(
@@ -142,27 +250,25 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 style: TextStyle(
                     color: _selectedIds.isEmpty
                         ? Colors.grey
-                        : Theme.of(context).colorScheme.error),
+                        : Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.bold),
               ),
             ),
             IconButton(
               icon: const Icon(Icons.close),
               onPressed: _toggleDeleteMode,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ]
         ],
-        backgroundColor: Colors.transparent,
-        iconTheme:
-            IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        scrolledUnderElevation: 0,
       ),
-      body: FutureBuilder<List<Trip>>(
-        future: storage.getAllTrips(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: tripsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
+        data: (trips) {
+          final i18n = ref.watch(i18nProvider);
 
-          final trips = snapshot.data ?? [];
           if (trips.isEmpty) {
             return Center(
               child: Text(
@@ -172,19 +278,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: trips.length,
-            itemBuilder: (context, index) {
-              final trip = trips[index];
-              return _TripCard(
-                trip: trip,
-                isDeleteMode: _isDeleteMode,
-                isSelected: _selectedIds.contains(trip.id),
-                onTap: _isDeleteMode ? () => _toggleSelection(trip.id) : null,
-                onSelectChanged: (val) => _toggleSelection(trip.id),
-              );
-            },
+          return SafeArea(
+            left: true,
+            right: true,
+            top: false,
+            bottom: false,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              itemCount: trips.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 4),
+              itemBuilder: (context, index) {
+                final trip = trips[index];
+                return _TripCard(
+                  trip: trip,
+                  isDeleteMode: _isDeleteMode,
+                  isSelected: _selectedIds.contains(trip.id),
+                  onTap: _isDeleteMode ? () => _toggleSelection(trip.id) : null,
+                  onSelectChanged: (val) => _toggleSelection(trip.id),
+                  onRefresh: () => setState(() {}),
+                );
+              },
+            ),
           );
         },
       ),
@@ -198,6 +312,7 @@ class _TripCard extends ConsumerWidget {
   final bool isSelected;
   final VoidCallback? onTap;
   final ValueChanged<bool?>? onSelectChanged;
+  final VoidCallback? onRefresh;
 
   const _TripCard({
     required this.trip,
@@ -205,6 +320,7 @@ class _TripCard extends ConsumerWidget {
     this.isSelected = false,
     this.onTap,
     this.onSelectChanged,
+    this.onRefresh,
   });
 
   @override
@@ -213,25 +329,19 @@ class _TripCard extends ConsumerWidget {
     final i18n = ref.watch(i18nProvider);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
         color: isSelected
-            ? Theme.of(context)
-                .colorScheme
-                .primaryContainer
-                .withValues(alpha: 0.3)
-            : Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest
-                .withValues(alpha: 0.3),
+            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
+            : Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
-                : Theme.of(context)
+        border: isSelected
+            ? Border.all(
+                color: Theme.of(context)
                     .colorScheme
-                    .outlineVariant
-                    .withValues(alpha: 0.3)),
+                    .primary
+                    .withValues(alpha: 0.5))
+            : null,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -244,7 +354,7 @@ class _TripCard extends ConsumerWidget {
                     context,
                     MaterialPageRoute(
                         builder: (context) => TripDetailScreen(trip: trip)),
-                  );
+                  ).then((_) => onRefresh?.call());
                 },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -254,35 +364,16 @@ class _TripCard extends ConsumerWidget {
                     Checkbox(
                       value: isSelected,
                       onChanged: onSelectChanged,
+                      activeColor: Theme.of(context).colorScheme.primary,
                       shape: const CircleBorder(),
                     ),
                     const SizedBox(width: 8),
                   ],
-                  Container(
-                    width: 52,
-                    height: 52,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withValues(alpha: 0.1)
-                          : Colors.black.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: trip.brand != null
-                        ? SvgPicture.asset(
-                            'assets/logos/${trip.brand}.svg',
-                            colorFilter:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? const ColorFilter.mode(
-                                        Colors.white, BlendMode.srcIn)
-                                    : null,
-                            placeholderBuilder: (context) => const Icon(
-                                Icons.help_outline,
-                                size: 20,
-                                color: Colors.grey),
-                          )
-                        : Icon(Icons.route,
-                            color: Theme.of(context).colorScheme.primary),
+                  BrandLogo(
+                    brandName: trip.brand,
+                    size: 52,
+                    padding: 10,
+                    showBackground: true,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -341,54 +432,176 @@ class _TripCard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.event_note_outlined,
-                                size: 12,
-                                color: Theme.of(context).colorScheme.outline),
-                            const SizedBox(width: 4),
-                            Text(
-                              i18n.t('events_count',
-                                  args: [trip.eventCount.toString()]),
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).colorScheme.outline),
-                            ),
-                            const SizedBox(width: 12),
-                            Icon(Icons.straighten_outlined,
-                                size: 12,
-                                color: Theme.of(context).colorScheme.outline),
-                            const SizedBox(width: 4),
-                            Text(
-                              "${(trip.distance / 1000).toStringAsFixed(2)} km",
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).colorScheme.outline),
-                            ),
-                          ],
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            children: [
+                              Icon(Icons.event_note_outlined,
+                                  size: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outline
+                                      .withValues(alpha: 0.6)),
+                              const SizedBox(width: 4),
+                              Text(
+                                i18n.t('events_count',
+                                    args: [trip.eventCount.toString()]),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outline
+                                        .withValues(alpha: 0.6)),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(Icons.straighten_outlined,
+                                  size: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outline
+                                      .withValues(alpha: 0.6)),
+                              const SizedBox(width: 4),
+                              Text(
+                                "${(trip.distance / 1000).toStringAsFixed(2)} km",
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outline
+                                        .withValues(alpha: 0.6)),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  if (!isDeleteMode)
-                    IconButton(
-                      onPressed: () async {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(i18n.t('exporting')),
-                              duration: const Duration(seconds: 1)),
-                        );
-                        await ref.read(exportServiceProvider).exportTrip(trip);
-                      },
-                      icon: Icon(Icons.share_outlined,
-                          color: Theme.of(context).colorScheme.onSurface),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.05),
+                  if (isDeleteMode)
+                    const SizedBox(width: 8)
+                  else ...[
+                    if (ref.watch(authProvider).isPro)
+                      trip.isUploaded
+                          ? Container(
+                              width: 40, // 增加固定宽度对齐
+                              height: 40, // 增加固定高度对齐
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cloud_done,
+                                color: Colors.green,
+                                size: 24,
+                              ),
+                            )
+                          : SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: IconButton(
+                                padding: EdgeInsets.zero, // 消除默认内边距
+                                constraints: const BoxConstraints(), // 消除默认限制
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: Text(i18n.t('submit_trip')),
+                                      content:
+                                          Text(i18n.t('submit_trip_confirm')),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: Text(i18n.t('cancel')),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: Text(i18n.t('upload')),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirmed == true) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(i18n.t('uploading'))),
+                                    );
+                                    try {
+                                      final cloudId = await ref
+                                          .read(cloudTripServiceProvider)
+                                          .uploadTrip(trip);
+                                      await ref
+                                          .read(storageServiceProvider)
+                                          .updateTripCloudId(trip.id, cloudId);
+
+                                      onRefresh?.call();
+
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text(i18n.t('upload_success')),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text(i18n.t('upload_failed')),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: Icon(Icons.cloud_upload_outlined,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.05),
+                                ),
+                              ),
+                            ),
+                    const SizedBox(width: 8), // 增加一点间距
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () async {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(i18n.t('exporting')),
+                                duration: const Duration(seconds: 1)),
+                          );
+                          await ref
+                              .read(exportServiceProvider)
+                              .exportTrip(trip);
+                        },
+                        icon: Icon(Icons.share_outlined,
+                            color: Theme.of(context).colorScheme.onSurface),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.05),
+                        ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),

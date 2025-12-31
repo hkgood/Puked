@@ -68,7 +68,7 @@ title: Puked - 让舒适度可量化
   <p class="subtitle">让行驶舒适度，从主观感受变为精密数据。</p>
   
   <a href="https://github.com/hkgood/Puked/releases/latest" class="cta-button">免费下载 APK</a>
-  <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #86868b;">支持 Android 10.0+ · 100Hz 采样精度</p>
+  <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #86868b;">支持 Android 10.0+ · 30Hz 稳定采样精度</p>
 
   <div class="screenshot-group">
     <img src="assets/images/01.jpg" alt="Recording View" />
@@ -79,7 +79,7 @@ title: Puked - 让舒适度可量化
   <div class="feature-grid">
     <div class="feature-item">
       <h3>精密采样</h3>
-      <p>100Hz 高频引擎，深度提取加速度计与陀螺仪原始数据，捕捉每一次细微震动。</p>
+      <p>高性能传感器引擎，稳定提取加速度计与陀螺仪原始数据，捕捉每一次关键震动。</p>
     </div>
     <div class="feature-item">
       <h3>自动校准</h3>

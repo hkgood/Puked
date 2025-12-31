@@ -13,9 +13,18 @@ class SharedPreferencesAuthStore extends AuthStore {
     if (encoded != null) {
       try {
         final decoded = jsonDecode(encoded);
-        save(decoded['token'] ?? '', decoded['model']);
+        final token = decoded['token'] ?? '';
+        final dynamic modelData = decoded['model'];
+
+        // 【核心修复】：在调用 save 之前，必须先将 Map 转换为 RecordModel 对象
+        // 否则 super.save 会因为类型不匹配抛出异常，导致 AuthStore 被清空
+        RecordModel? model;
+        if (modelData != null && modelData is Map) {
+          model = RecordModel(Map<String, dynamic>.from(modelData));
+        }
+
+        save(token, model);
       } catch (e) {
-        // 解码失败则清空
         clear();
       }
     }
@@ -23,12 +32,19 @@ class SharedPreferencesAuthStore extends AuthStore {
 
   @override
   void save(String newToken, dynamic newRecord) {
-    super.save(newToken, newRecord);
+    // 确保传入 super.save 的是正确的类型
+    dynamic recordToSave = newRecord;
+    if (newRecord is Map) {
+      recordToSave = RecordModel(Map<String, dynamic>.from(newRecord));
+    }
+
+    super.save(newToken, recordToSave);
+
     prefs.setString(
         _storeKey,
         jsonEncode({
           'token': newToken,
-          'model': newRecord,
+          'model': newRecord, // 存储时仍然可以是 Map 或 RecordModel（jsonEncode 会处理）
         }));
   }
 
@@ -58,9 +74,27 @@ class PocketBaseService {
   PocketBaseService(this.pb);
 
   bool get isAuthenticated => pb.authStore.isValid;
-  RecordModel? get currentUser => pb.authStore.record is RecordModel
-      ? pb.authStore.record as RecordModel
-      : null;
+
+  /// 获取当前用户信息。
+  /// 注意：在应用启动从本地加载时，record 可能暂时是一个 Map 而非 RecordModel，
+  /// 这里做了兼容处理，确保业务层能通过 RecordModel 的接口读取数据。
+  RecordModel? get currentUser {
+    final dynamic record = pb.authStore.record;
+    if (record == null) return null;
+
+    // 由于我们在 AuthStore.save 中做了强制转换，这里 record 理论上永远是 RecordModel
+    if (record is RecordModel) return record;
+
+    // 冗余保护逻辑，防止万一
+    if (record is Map) {
+      try {
+        return RecordModel(Map<String, dynamic>.from(record));
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
 
   String? get currentUserId => currentUser?.id;
 

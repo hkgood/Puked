@@ -20,6 +20,9 @@ class Trip {
   // 云端关联 ID (PocketBase Record ID)
   String? cloudId;
 
+  // 是否已上传
+  bool isUploaded = false;
+
   // 轨迹点列表
   final trajectory = IsarLinks<TrajectoryPoint>();
 
@@ -29,6 +32,42 @@ class Trip {
   // 统计信息
   int eventCount = 0;
   double distance = 0.0;
+}
+
+@collection
+class Brand {
+  Id id = Isar.autoIncrement;
+
+  @Index(unique: true)
+  late String name; // 品牌标识，如 "Tesla"
+
+  String? displayName; // 显示名称
+  String? logoUrl; // 远程 SVG 图标地址
+
+  int order = 0; // 排序权重
+  bool isEnabled = true; // 是否启用
+  bool isCustom = false; // 是否为自定义
+
+  DateTime? updatedAt; // 最后更新时间
+
+  // 关联的版本
+  @Backlink(to: 'brand')
+  final versions = IsarLinks<SoftwareVersion>();
+}
+
+@collection
+class SoftwareVersion {
+  Id id = Isar.autoIncrement;
+
+  @Index()
+  late String versionString; // 版本号，如 "v12.3.6"
+
+  final brand = IsarLink<Brand>(); // 属于哪个品牌
+
+  bool isEnabled = true;
+  bool isCustom = false;
+
+  DateTime? updatedAt;
 }
 
 @collection
@@ -51,6 +90,7 @@ class RecordedEvent {
   late DateTime timestamp;
   late String type; // rapidAcceleration, rapidDeceleration, etc.
   late String source; // AUTO, MANUAL
+  String? notes; // 备注信息（如聚合特征）
 
   double? lat;
   double? lng;

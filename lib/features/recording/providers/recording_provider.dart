@@ -614,9 +614,6 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
     // 2. 选取优先级最高的作为“主事件”
     var mainEvent = _pendingEvents.first;
-    // 获取其他被聚合的特征
-    final otherTypes =
-        _pendingEvents.skip(1).map((e) => e.type.name).toSet().toList();
 
     // 3. 执行特殊的物理规则校验 (如车速门槛)
     final speedKmh = mainEvent.speed * 3.6;

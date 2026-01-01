@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2026-01-01
+
+### Changed
+- **Algorithm Tuning**: Adjusted rapid acceleration/deceleration threshold to 0.32G and optimized low-speed speed multiplier (0.8) to reduce false positives during vehicle startup.
+- **Jerk Detection**: Optimized jerk threshold and added sensitivity level support.
+
 ## [2.0.0] - 2025-12-31
 
 ### Added

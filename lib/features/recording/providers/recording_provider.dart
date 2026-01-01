@@ -98,11 +98,12 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
   // 事件检测阈值 (m/s²)
-  static const double _thresholdAccel = 3.0; // 急加速
-  static const double _thresholdDecel = -3.5; // 急刹车
+  static const double _thresholdAccel = 3.14; // 急加速 (约 0.32G)
+  static const double _thresholdDecel = -3.14; // 急刹车 (约 0.32G)
   static const double _thresholdWobbleSpan = 1.8; // 摆动跨度阈值
   static const double _thresholdBump = 2.5; // 颠簸 (Z轴突变)
-  static const double _thresholdJerk = 8.0; // 顿挫阈值 (m/s³) - 加速度变化率
+  static const double _thresholdJerk =
+      6.0; // 顿挫阈值 (m/s³) - 加速度变化率 (调低基准以补偿速度系数增加)
 
   // 保护期和检测窗口
   static const Duration _startProtectionDuration = Duration(seconds: 5);
@@ -308,10 +309,10 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
     final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
 
     if (currentSpeedKmh < 10.0) {
-      speedMultiplier = 0.6;
+      speedMultiplier = 0.8; // 从 0.6 提高到 0.8，减少低速起步误报
     } else if (currentSpeedKmh < 60.0) {
-      // 10km/h 到 60km/h 线性从 0.6 增长到 1.0
-      speedMultiplier = 0.6 + 0.4 * ((currentSpeedKmh - 10.0) / 50.0);
+      // 10km/h 到 60km/h 线性从 0.8 增长到 1.0
+      speedMultiplier = 0.8 + 0.2 * ((currentSpeedKmh - 10.0) / 50.0);
     } else if (currentSpeedKmh > 80.0) {
       speedMultiplier = 1.2;
     }
@@ -348,8 +349,9 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
         final jerk = deltaA / deltaT;
 
         // 如果 Jerk 超过阈值 (这里使用绝对值，因为点刹和猛踩都算顿挫)
-        // 且由于低速时更敏感，我们也给 Jerk 加上 finalMultiplier (注意：Jerk 越小越容易触发)
-        if (jerk.abs() > (_thresholdJerk * speedMultiplier)) {
+        // 修正：将 sensitivityMultiplier 引入 Jerk 检测，使其支持高中低三档设置
+        if (jerk.abs() >
+            (_thresholdJerk * speedMultiplier * sensitivityMultiplier)) {
           _lastTriggered['jerk'] = now;
           _enqueueEvent(EventType.jerk, now);
         }
@@ -626,11 +628,11 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
       finalType = EventType.jerk;
     }
 
-    // 4. 构建备注信息 (保留物理真实性)
+    // 4. 构建备注信息 (不再显示聚合特征，保持界面干净)
     String? extraNotes;
-    if (otherTypes.isNotEmpty) {
-      extraNotes = "聚合特征: ${otherTypes.join(', ')}";
-    }
+    // if (otherTypes.isNotEmpty) {
+    //   extraNotes = "聚合特征: ${otherTypes.join(', ')}";
+    // }
 
     // 5. 最终上报/落库
     tagEvent(finalType, source: mainEvent.source, notes: extraNotes);

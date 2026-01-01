@@ -57,15 +57,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> login(String email, String password) async {
+    print('AuthNotifier: login called for $email');
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _pbService.pb.collection('users').authWithPassword(email, password);
+      print('AuthNotifier: login success');
       state = state.copyWith(
         isLoading: false,
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,
       );
-    } on ClientException catch (_) {
+    } on ClientException catch (e) {
+      print('AuthNotifier: login ClientException: ${e.response}');
       // 设置一个标准化的错误 Key
       state = state.copyWith(
         isLoading: false,
@@ -74,6 +77,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       rethrow;
     } catch (e) {
+      print('AuthNotifier: login unknown error: $e');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -84,6 +88,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> register(String email, String password, String name) async {
+    print('AuthNotifier: register called. Email: $email, Name: $name');
     state = state.copyWith(isLoading: true, error: null);
     try {
       final body = <String, dynamic>{
@@ -92,22 +97,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
         "passwordConfirm": password,
         "name": name,
       };
-      await _pbService.pb.collection('users').create(body: body);
+      print('AuthNotifier: Creating user with body: $body');
+      final record = await _pbService.pb.collection('users').create(body: body);
+      print('AuthNotifier: User created successfully. ID: ${record.id}');
+
       // 注册成功后自动登录
+      print('AuthNotifier: Attempting auto-login after register');
       await login(email, password);
     } on ClientException catch (e) {
+      print('AuthNotifier: register ClientException: ${e.response}');
       String errorKey = 'register_failed';
       if (e.response['data'] != null && e.response['data'] is Map) {
         final data = e.response['data'] as Map;
+        print('AuthNotifier: Validation Errors: $data');
         if (data.containsKey('email')) {
           errorKey = 'error_email_taken';
         } else if (data.containsKey('password')) {
           errorKey = 'error_password_too_short';
+        } else if (data.isNotEmpty) {
+          // 如果有其他错误（如 username），至少在 log 里打印出来
+          errorKey = 'error_${data.keys.first}';
+          print(
+              'AuthNotifier: Unhandled validation error for field: ${data.keys.first}');
         }
       }
       state = state.copyWith(isLoading: false, error: errorKey);
       rethrow;
     } catch (e) {
+      print('AuthNotifier: register unknown error: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
     }

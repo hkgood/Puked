@@ -265,7 +265,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       body: tripsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, stack) {
+          // 如果是 Isar 竞态错误，显示一个更友好的重试界面，而不是直接报错
+          if (err.toString().contains('already been opened')) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(i18n.t('syncing')),
+                ],
+              ),
+            );
+          }
+          return Center(child: Text('Error: $err'));
+        },
         data: (trips) {
           final i18n = ref.watch(i18nProvider);
 

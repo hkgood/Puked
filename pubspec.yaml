@@ -1,6 +1,6 @@
 name: puked
 description: A sophisticated tool for autonomous driving PMs to record ride comfort.
-version: 2.0.0+10
+version: 2.0.1+12
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -70,6 +70,7 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/logo.png"
   min_sdk_android: 21
+  remove_alpha_ios: true
 
 flutter_native_splash:
   color: "#ffffff"

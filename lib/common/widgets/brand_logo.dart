@@ -11,6 +11,29 @@ class BrandLogo extends ConsumerWidget {
   final Color? color;
   final bool showBackground; // 是否显示背景底色
 
+  // 内置已知有本地 SVG 的品牌列表，避免盲目尝试加载不存在的资源
+  static const Set<String> _localBrands = {
+    'Tesla',
+    'Xpeng',
+    'LiAuto',
+    'Nio',
+    'Xiaomi',
+    'Huawei',
+    'Zeekr',
+    'Onvo',
+    'ApolloGo',
+    'PONYai',
+    'WeRide',
+    'Waymo',
+    'Zoox',
+    'Wayve',
+    'Momenta',
+    'Nvidia',
+    'Horizon',
+    'Deeproute',
+    'Leapmotor'
+  };
+
   const BrandLogo({
     super.key,
     required this.brandName,
@@ -50,28 +73,17 @@ class BrandLogo extends ConsumerWidget {
           orElse: () => Brand()..name = brandName!,
         );
 
-        // 构建图标 Widget (不设固定宽高，由父约束决定)
+        // 构建图标 Widget (优先尝试本地，再尝试远程)
         Widget buildIcon() {
-          if (brand.logoUrl != null && brand.logoUrl!.isNotEmpty) {
-            return SvgPicture.network(
-              brand.logoUrl!,
-              fit: BoxFit.contain,
-              colorFilter: effectiveColor != null
-                  ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
-                  : null,
-              placeholderBuilder: (context) => SvgPicture.asset(
-                'assets/logos/${brand.name}.svg',
-                fit: BoxFit.contain,
-                colorFilter: effectiveColor != null
-                    ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
-                    : null,
-                placeholderBuilder: (context) =>
-                    _buildFallback(context, isInfinity ? null : size),
-              ),
-            );
-          } else {
+          final isLocal = _localBrands.contains(brand.name);
+          final assetPath = 'assets/logos/${brand.name}.svg';
+
+          // 1. 如果是已知本地品牌且处于黑夜模式，或者没有远程 URL
+          // 优先使用本地资产，因为本地资产的 colorFilter 适配通常更稳定
+          if (isLocal &&
+              (isDark || brand.logoUrl == null || brand.logoUrl!.isEmpty)) {
             return SvgPicture.asset(
-              'assets/logos/${brand.name}.svg',
+              assetPath,
               fit: BoxFit.contain,
               colorFilter: effectiveColor != null
                   ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
@@ -80,6 +92,41 @@ class BrandLogo extends ConsumerWidget {
                   _buildFallback(context, isInfinity ? null : size),
             );
           }
+
+          // 2. 如果有远程 URL，尝试加载网络图片
+          if (brand.logoUrl != null && brand.logoUrl!.isNotEmpty) {
+            return SvgPicture.network(
+              brand.logoUrl!,
+              fit: BoxFit.contain,
+              colorFilter: effectiveColor != null
+                  ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                  : null,
+              placeholderBuilder: (context) => isLocal
+                  ? SvgPicture.asset(
+                      assetPath,
+                      fit: BoxFit.contain,
+                      colorFilter: effectiveColor != null
+                          ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                          : null,
+                    )
+                  : _buildFallback(context, isInfinity ? null : size),
+            );
+          }
+
+          // 3. 最后的保底：如果是本地品牌尝试加载，否则直接显示问号
+          if (isLocal) {
+            return SvgPicture.asset(
+              assetPath,
+              fit: BoxFit.contain,
+              colorFilter: effectiveColor != null
+                  ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                  : null,
+              placeholderBuilder: (context) =>
+                  _buildFallback(context, isInfinity ? null : size),
+            );
+          }
+
+          return _buildFallback(context, isInfinity ? null : size);
         }
 
         final iconWidget = Padding(
@@ -101,24 +148,25 @@ class BrandLogo extends ConsumerWidget {
 
   Widget _wrapWithBackground(
       BuildContext context, Widget child, bool isInfinity) {
-    if (isInfinity) return child;
-
     if (showBackground) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       return Container(
-        width: size,
-        height: size,
+        width: isInfinity ? null : size,
+        height: isInfinity ? null : size,
+        constraints: isInfinity ? const BoxConstraints.expand() : null,
         decoration: BoxDecoration(
           color: isDark
               ? Colors.white.withValues(alpha: 0.08)
               : Colors.black.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(size * 0.2), // 动态圆角，保持比例
+          borderRadius: BorderRadius.circular(isInfinity ? 12 : size * 0.2),
         ),
         child: child,
       );
     }
 
-    return SizedBox(width: size, height: size, child: child);
+    return isInfinity
+        ? SizedBox.expand(child: child)
+        : SizedBox(width: size, height: size, child: child);
   }
 
   Widget _buildFallback(BuildContext context, double? constrainedSize) {

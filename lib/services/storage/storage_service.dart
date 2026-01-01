@@ -10,21 +10,40 @@ final storageServiceProvider = Provider<StorageService>((ref) {
 
 class StorageService {
   Isar? _isar;
+  Future<void>? _initFuture;
 
   Future<void> init() async {
     if (_isar != null) return;
-    final dir = await getApplicationDocumentsDirectory();
-    _isar = await Isar.open(
-      [
-        TripSchema,
-        TrajectoryPointSchema,
-        RecordedEventSchema,
-        BrandSchema,
-        SoftwareVersionSchema
-      ],
-      directory: dir.path,
-    );
-    await seedInitialData();
+    if (_initFuture != null) return _initFuture;
+
+    _initFuture = _doInit();
+    return _initFuture;
+  }
+
+  Future<void> _doInit() async {
+    try {
+      final existing = Isar.getInstance();
+      if (existing != null) {
+        _isar = existing;
+        return;
+      }
+
+      final dir = await getApplicationDocumentsDirectory();
+      _isar = await Isar.open(
+        [
+          TripSchema,
+          TrajectoryPointSchema,
+          RecordedEventSchema,
+          BrandSchema,
+          SoftwareVersionSchema
+        ],
+        directory: dir.path,
+      );
+      await seedInitialData();
+    } catch (e) {
+      _initFuture = null;
+      rethrow;
+    }
   }
 
   Future<void> seedInitialData() async {
@@ -54,11 +73,13 @@ class StorageService {
     ];
 
     await _isar!.writeTxn(() async {
-      for (var name in initialBrands) {
+      for (var i = 0; i < initialBrands.length; i++) {
+        final name = initialBrands[i];
         final brand = Brand()
           ..name = name
           ..displayName = name
           ..logoUrl = null // 初始使用本地资产逻辑，后续同步更新为远程 URL
+          ..order = i
           ..isCustom = false;
         await _isar!.brands.put(brand);
       }

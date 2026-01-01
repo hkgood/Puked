@@ -15,6 +15,9 @@ class UpdateService {
 
   static Future<void> checkUpdate(BuildContext context,
       {bool showNoUpdate = false}) async {
+    // iOS 不需要应用内更新功能，统一由 App Store 处理
+    if (Platform.isIOS) return;
+
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return;
 

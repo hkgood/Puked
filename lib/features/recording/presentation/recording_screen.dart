@@ -28,7 +28,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     super.initState();
     // 启动时检查更新：延迟3秒，确保进入首页后环境已完全准备好
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
+      if (mounted && Theme.of(context).platform == TargetPlatform.android) {
         UpdateService.checkUpdate(context);
       }
     });

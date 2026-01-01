@@ -550,7 +550,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                     DateFormat('HH:mm:ss').format(e.timestamp),
                                     style: const TextStyle(fontSize: 13),
                                   ),
-                                  if (e.notes != null && e.notes!.isNotEmpty)
+                                  if (e.notes != null &&
+                                      e.notes!.isNotEmpty &&
+                                      !e.notes!.contains('聚合特征'))
                                     Padding(
                                       padding: const EdgeInsets.only(top: 2),
                                       child: Text(

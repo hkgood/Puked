@@ -353,16 +353,17 @@ class SettingsScreen extends ConsumerWidget {
                   error: (_, __) => Text(i18n.t('unknown')),
                 ),
               ),
-              ListTile(
-                title: Text(
-                  i18n.t('check_update'),
-                  style: const TextStyle(),
+              if (Theme.of(context).platform == TargetPlatform.android)
+                ListTile(
+                  title: Text(
+                    i18n.t('check_update'),
+                    style: const TextStyle(),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                  onTap: () {
+                    UpdateService.checkUpdate(context, showNoUpdate: true);
+                  },
                 ),
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                onTap: () {
-                  UpdateService.checkUpdate(context, showNoUpdate: true);
-                },
-              ),
               const SizedBox(height: 32),
             ],
           ),

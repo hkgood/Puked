@@ -12,11 +12,11 @@ class RetryTileProvider extends TileProvider {
   final int maxRetries;
   final Duration retryDelay;
   final HttpClient _httpClient = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
+    ..connectionTimeout = const Duration(seconds: 5); // 缩短连接超时时间，避免长时间挂起 UI
 
   RetryTileProvider({
     this.maxRetries = 3,
-    this.retryDelay = const Duration(milliseconds: 500),
+    this.retryDelay = const Duration(milliseconds: 300),
   });
 
   @override
@@ -72,13 +72,19 @@ class RetryNetworkImage extends ImageProvider<RetryNetworkImage> {
         final bytes = await consolidateHttpClientResponseBytes(response);
         if (bytes.lengthInBytes == 0) throw Exception('Empty image');
 
-        // 使用 decode 回调而不是直接调用 ui.instantiateImageCodec
-        // 这样可以更好地集成到 Flutter 的图片流水线中
         final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
         return await decode(buffer);
       } catch (e) {
         attempt++;
-        if (attempt >= maxRetries) {
+        if (e is SocketException || e is HttpException) {
+          // 网络连接问题或 DNS 解析失败，不应导致崩溃
+          debugPrint('Network error loading tile: $e');
+          if (attempt >= maxRetries) {
+            // 达到最大重试次数，静默失败，返回一个透明占位图或重新抛出
+            // 这里我们抛出一个特定的异常，让 Flutter 的图片流水线处理
+            throw Exception('Tile network error after $maxRetries retries');
+          }
+        } else if (attempt >= maxRetries) {
           rethrow;
         }
         await Future.delayed(retryDelay * attempt); // 指数退避

@@ -46,9 +46,17 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     super.initState();
     _loadInitialData();
 
-    // 监听输入变化，用于刷新按钮状态
-    _modelController.addListener(() => setState(() {}));
-    _versionController.addListener(() => setState(() {}));
+    // 监听输入变化，用于刷新按钮状态 (使用 microtask 避免在 build 期间触发 setState)
+    _modelController.addListener(() {
+      if (mounted) {
+        Future.microtask(() => setState(() {}));
+      }
+    });
+    _versionController.addListener(() {
+      if (mounted) {
+        Future.microtask(() => setState(() {}));
+      }
+    });
   }
 
   Future<void> _loadInitialData() async {

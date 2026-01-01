@@ -28,17 +28,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    print('RegisterScreen: _submit called');
     if (!_formKey.currentState!.validate()) {
-      print('RegisterScreen: Validation failed');
       return;
     }
 
-    print(
-        'RegisterScreen: Input validated. Email: ${_emailController.text}, Name: ${_nameController.text}');
-
     if (_passwordController.text != _confirmPasswordController.text) {
-      print('RegisterScreen: Passwords do not match');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Passwords do not match'),

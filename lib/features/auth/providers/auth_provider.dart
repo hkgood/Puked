@@ -65,7 +65,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,
       );
-    } on ClientException catch (e) {
+    } on ClientException catch (_) {
       // 设置一个标准化的错误 Key
       state = state.copyWith(
         isLoading: false,

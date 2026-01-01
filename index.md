@@ -68,6 +68,7 @@ title: Puked - 让舒适度可量化
   <p class="subtitle">让行驶舒适度，从主观感受变为精密数据。</p>
   
   <a href="https://github.com/hkgood/Puked/releases/latest" class="cta-button">免费下载 APK</a>
+  <a href="https://puked.osglab.com/" class="cta-button" style="background: rgba(0, 113, 227, 0.1); color: #0071e3 !important; margin-left: 10px;">访问 Web 版</a>
   <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #86868b;">支持 Android 10.0+ · 30Hz 稳定采样精度</p>
 
   <div class="screenshot-group">

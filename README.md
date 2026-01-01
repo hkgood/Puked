@@ -14,7 +14,7 @@
   <img src="assets/images/03.jpg" width="30%" />
 </p>
 
-[简体中文](./README.md) | [English](./README_EN.md)
+[简体中文](./README.md) | [English](./README_EN.md) | [Puked Web](https://puked.osglab.com/)
 
 > **Puked** (吐槽) 是一款专为自动驾驶产品经理 (PM) 和工程师设计的行驶舒适度量化工具。通过手机传感器捕捉高频数据，结合重力对齐算法，将主观感受转化为客观、可追溯的数据。
 
@@ -95,6 +95,8 @@
 ---
 
 # Puked - Ride Comfort Quantification Tool (English Summary)
+
+[Puked Web](https://puked.osglab.com/)
 
 **Puked** (吐槽) is a professional quantification tool for Autonomous Driving PMs and Engineers. Version 2.0 introduces **The Arena** and **Cloud Integration**, transforming it into a platform for comparing AD systems globally.
 

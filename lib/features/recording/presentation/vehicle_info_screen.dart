@@ -36,7 +36,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   String? _selectedBrand;
   bool _isInitialized = false;
 
-  // 图片相关状态
   final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
@@ -45,10 +44,17 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   void initState() {
     super.initState();
     _loadInitialData();
-
-    // 监听输入变化，用于刷新按钮状态
-    _modelController.addListener(() => setState(() {}));
-    _versionController.addListener(() => setState(() {}));
+  // 监听输入变化，用于刷新按钮状态 (使用 microtask 避免在 build 期间触发 setState)
+    _modelController.addListener(() {
+      if (mounted) {
+        Future.microtask(() => setState(() {}));
+      }
+    });
+    _versionController.addListener(() {
+      if (mounted) {
+        Future.microtask(() => setState(() {}));
+      }
+    });
   }
 
   Future<void> _loadInitialData() async {
@@ -75,46 +81,96 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     });
   }
 
-  // 选择图片
-  Future<void> _pickImages() async {
+  // 🟢 修复1：新增选择来源弹窗
+  Future<void> _showImageSourceActionSheet() async {
     final auth = ref.read(authProvider);
     final status = auth.user?.getStringValue('audit_status') ?? '';
-    if (status == 'pending') return; // 认证中不允许操作
+    if (status == 'pending') return;
 
     if (_selectedImages.length >= 3) {
       _showError(ref.read(i18nProvider).t('error_image_limit'));
       return;
     }
 
-    final List<XFile> images = await _picker.pickMultiImage(
-      imageQuality: 80,
-    );
-
-    if (images.isEmpty) return;
-
     final i18n = ref.read(i18nProvider);
-    for (var image in images) {
-      // 校验格式
-      final ext = image.path.toLowerCase();
-      if (!ext.endsWith('.jpg') &&
-          !ext.endsWith('.jpeg') &&
-          !ext.endsWith('.png')) {
-        _showError(i18n.t('error_image_type'));
-        continue;
-      }
 
-      // 校验大小 (5MB)
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: Text(i18n.t('pick_from_gallery')), // 确保 i18n 有这个key
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: Text(i18n.t('take_photo')), // 确保 i18n 有这个key
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _takePhoto();
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // 🟢 修复2：从相册多选
+  Future<void> _pickFromGallery() async {
+    try {
+      final List<XFile> images = await _picker.pickMultiImage(
+        imageQuality: 80, // 压缩质量
+      );
+      if (images.isEmpty) return;
+      _processImages(images);
+    } catch (e) {
+      _showError('Gallery error: $e'); // 简单提示
+    }
+  }
+
+  // 🟢 修复3：调用相机拍照
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (photo == null) return;
+      _processImages([photo]);
+    } catch (e) {
+      _showError('Camera error: $e'); // 简单提示
+    }
+  }
+
+  // 统一处理图片验证
+  Future<void> _processImages(List<XFile> images) async {
+    final i18n = ref.read(i18nProvider);
+    
+    for (var image in images) {
+      if (_selectedImages.length >= 3) break;
+
+      // 简单检查文件大小 (限制 10MB)
       final size = await image.length();
-      if (size > 5 * 1024 * 1024) {
+      if (size > 10 * 1024 * 1024) {
         _showError(i18n.t('error_image_size'));
         continue;
       }
 
-      if (_selectedImages.length < 3) {
-        setState(() {
-          _selectedImages.add(image);
-        });
-      }
+      setState(() {
+        _selectedImages.add(image);
+      });
     }
   }
 
@@ -124,7 +180,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     );
   }
 
-  // 核心逻辑：判断保存按钮是否可点击
   bool _isFormValid() {
     if (widget.isSettingsMode) {
       return _selectedBrand != null &&
@@ -132,7 +187,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
           _versionController.text.trim().isNotEmpty &&
           _selectedImages.isNotEmpty;
     } else {
-      // 非认证模式，品牌必选即可，其它可选
       return _selectedBrand != null;
     }
   }
@@ -199,15 +253,13 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       final auth = ref.read(authProvider);
       final pb = ref.read(pbServiceProvider).pb;
 
-      // 1. 准备上传到 PocketBase 的资料
       final Map<String, dynamic> body = {
         'brand': _selectedBrand,
         'car_model': _modelController.text.trim(),
         'software_version': _versionController.text.trim(),
-        'audit_status': 'pending', // 提交后重置状态为待审核
+        'audit_status': 'pending',
       };
 
-      // 2. 处理图片上传
       final List<http.MultipartFile> files = [];
       for (var image in _selectedImages) {
         files.add(await http.MultipartFile.fromPath(
@@ -216,21 +268,18 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
         ));
       }
 
-      // 3. 执行更新
       await pb.collection('users').update(
             auth.user!.id,
             body: body,
             files: files,
           );
 
-      // 4. 同步本地设置
       await ref.read(settingsProvider.notifier).setVehicleInfo(
             brand: _selectedBrand,
             model: _modelController.text.trim(),
             version: _versionController.text.trim(),
           );
 
-      // 5. 刷新本地用户状态
       await ref.read(authProvider.notifier).refreshUserFromServer();
 
       if (mounted) {
@@ -391,7 +440,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // 1. 顶部 Banner (仅在设置模式显示)
             if (widget.isSettingsMode)
               _buildCertificationBanner(context, i18n, auditStatus),
 
@@ -431,7 +479,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                     const SizedBox(height: 16),
                     _buildVersionField(context, i18n, presetVersionsAsync),
 
-                    // 2. 图片上传区域 (仅在设置模式显示)
                     if (widget.isSettingsMode) ...[
                       const SizedBox(height: 32),
                       Text(
@@ -454,7 +501,6 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                       ],
                       const SizedBox(height: 12),
 
-                      // 图片预览网格
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -469,7 +515,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                         itemBuilder: (context, index) {
                           if (index == _selectedImages.length) {
                             return GestureDetector(
-                              onTap: _pickImages,
+                              // 🟢 修复4：点击 + 号弹出选择菜单，而不是直接去相册
+                              onTap: _showImageSourceActionSheet, 
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: isDark

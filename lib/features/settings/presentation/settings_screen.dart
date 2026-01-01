@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:puked/services/update_service.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
@@ -18,9 +21,162 @@ final packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  // 裁剪图片逻辑
+  Future<void> _cropImage(BuildContext context, WidgetRef ref, String sourcePath) async {
+    try {
+      final i18n = ref.read(i18nProvider);
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: sourcePath,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: i18n.t('edit_avatar') ?? 'Edit Avatar',
+            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: true,
+          ),
+          IOSUiSettings(
+            title: i18n.t('edit_avatar') ?? 'Edit Avatar',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        ref.read(settingsProvider.notifier).setAvatarPath(croppedFile.path);
+      }
+    } catch (e) {
+      debugPrint('Crop error: $e');
+    }
+  }
+
+  // 头像选择弹窗逻辑
+  Future<void> _showAvatarPicker(BuildContext context, WidgetRef ref) async {
+    final i18n = ref.read(i18nProvider);
+    final picker = ImagePicker();
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: Text(i18n.t('pick_from_gallery')),
+              onTap: () async {
+                Navigator.pop(ctx);
+                try {
+                  final XFile? image = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 90,
+                  );
+                  if (image != null && context.mounted) {
+                    _cropImage(context, ref, image.path);
+                  }
+                } catch (e) {
+                  debugPrint('Pick image error: $e');
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: Text(i18n.t('take_photo')),
+              onTap: () async {
+                Navigator.pop(ctx);
+                try {
+                  final XFile? photo = await picker.pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 90,
+                  );
+                  if (photo != null && context.mounted) {
+                    _cropImage(context, ref, photo.path);
+                  }
+                } catch (e) {
+                   debugPrint('Take photo error: $e');
+                }
+              },
+            ),
+            if (ref.read(settingsProvider).avatarPath != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: Text(
+                  i18n.t('reset_avatar') ?? 'Reset Avatar',
+                  style: const TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ref.read(settingsProvider.notifier).setAvatarPath(null);
+                },
+              ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🟢 新增：修改昵称对话框
+  Future<void> _showNicknameDialog(BuildContext context, WidgetRef ref) async {
+    final i18n = ref.read(i18nProvider);
+    final settings = ref.read(settingsProvider);
+    final controller = TextEditingController(text: settings.nickname);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(i18n.t('set_nickname') ?? 'Set Nickname'), // 记得加 Key
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: i18n.t('nickname_hint') ?? 'Enter custom nickname', // 记得加 Key
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: controller.clear,
+            ),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // 重置为空
+              ref.read(settingsProvider.notifier).setNickname(null);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              i18n.t('reset') ?? 'Reset',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+          FilledButton(
+            onPressed: () {
+              ref.read(settingsProvider.notifier).setNickname(controller.text);
+              Navigator.pop(ctx);
+            },
+            child: Text(i18n.t('save')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ImageProvider? _getAvatarImage(String? localPath, String? cloudUrl) {
+    if (localPath != null && File(localPath).existsSync()) {
+      return FileImage(File(localPath));
+    }
+    if (cloudUrl != null && cloudUrl.isNotEmpty) {
+      return NetworkImage(cloudUrl);
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 页面构建时静默刷新用户信息，确保认证状态（如 audit_status）是最新的
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (ref.read(authProvider).isAuthenticated) {
         ref.read(authProvider.notifier).refreshUserFromServer();
@@ -31,6 +187,13 @@ class SettingsScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final i18n = ref.watch(i18nProvider);
     final packageInfo = ref.watch(packageInfoProvider);
+    final cloudAvatarUrl = ref.watch(pbServiceProvider).currentAvatarUrl;
+
+    final bool hasAvatar = (settings.avatarPath != null && File(settings.avatarPath!).existsSync()) || 
+                           (cloudAvatarUrl != null && cloudAvatarUrl.isNotEmpty);
+
+    // 🟢 计算显示名称：优先显示本地昵称，其次云端名字
+    final displayName = settings.nickname ?? auth.user?.getStringValue('name') ?? i18n.t('user');
 
     return Scaffold(
       appBar: AppBar(
@@ -42,10 +205,9 @@ class SettingsScreen extends ConsumerWidget {
         top: false,
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.only(top: 8), // 统一标题和内容间距
+          padding: const EdgeInsets.only(top: 8),
           child: ListView(
             children: [
-              // 账号系统
               _buildSectionHeader(context, i18n.t('account')),
               if (!auth.isAuthenticated)
                 ListTile(
@@ -54,45 +216,86 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: Text(i18n.t('login_to_sync')),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    // 跳转到独立登录页面
                     _showAuthPage(context);
                   },
                 )
               else
                 ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage:
-                        ref.watch(pbServiceProvider).currentAvatarUrl != null
-                            ? NetworkImage(
-                                ref.watch(pbServiceProvider).currentAvatarUrl!)
-                            : null,
-                    child: ref.watch(pbServiceProvider).currentAvatarUrl == null
-                        ? const Icon(Icons.person)
-                        : null,
-                  ),
-                  title: Row(
-                    children: [
-                      Text(auth.user?.getStringValue('name') ?? i18n.t('user')),
-                      if (auth.isPro) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFA500),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: const Text(
-                            'PRO',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
+                  leading: GestureDetector(
+                    onTap: () => _showAvatarPicker(context, ref),
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          backgroundImage: _getAvatarImage(settings.avatarPath, cloudAvatarUrl),
+                          child: _getAvatarImage(settings.avatarPath, cloudAvatarUrl) == null
+                              ? Icon(Icons.person, color: Theme.of(context).colorScheme.onPrimaryContainer)
+                              : null,
+                        ),
+                        if (!hasAvatar)
+                          Positioned(
+                            right: -2,
+                            bottom: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).scaffoldBackgroundColor,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.edit, size: 8, color: Colors.white),
+                              ),
                             ),
                           ),
-                        ),
                       ],
-                    ],
+                    ),
+                  ),
+                  // 🟢 修改：支持点击名字修改昵称
+                  title: GestureDetector(
+                    onTap: () => _showNicknameDialog(context, ref),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.edit_note, 
+                          size: 16, 
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                        ),
+                        if (auth.isPro) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFA500),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: const Text(
+                              'PRO',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +324,6 @@ class SettingsScreen extends ConsumerWidget {
                           padding: const EdgeInsets.only(top: 4),
                           child: GestureDetector(
                             onTap: () async {
-                              // 点击时先尝试刷新状态，如果还是未验证，再提示发送邮件
                               await ref
                                   .read(authProvider.notifier)
                                   .refreshUserFromServer();
@@ -168,7 +370,6 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   trailing: TextButton(
                     onPressed: () async {
-                      // 使用 Future.wait 并行处理，提高响应速度，但要 await 确保逻辑完成
                       await Future.wait([
                         ref.read(authProvider.notifier).logout(),
                         ref
@@ -300,7 +501,7 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 ref,
                 i18n.t('sensitivity_low'),
-                'Accel > 3.0m/s², Brake > 3.5m/s²', // Subtitles can stay as descriptions
+                'Accel > 3.0m/s², Brake > 3.5m/s²',
                 SensitivityLevel.low,
                 settings.sensitivity,
               ),
@@ -362,6 +563,19 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () {
                   UpdateService.checkUpdate(context, showNoUpdate: true);
                 },
+              ),
+
+              // Footer
+              const SizedBox(height: 24),
+              Center(
+                child: Text(
+                  '由 CanguroMIO 修改呈现',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.withOpacity(0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
               const SizedBox(height: 32),
             ],

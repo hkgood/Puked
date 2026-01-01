@@ -45,6 +45,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final i18n = ref.read(i18nProvider);
     final confirmed = await showDialog<bool>(
       context: context,
+      barrierDismissible: false, // 🟢 【核心修复】设置为 false，防止iPad上误触遮罩层自动关闭
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,

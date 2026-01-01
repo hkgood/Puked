@@ -11,6 +11,8 @@ class I18n {
     'en': {
       'app_name': 'Puked',
       'history': 'History',
+      'pick_from_gallery': 'Choose from Gallery',
+      'take_photo': 'Take Photo',
       'arena': 'Arena',
       'settings': 'Settings',
       'start_trip': 'Start Trip',
@@ -131,6 +133,11 @@ class I18n {
       'pending': 'Pending',
       'approved': 'Approved',
       'rejected': 'Rejected',
+      'reset_avatar': 'Reset Avatar',
+      'edit_avatar': 'Edit Avatar',
+      'set_nickname': 'Set Nickname',
+      'nickname_hint': 'Enter custom nickname',
+      'reset': 'Reset',
       'car_cert_banner_approved':
           'Certified. To modify vehicle info, please resubmit for verification.',
       'car_cert_banner_pending':
@@ -147,6 +154,8 @@ class I18n {
     'zh': {
       'app_name': '吐槽',
       'history': '历史行程',
+      'pick_from_gallery': '从相册选择',
+      'take_photo': '拍照',
       'arena': 'Arena',
       'settings': '设置',
       'start_trip': '开始行程',
@@ -177,6 +186,10 @@ class I18n {
       'trajectory_points': '轨迹点',
       'duration': '持续时间',
       'event_list': '事件列表',
+      'edit_avatar': '编辑头像',
+      'set_nickname': '设置昵称',
+      'nickname_hint': '请输入自定义备注',
+      'reset': '重置',
       'min': '分钟',
       'distance': '行驶里程',
       'avg_speed': '平均车速',
@@ -239,6 +252,7 @@ class I18n {
       'sensitivity_high': '高 (最灵敏, 默认)',
       'sensitivity_tip': '敏感度越高，触发急加速、急刹车等事件所需的加速度阈值就越小。',
       'about': '关于',
+      'reset_avatar': '重置头像',
       'current_version': '当前版本',
       'check_update': '检查更新',
       'unknown': '未知',

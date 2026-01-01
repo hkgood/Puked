@@ -18,6 +18,8 @@ class SettingsState {
   final String? brand;
   final String? carModel;
   final String? softwareVersion;
+  final String? avatarPath; // 本地头像路径
+  final String? nickname;   // 🟢 新增：本地昵称
 
   SettingsState({
     required this.themeMode,
@@ -26,6 +28,8 @@ class SettingsState {
     this.brand,
     this.carModel,
     this.softwareVersion,
+    this.avatarPath,
+    this.nickname, // 🟢 新增
   });
 
   SettingsState copyWith({
@@ -35,6 +39,8 @@ class SettingsState {
     String? brand,
     String? carModel,
     String? softwareVersion,
+    String? avatarPath,
+    String? nickname, // 🟢 新增
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -43,6 +49,8 @@ class SettingsState {
       brand: brand ?? this.brand,
       carModel: carModel ?? this.carModel,
       softwareVersion: softwareVersion ?? this.softwareVersion,
+      avatarPath: avatarPath ?? this.avatarPath,
+      nickname: nickname ?? this.nickname, // 🟢 新增
     );
   }
 }
@@ -68,6 +76,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   static const _brandKey = 'default_brand';
   static const _carModelKey = 'default_car_model';
   static const _softwareVersionKey = 'default_software_version';
+  static const _avatarPathKey = 'local_avatar_path';
+  static const _nicknameKey = 'local_nickname'; // 🟢 新增 Key
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -92,8 +102,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     String? brand = prefs.getString(_brandKey);
     String? carModel = prefs.getString(_carModelKey);
     String? softwareVersion = prefs.getString(_softwareVersionKey);
+    
+    // 加载本地头像
+    String? avatarPath = prefs.getString(_avatarPathKey);
+    
+    // 🟢 加载本地昵称
+    String? nickname = prefs.getString(_nicknameKey);
 
-    // 如果已登录，优先从账号信息加载
+    // 如果已登录，优先从账号信息加载车辆信息（但不覆盖本地昵称）
     final auth = _ref.read(authProvider);
     if (auth.isAuthenticated) {
       brand = auth.user?.getStringValue('brand').isEmpty == false
@@ -115,6 +131,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       brand: brand,
       carModel: carModel,
       softwareVersion: softwareVersion,
+      avatarPath: avatarPath,
+      nickname: nickname, // 🟢 赋值
     );
   }
 
@@ -133,6 +151,51 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       await _ref.read(authProvider.notifier).refreshUserFromServer();
     } catch (e) {
       debugPrint('Failed to sync vehicle settings to PocketBase: $e');
+    }
+  }
+
+  // 设置本地头像
+  Future<void> setAvatarPath(String? path) async {
+    state = SettingsState(
+      themeMode: state.themeMode,
+      locale: state.locale,
+      sensitivity: state.sensitivity,
+      brand: state.brand,
+      carModel: state.carModel,
+      softwareVersion: state.softwareVersion,
+      avatarPath: path,
+      nickname: state.nickname,
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    if (path != null) {
+      await prefs.setString(_avatarPathKey, path);
+    } else {
+      await prefs.remove(_avatarPathKey);
+    }
+  }
+
+  // 🟢 新增：设置本地昵称方法
+  Future<void> setNickname(String? name) async {
+    // 过滤空白字符，如果为空字符串则视为 null
+    final validName = (name != null && name.trim().isEmpty) ? null : name?.trim();
+
+    state = SettingsState(
+      themeMode: state.themeMode,
+      locale: state.locale,
+      sensitivity: state.sensitivity,
+      brand: state.brand,
+      carModel: state.carModel,
+      softwareVersion: state.softwareVersion,
+      avatarPath: state.avatarPath,
+      nickname: validName, // 更新状态
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    if (validName != null) {
+      await prefs.setString(_nicknameKey, validName);
+    } else {
+      await prefs.remove(_nicknameKey);
     }
   }
 
@@ -175,11 +238,18 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> clearVehicleSettings() async {
-    state = state.copyWith(
+    // 构造新状态，这里我们保留用户偏好（昵称、头像），只清除车辆信息
+    state = SettingsState(
+      themeMode: state.themeMode,
+      locale: state.locale,
+      sensitivity: state.sensitivity,
       brand: null,
       carModel: null,
       softwareVersion: null,
+      avatarPath: state.avatarPath, 
+      nickname: state.nickname, 
     );
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_brandKey);
     await prefs.remove(_carModelKey);

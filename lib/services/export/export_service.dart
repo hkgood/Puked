@@ -12,7 +12,8 @@ class ExportService {
   /// 将单个行程导出为 JSON 文件并触发分享
   /// [sharePositionOrigin] 用于在 iPad 或大屏 iPhone 上定位分享菜单的弹出起点
   Future<void> exportTrip(Trip trip, {Rect? sharePositionOrigin}) async {
-    debugPrint("DEBUG: [ExportService] Start exportTrip for UUID: ${trip.uuid}");
+    debugPrint(
+        "DEBUG: [ExportService] Start exportTrip for UUID: ${trip.uuid}");
     try {
       // ... 保持原有加载逻辑 ...
       if (!trip.trajectory.isLoaded) {
@@ -88,7 +89,8 @@ class ExportService {
         sharePositionOrigin: sharePositionOrigin, // 使用位置参数
       );
 
-      debugPrint("DEBUG: [ExportService] Share result status: ${result.status}");
+      debugPrint(
+          "DEBUG: [ExportService] Share result status: ${result.status}");
     } catch (e, stack) {
       debugPrint("DEBUG: [ExportService] ERROR during export: $e");
       debugPrint("DEBUG: [ExportService] StackTrace: $stack");

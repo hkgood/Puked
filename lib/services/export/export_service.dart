@@ -12,19 +12,19 @@ class ExportService {
   /// 将单个行程导出为 JSON 文件并触发分享
   /// [sharePositionOrigin] 用于在 iPad 或大屏 iPhone 上定位分享菜单的弹出起点
   Future<void> exportTrip(Trip trip, {Rect? sharePositionOrigin}) async {
-    print("DEBUG: [ExportService] Start exportTrip for UUID: ${trip.uuid}");
+    debugPrint("DEBUG: [ExportService] Start exportTrip for UUID: ${trip.uuid}");
     try {
       // ... 保持原有加载逻辑 ...
       if (!trip.trajectory.isLoaded) {
-        print("DEBUG: [ExportService] Loading trajectory links...");
+        debugPrint("DEBUG: [ExportService] Loading trajectory links...");
         await trip.trajectory.load();
       }
       if (!trip.events.isLoaded) {
-        print("DEBUG: [ExportService] Loading events links...");
+        debugPrint("DEBUG: [ExportService] Loading events links...");
         await trip.events.load();
       }
 
-      print("DEBUG: [ExportService] Preparing data map...");
+      debugPrint("DEBUG: [ExportService] Preparing data map...");
       // ... 原有 exportData 构建逻辑 ...
       final Map<String, dynamic> exportData = {
         "version": "1.0.0",
@@ -67,9 +67,9 @@ class ExportService {
             .toList(),
       };
 
-      print("DEBUG: [ExportService] Converting to JSON string...");
+      debugPrint("DEBUG: [ExportService] Converting to JSON string...");
       final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
-      print(
+      debugPrint(
           "DEBUG: [ExportService] JSON created, length: ${jsonString.length} chars");
 
       final directory = await getTemporaryDirectory();
@@ -77,10 +77,10 @@ class ExportService {
           trip.uuid.length >= 8 ? trip.uuid.substring(0, 8) : trip.uuid;
       final file = File('${directory.path}/Trip_$shortId.json');
 
-      print("DEBUG: [ExportService] Writing to file: ${file.path}");
+      debugPrint("DEBUG: [ExportService] Writing to file: ${file.path}");
       await file.writeAsString(jsonString);
 
-      print(
+      debugPrint(
           "DEBUG: [ExportService] Triggering Share.shareXFiles with origin: $sharePositionOrigin");
       final result = await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/json')],
@@ -88,10 +88,10 @@ class ExportService {
         sharePositionOrigin: sharePositionOrigin, // 使用位置参数
       );
 
-      print("DEBUG: [ExportService] Share result status: ${result.status}");
+      debugPrint("DEBUG: [ExportService] Share result status: ${result.status}");
     } catch (e, stack) {
-      print("DEBUG: [ExportService] ERROR during export: $e");
-      print("DEBUG: [ExportService] StackTrace: $stack");
+      debugPrint("DEBUG: [ExportService] ERROR during export: $e");
+      debugPrint("DEBUG: [ExportService] StackTrace: $stack");
     }
   }
 }

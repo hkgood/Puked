@@ -210,9 +210,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
         // 异步尝试获取更高精度的起始点
         Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 5),
-        ).then((pos) {
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+          ),
+        ).timeout(const Duration(seconds: 5)).then((pos) {
           if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
         }).catchError((_) {});
       }

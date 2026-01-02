@@ -208,6 +208,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           }
 
                           if (!allSufficient) {
+                            if (!context.mounted) return;
                             final proceed = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
@@ -236,6 +237,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                               allSufficient ? _selectedIds : validIds;
                           if (idsToUpload.isEmpty) return;
 
+                          if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(i18n.t('uploading'))),
                           );

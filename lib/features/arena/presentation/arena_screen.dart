@@ -429,8 +429,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                               child: Container(
                                 height: barHeight,
                                 width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF2F2F7),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF2F2F7),
                                 ),
                                 child: Row(
                                   children: [

@@ -32,6 +32,27 @@ class Trip {
   // 统计信息
   int eventCount = 0;
   double distance = 0.0;
+
+  /// 检查行程数据是否充足
+  /// 1. 里程 >= 500m
+  /// 2. 时长 >= 120s (2分钟)
+  /// 3. 平均速度 >= 2.0 km/h
+  bool get isDataSufficient {
+    // 1. 距离检查
+    if (distance < 500) return false;
+
+    // 2. 时长检查
+    if (endTime == null) return true; // 如果还没结束，暂不判断时长（理论上上传前已结束）
+    final durationSeconds = endTime!.difference(startTime).inSeconds;
+    if (durationSeconds < 120) return false;
+
+    // 3. 平均车速检查 (km/h)
+    // 速度 = (距离/1000) / (时长/3600) = (距离 * 3.6) / 时长
+    final avgSpeedKmh = (distance * 3.6) / durationSeconds;
+    if (avgSpeedKmh < 2.0) return false;
+
+    return true;
+  }
 }
 
 @collection

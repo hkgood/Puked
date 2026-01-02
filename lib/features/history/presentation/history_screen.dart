@@ -187,16 +187,61 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
                         if (confirmed == true) {
                           if (!context.mounted) return;
+
+                          final storage = ref.read(storageServiceProvider);
+                          final cloudService =
+                              ref.read(cloudTripServiceProvider);
+
+                          // 数据充足性校验
+                          bool allSufficient = true;
+                          final List<int> validIds = [];
+
+                          for (final id in _selectedIds) {
+                            final trip = await storage.getTripById(id);
+                            if (trip != null) {
+                              if (!trip.isDataSufficient) {
+                                allSufficient = false;
+                              } else {
+                                validIds.add(id);
+                              }
+                            }
+                          }
+
+                          if (!allSufficient) {
+                            final proceed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text(i18n.t('insufficient_data_title')),
+                                content:
+                                    Text(i18n.t('insufficient_data_message')),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: Text(i18n.t('cancel')),
+                                  ),
+                                  if (validIds.isNotEmpty)
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: Text(i18n.t('upload')),
+                                    ),
+                                ],
+                              ),
+                            );
+                            if (proceed != true) return;
+                          }
+
+                          final idsToUpload =
+                              allSufficient ? _selectedIds : validIds;
+                          if (idsToUpload.isEmpty) return;
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(i18n.t('uploading'))),
                           );
 
                           int successCount = 0;
-                          final storage = ref.read(storageServiceProvider);
-                          final cloudService =
-                              ref.read(cloudTripServiceProvider);
-
-                          for (final id in _selectedIds) {
+                          for (final id in idsToUpload) {
                             try {
                               final trip = await storage.getTripById(id);
                               if (trip != null && !trip.isUploaded) {
@@ -518,6 +563,28 @@ class _TripCard extends ConsumerWidget {
                                 padding: EdgeInsets.zero, // 消除默认内边距
                                 constraints: const BoxConstraints(), // 消除默认限制
                                 onPressed: () async {
+                                  if (!trip.isDataSufficient) {
+                                    if (context.mounted) {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: Text(i18n
+                                              .t('insufficient_data_title')),
+                                          content: Text(i18n
+                                              .t('insufficient_data_message')),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: Text(i18n.t('save')),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+
                                   final confirmed = await showDialog<bool>(
                                     context: context,
                                     builder: (context) => AlertDialog(
@@ -602,9 +669,17 @@ class _TripCard extends ConsumerWidget {
                                 content: Text(i18n.t('exporting')),
                                 duration: const Duration(seconds: 1)),
                           );
+
+                          // 获取点击位置
+                          final RenderBox? box =
+                              context.findRenderObject() as RenderBox?;
+                          final Rect? rect = box != null
+                              ? box.localToGlobal(Offset.zero) & box.size
+                              : null;
+
                           await ref
                               .read(exportServiceProvider)
-                              .exportTrip(trip);
+                              .exportTrip(trip, sharePositionOrigin: rect);
                         },
                         icon: Icon(Icons.share_outlined,
                             color: Theme.of(context).colorScheme.onSurface),

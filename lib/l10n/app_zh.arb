@@ -71,8 +71,8 @@
     "km_per_event_long": "无负面体验里程 (越高越稳)",
     "by_brand": "按品牌",
     "by_version": "按版本",
-    "arena_total_mileage_title": "智驾里程榜",
-    "arena_total_mileage_subtitle": "各品牌累计智驾行程里程",
+    "arena_total_mileage_title": "累计里程",
+    "arena_total_mileage_subtitle": "总行驶里程",
     "arena_brand_evolution_title": "{brand} 进化趋势",
     "km_per_version_event_long": "不同软件版本的舒适度表现趋势",
     "arena_details_title": "负面体验详情分布",
@@ -94,5 +94,10 @@
     "error_image_size": "单张照片不能超过 5MB",
     "error_image_type": "仅支持 JPG 或 PNG 格式照片",
     "delete_event_title": "确认删除事件",
-    "delete_event_desc": "删除后无法恢复，请确认删除么？"
+    "delete_event_desc": "删除后无法恢复，请确认删除么？",
+    "insufficient_data_title": "行程数据不足",
+    "insufficient_data_message": "行程数据较短，请上传更更长里程的行程数据",
+    "upload": "上传",
+    "privacy_policy": "隐私政策",
+    "agree_privacy_link": "勾选同意{policy}"
 }

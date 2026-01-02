@@ -27,7 +27,7 @@ class AppTheme {
       titleTextStyle: TextStyle(
         color: Color(0xFF1C1C1E),
         fontSize: 20,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.bold,
         letterSpacing: 2,
       ),
     ),
@@ -72,7 +72,7 @@ class AppTheme {
       titleTextStyle: TextStyle(
         color: Color(0xFFF2F2F7),
         fontSize: 20,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.bold,
         letterSpacing: 2,
       ),
     ),

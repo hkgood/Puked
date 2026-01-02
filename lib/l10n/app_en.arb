@@ -94,5 +94,10 @@
     "error_image_size": "Each photo must be under 5MB.",
     "error_image_type": "Only JPG and PNG photos are supported.",
     "delete_event_title": "Confirm Delete Event",
-    "delete_event_desc": "Deleted events cannot be recovered. Are you sure?"
+    "delete_event_desc": "Deleted events cannot be recovered. Are you sure?",
+    "insufficient_data_title": "Insufficient Trip Data",
+    "insufficient_data_message": "The trip data is too short, please upload trip data with longer mileage",
+    "upload": "Upload",
+    "privacy_policy": "Privacy Policy",
+    "agree_privacy_link": "I agree to {policy}"
 }

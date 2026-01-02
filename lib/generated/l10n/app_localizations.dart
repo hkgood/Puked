@@ -673,6 +673,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted events cannot be recovered. Are you sure?'**
   String get delete_event_desc;
+
+  /// No description provided for @insufficient_data_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Insufficient Trip Data'**
+  String get insufficient_data_title;
+
+  /// No description provided for @insufficient_data_message.
+  ///
+  /// In en, this message translates to:
+  /// **'The trip data is too short, please upload trip data with longer mileage'**
+  String get insufficient_data_message;
+
+  /// No description provided for @upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get upload;
+
+  /// No description provided for @privacy_policy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacy_policy;
+
+  /// No description provided for @agree_privacy_link.
+  ///
+  /// In en, this message translates to:
+  /// **'I agree to {policy}'**
+  String agree_privacy_link(Object policy);
 }
 
 class _AppLocalizationsDelegate

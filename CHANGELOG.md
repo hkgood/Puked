@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.2] - 2026-01-02
+
+### Changed
+- Version bump to 2.0.2 for both iOS and Android.
+
 ## [2.0.1] - 2026-01-01
 
 ### Changed

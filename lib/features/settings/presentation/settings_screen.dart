@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:puked/services/update_service.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/features/auth/presentation/login_screen.dart';
@@ -364,6 +365,19 @@ class SettingsScreen extends ConsumerWidget {
                     UpdateService.checkUpdate(context, showNoUpdate: true);
                   },
                 ),
+              ListTile(
+                title: Text(
+                  i18n.t('privacy_policy'),
+                  style: const TextStyle(),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  launchUrl(
+                    Uri.parse('https://hkgood.github.io/puked-privacy/'),
+                    mode: LaunchMode.inAppWebView,
+                  );
+                },
+              ),
               const SizedBox(height: 32),
             ],
           ),

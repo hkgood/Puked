@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
@@ -17,6 +19,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _agreeToPrivacy = false;
 
   @override
   void dispose() {
@@ -171,17 +174,50 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   validator: (v) =>
                       (v == null || v.isEmpty) ? 'Required' : null,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: _agreeToPrivacy,
+                        onChanged: (v) {
+                          setState(() {
+                            _agreeToPrivacy = v ?? false;
+                          });
+                        },
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 14,
+                          ),
+                          children: _buildPrivacyTextSpans(l10n),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: _agreeToPrivacy
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey,
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     elevation: 0,
                   ),
-                  onPressed: isLoading ? null : _submit,
+                  onPressed: (isLoading || !_agreeToPrivacy) ? null : _submit,
                   child: isLoading
                       ? const SizedBox(
                           width: 24,
@@ -208,5 +244,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
       ),
     );
+  }
+
+  List<TextSpan> _buildPrivacyTextSpans(AppLocalizations l10n) {
+    // 使用占位符来精准拆分中英文，确保链接位置正确
+    final String fullText = l10n.agree_privacy_link('||POLICY||');
+    final parts = fullText.split('||POLICY||');
+
+    return [
+      TextSpan(text: parts[0]),
+      TextSpan(
+        text: l10n.privacy_policy,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.bold,
+          decoration: TextDecoration.underline,
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () {
+            launchUrl(
+              Uri.parse('https://hkgood.github.io/puked-privacy/'),
+              mode: LaunchMode.inAppWebView,
+            );
+          },
+      ),
+      if (parts.length > 1) TextSpan(text: parts[1]),
+    ];
   }
 }

@@ -258,7 +258,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         Text("${value >= 0 ? '+' : ''}${value.toStringAsFixed(3)}G",
             style: const TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.bold,
                 fontFamily: 'monospace')),
       ],
     );
@@ -452,7 +452,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                 style: TextStyle(
                     fontSize: 12, // 缩小字体
                     letterSpacing: 1.2,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.bold,
                     color: onSurface.withValues(alpha: 0.8)),
               ),
               IconButton(
@@ -864,7 +864,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
-                    fontWeight: FontWeight.w800)),
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(i18n.t('calibration_tip'),
                 style: TextStyle(
@@ -962,14 +962,14 @@ class _RecordingStat extends StatelessWidget {
             Text(value,
                 style: TextStyle(
                     fontSize: compact ? 16 : 18,
-                    fontWeight: FontWeight.w900, // 增加字重
+                    fontWeight: FontWeight.bold, // 增加字重
                     color: colorScheme.onSurface)),
           ],
         ),
         Text(label.toUpperCase(), // 统一使用大写并加亮
             style: TextStyle(
                 fontSize: compact ? 10 : 11,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.bold,
                 color: colorScheme.onSurfaceVariant)),
       ],
     );
@@ -1013,7 +1013,7 @@ class _TagButton extends StatelessWidget {
               Text(label,
                   style: TextStyle(
                       color: color,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.bold,
                       fontSize: compact ? 13 : 15)),
             ],
           ),

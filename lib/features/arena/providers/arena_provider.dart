@@ -84,9 +84,8 @@ class ArenaService {
       double totalDist = 0;
       int totalEvents = 0;
       for (final t in groupTrips) {
-        // 数据库存储的是米，转换为公里进行统计
         totalDist += (t.distance / 1000.0);
-        totalEvents += t.eventCount;
+        totalEvents += _getFilteredEventCount(t);
       }
 
       final String brand = groupByBrand ? key : key.split('|')[0];
@@ -95,26 +94,22 @@ class ArenaService {
       result.add(BrandData(
         brand: brand,
         version: version,
-        // 如果没有事件，则返回总里程，代表目前为止表现完美
         kmPerEvent: totalEvents == 0 ? totalDist : totalDist / totalEvents,
       ));
     });
 
-    // 过滤掉里程过小的记录（比如小于 0.1km），避免异常高的 km/Event
     final filtered = result.where((e) => (e.kmPerEvent ?? 0) > 0).toList();
     filtered
         .sort((a, b) => (b.kmPerEvent ?? 0.0).compareTo(a.kmPerEvent ?? 0.0));
     return filtered.take(10).toList();
   }
 
-  // 卡片2: 版本负体验进化趋势
   VersionEvolutionData getEvolutionData(String brand) {
     final brandTrips = trips.where((t) => t.brand == brand).toList();
     if (brandTrips.isEmpty) {
       return VersionEvolutionData(brand: brand, evolution: []);
     }
 
-    // 按版本分组
     final Map<String, List<Trip>> versionGroups = {};
     for (final t in brandTrips) {
       final v = t.softwareVersion ?? 'Unknown';
@@ -127,7 +122,7 @@ class ArenaService {
       int totalEvents = 0;
       for (final t in group) {
         totalDist += (t.distance / 1000.0);
-        totalEvents += t.eventCount;
+        totalEvents += _getFilteredEventCount(t);
       }
       points.add(VersionPoint(
         version: version,
@@ -135,7 +130,6 @@ class ArenaService {
       ));
     });
 
-    // 简单的版本排序：按该版本最早行程时间排序
     points.sort((a, b) {
       final firstA = brandTrips
           .firstWhere((t) => t.softwareVersion == a.version)
@@ -149,7 +143,67 @@ class ArenaService {
     return VersionEvolutionData(brand: brand, evolution: points);
   }
 
-  // 卡片3: 负面体验类型详情 (km/TypeEvent)
+  int _getFilteredEventCount(Trip t) {
+    final Map<String, dynamic> source = {};
+    source['event_count'] = t.eventCount;
+
+    Map<String, dynamic>? metrics;
+    if (t.notes != null && t.notes!.contains('"metrics":')) {
+      try {
+        final data = jsonDecode(t.notes!);
+        metrics = data['metrics'] as Map<String, dynamic>?;
+      } catch (_) {}
+    }
+
+    if (metrics != null) {
+      metrics.forEach((k, v) => source[k.toLowerCase()] = v);
+      final breakdown = metrics['event_breakdown'];
+      if (breakdown is Map<String, dynamic>) {
+        breakdown.forEach((k, v) => source[k.toLowerCase()] = v);
+      }
+    } else if (t.id != 0) {
+      for (final event in t.events) {
+        final type = event.type;
+        source[type.toLowerCase()] = (source[type.toLowerCase()] ?? 0) + 1;
+      }
+    }
+
+    final negativeKeysMap = {
+      'rapidAcceleration': [
+        'rapidacceleration',
+        'rapid_acceleration',
+        'accel',
+        'rapid_accel',
+        'acceleration'
+      ],
+      'rapidDeceleration': [
+        'rapiddeceleration',
+        'rapid_deceleration',
+        'brake',
+        'rapid_brake',
+        'deceleration',
+        'braking'
+      ],
+      'jerk': ['jerk', 'jerk_event', 'jerks', 'jerk_count'],
+      'wobble': ['wobble', 'wobble_event', 'wobbles', 'wobble_count']
+    };
+
+    int totalFiltered = 0;
+    negativeKeysMap.forEach((mainKey, possibleKeys) {
+      for (final k in possibleKeys) {
+        if (source[k] != null) {
+          final count = double.tryParse(source[k].toString())?.toInt() ?? 0;
+          if (count > 0) {
+            totalFiltered += count;
+            break;
+          }
+        }
+      }
+    });
+
+    return totalFiltered;
+  }
+
   SymptomData getSymptomDetails(String brand, {String? version}) {
     final filteredTrips = trips.where((t) {
       final tripBrand = (t.brand ?? '').toLowerCase().trim();
@@ -172,7 +226,6 @@ class ArenaService {
       'wobble': 0,
     };
 
-    // 各种可能的 Key 映射矩阵 (全小写匹配)
     final keyMap = {
       'rapidAcceleration': [
         'rapidacceleration',
@@ -198,14 +251,10 @@ class ArenaService {
       double tripDistKm = t.distance / 1000.0;
       totalKm += tripDistKm;
 
-      // 解析数据源
       final Map<String, dynamic> source = {};
-
-      // 1. 扫描 Trip 根部
       source['brand'] = t.brand?.toLowerCase();
       source['software_version'] = t.softwareVersion?.toLowerCase();
 
-      // 2. 解析 notes 中的 metrics (云端数据摘要)
       Map<String, dynamic>? metrics;
       if (t.notes != null && t.notes!.contains('"metrics":')) {
         try {
@@ -213,7 +262,6 @@ class ArenaService {
           metrics = data['metrics'] as Map<String, dynamic>?;
         } catch (_) {}
       } else if (t.notes != null && t.notes!.contains('"breakdown":')) {
-        // 兼容旧格式
         try {
           final data = jsonDecode(t.notes!);
           final breakdown = data['breakdown'] as Map<String, dynamic>?;
@@ -224,29 +272,25 @@ class ArenaService {
       }
 
       if (metrics != null) {
-        // 如果存在 metrics 摘要，优先使用它
         metrics.forEach((k, v) => source[k.toLowerCase()] = v);
         final breakdown = metrics['event_breakdown'];
         if (breakdown is Map<String, dynamic>) {
           breakdown.forEach((k, v) => source[k.toLowerCase()] = v);
         }
       } else if (t.id != 0) {
-        // 只有在没有云端 metrics 摘要时，才使用本地事件详情（针对未上传的本地行程）
         for (final event in t.events) {
           final type = event.type;
           source[type.toLowerCase()] = (source[type.toLowerCase()] ?? 0) + 1;
         }
       }
 
-      // 累加每个类型的数量
       keyMap.forEach((mainKey, possibleKeys) {
         for (final k in possibleKeys) {
           if (source[k] != null) {
-            // 【关键修复】使用 double.tryParse().toInt() 以兼容可能被解析为浮点数的 JSON 数值
             final count = double.tryParse(source[k].toString())?.toInt() ?? 0;
             if (count > 0) {
               typeCounts[mainKey] = (typeCounts[mainKey] ?? 0) + count;
-              break; // 匹配到一个 Key 就跳过该类型的其他 Key
+              break;
             }
           }
         }
@@ -268,20 +312,109 @@ class ArenaService {
     );
   }
 
-  // 卡片1.5: 总里程排名
+  // --- 核心修复：深度同步 Web 端的精细化里程统计 ---
   List<BrandData> getTotalMileageData() {
-    final Map<String, double> mileageMap = {};
+    const double speedCongestedThreshold = 20.0;
+    const double speedUrbanThreshold = 50.0;
+    const double speedSmoothThreshold = 80.0;
+
+    final Map<String, _MileageRecord> mileageMap = {};
+
     for (final t in trips) {
-      final b = t.brand;
-      if (b == null || b.isEmpty) continue;
-      // 转换为公里存储
-      mileageMap[b] = (mileageMap[b] ?? 0) + (t.distance / 1000.0);
+      final brand = t.brand;
+      if (brand == null || brand.isEmpty) continue;
+
+      final km = t.distance / 1000.0;
+      if (!mileageMap.containsKey(brand)) {
+        mileageMap[brand] = _MileageRecord(brand);
+      }
+      final record = mileageMap[brand]!;
+      record.totalKm += km;
+
+      // --- 贪婪时长解析 (完全对齐 Web 端 logic) ---
+      double durationHours = 0;
+      Map<String, dynamic>? metrics;
+      Map<String, dynamic>? metadata;
+
+      if (t.notes != null && t.notes!.contains('{')) {
+        try {
+          final data = jsonDecode(t.notes!);
+          metrics = data['metrics'] as Map<String, dynamic>?;
+          metadata = data['metadata'] as Map<String, dynamic>?;
+        } catch (_) {}
+      }
+
+      // 1. 优先尝试解析 metadata 中的物理时间差 (最准确)
+      if (metadata != null || metrics != null) {
+        final source = {...(metrics ?? {}), ...(metadata ?? {})};
+        final startStr = source['start_time'];
+        final endStr = source['end_time'];
+        if (startStr != null && endStr != null) {
+          try {
+            final start = DateTime.parse(startStr.toString());
+            final end = DateTime.parse(endStr.toString());
+            if (end.isAfter(start)) {
+              durationHours = end.difference(start).inSeconds / 3600.0;
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 2. 如果时间戳解析失败且不是云端行程，用本地字段
+      if (durationHours <= 0 && t.endTime != null) {
+        durationHours = t.endTime!.difference(t.startTime).inSeconds / 3600.0;
+      }
+
+      // 3. 降级扫描各种时长秒数/分钟字段 (彻底兼容各品牌差异)
+      if (durationHours <= 0) {
+        final source = {
+          ...(metrics ?? {}),
+          ...(metadata ?? {}),
+          'duration_seconds': t.endTime != null
+              ? t.endTime!.difference(t.startTime).inSeconds
+              : 0
+        };
+
+        final seconds = double.tryParse((source['duration_seconds'] ??
+                    source['duration_sec'] ??
+                    source['duration_s'] ??
+                    '0')
+                .toString()) ??
+            0.0;
+        if (seconds > 0) {
+          durationHours = seconds / 3600.0;
+        } else {
+          final mins = double.tryParse(
+                  (source['duration_minutes'] ?? source['duration_min'] ?? '0')
+                      .toString()) ??
+              0.0;
+          if (mins > 0) durationHours = mins / 60.0;
+        }
+      }
+
+      // 计算该行程平均速度
+      final avgSpeed = durationHours > 0.01 ? km / durationHours : -1.0;
+
+      // 根据均速将整段里程归入对应的“桶”
+      if (avgSpeed < 0 || avgSpeed > 200) {
+        record.breakdown['urban'] = (record.breakdown['urban'] ?? 0) + km;
+      } else if (avgSpeed < speedCongestedThreshold) {
+        record.breakdown['congested'] =
+            (record.breakdown['congested'] ?? 0) + km;
+      } else if (avgSpeed < speedUrbanThreshold) {
+        record.breakdown['urban'] = (record.breakdown['urban'] ?? 0) + km;
+      } else if (avgSpeed < speedSmoothThreshold) {
+        record.breakdown['smooth'] = (record.breakdown['smooth'] ?? 0) + km;
+      } else {
+        record.breakdown['highway'] = (record.breakdown['highway'] ?? 0) + km;
+      }
     }
 
-    final List<BrandData> result = mileageMap.entries
+    final List<BrandData> result = mileageMap.values
         .map((e) => BrandData(
-              brand: e.key,
-              totalKm: e.value,
+              brand: e.brand,
+              totalKm: e.totalKm,
+              breakdown: e.breakdown,
             ))
         .toList();
 
@@ -299,4 +432,17 @@ class ArenaService {
     }
     return 'Tesla';
   }
+}
+
+class _MileageRecord {
+  final String brand;
+  double totalKm = 0;
+  final Map<String, double> breakdown = {
+    'congested': 0,
+    'urban': 0,
+    'smooth': 0,
+    'highway': 0,
+  };
+
+  _MileageRecord(this.brand);
 }

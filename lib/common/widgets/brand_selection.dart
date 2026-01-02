@@ -51,7 +51,7 @@ class BrandSelectionItem extends StatelessWidget {
               brand.displayName ?? brand.name,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.onSurfaceVariant,

@@ -65,7 +65,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   // 统一的标题样式
   TextStyle _headerStyle(BuildContext context) => TextStyle(
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.bold,
         fontSize: 17,
         color: Theme.of(context).colorScheme.onSurface,
       );
@@ -103,6 +103,26 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   )
                 : IconButton(
                     onPressed: () async {
+                      if (!_currentTrip.isDataSufficient) {
+                        if (context.mounted) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: Text(i18n.t('insufficient_data_title')),
+                              content:
+                                  Text(i18n.t('insufficient_data_message')),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: Text(i18n.t('save')),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
@@ -175,7 +195,15 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   duration: const Duration(seconds: 1),
                 ),
               );
-              await ref.read(exportServiceProvider).exportTrip(trip);
+              // 获取按钮的位置用于 iPad/大屏 iPhone 分享菜单定位
+              final RenderBox? box = context.findRenderObject() as RenderBox?;
+              final Rect? rect = box != null
+                  ? box.localToGlobal(Offset.zero) & box.size
+                  : null;
+
+              await ref
+                  .read(exportServiceProvider)
+                  .exportTrip(trip, sharePositionOrigin: rect);
             },
             icon: Icon(
               Icons.share_outlined,
@@ -218,7 +246,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   : i18n.t('car_model'),
                               style: TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
@@ -242,7 +270,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         icon: const Icon(Icons.edit_note, size: 18),
                         label: Text(i18n.t('edit'),
                             style:
-                                const TextStyle(fontWeight: FontWeight.w900)),
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         style: TextButton.styleFrom(
                           foregroundColor:
                               Theme.of(context).colorScheme.primary,
@@ -539,7 +567,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   Text(parameter,
                                       style: TextStyle(
                                           color: eventColor,
-                                          fontWeight: FontWeight.w900,
+                                          fontWeight: FontWeight.bold,
                                           fontSize: 14)),
                                 ],
                               ),
@@ -597,9 +625,8 @@ class _StatItem extends StatelessWidget {
         Text(value,
             style: TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.primary,
-              letterSpacing: -0.5,
             )),
         const SizedBox(height: 4),
         Text(label,

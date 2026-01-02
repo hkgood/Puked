@@ -3,12 +3,14 @@ class BrandData {
   final String? version;
   final double? kmPerEvent; // 公里/次
   final double? totalKm; // 总里程
+  final Map<String, double>? breakdown; // 速度区间分布
 
   BrandData({
     required this.brand,
     this.version,
     this.kmPerEvent,
     this.totalKm,
+    this.breakdown,
   });
 
   String get displayName => version != null ? '$brand $version' : brand;

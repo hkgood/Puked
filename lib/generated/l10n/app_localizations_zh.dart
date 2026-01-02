@@ -229,10 +229,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get by_version => '按版本';
 
   @override
-  String get arena_total_mileage_title => '智驾里程榜';
+  String get arena_total_mileage_title => '累计里程';
 
   @override
-  String get arena_total_mileage_subtitle => '各品牌累计智驾行程里程';
+  String get arena_total_mileage_subtitle => '总行驶里程';
 
   @override
   String arena_brand_evolution_title(Object brand) {
@@ -305,4 +305,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get delete_event_desc => '删除后无法恢复，请确认删除么？';
+
+  @override
+  String get insufficient_data_title => '行程数据不足';
+
+  @override
+  String get insufficient_data_message => '行程数据较短，请上传更更长里程的行程数据';
+
+  @override
+  String get upload => '上传';
+
+  @override
+  String get privacy_policy => '隐私政策';
+
+  @override
+  String agree_privacy_link(Object policy) {
+    return '勾选同意$policy';
+  }
 }

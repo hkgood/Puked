@@ -1,6 +1,6 @@
 name: puked
 description: A sophisticated tool for autonomous driving PMs to record ride comfort.
-version: 2.0.1+12
+version: 2.0.2+13
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -16,29 +16,29 @@ dependencies:
   flutter_riverpod: ^2.4.9
   
   # Sensors & Location
-  sensors_plus: ^5.0.1
-  geolocator: ^10.1.0
+  sensors_plus: ^6.1.1
+  geolocator: ^13.0.1
   
   # NEW: Pure Dart Maps
-  flutter_map: ^6.1.0
-  latlong2: ^0.9.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
   
   # Storage
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
-  path_provider: ^2.1.2
-  shared_preferences: ^2.2.2
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.2
   
   # Utils & Math
-  http: ^1.2.0
-  url_launcher: ^6.2.5
-  package_info_plus: ^8.3.1
+  http: ^1.2.2
+  url_launcher: ^6.3.1
+  package_info_plus: ^8.1.2
   vector_math: ^2.1.4
-  json_annotation: ^4.8.1
+  json_annotation: ^4.9.0
   intl: ^0.20.2
-  share_plus: ^7.2.2
-  uuid: ^4.3.3
-  wakelock_plus: ^1.2.8
+  share_plus: ^10.1.4
+  uuid: ^4.5.1
+  wakelock_plus: ^1.2.11
   ota_update: ^7.1.0
   flutter_svg: ^2.0.10+1
   pocketbase: ^0.23.0+1

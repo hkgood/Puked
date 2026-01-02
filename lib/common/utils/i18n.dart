@@ -143,6 +143,7 @@ class I18n {
           'Please upload App screenshots or photos containing user information and vehicle VIN number.',
       'delete_event_title': 'Confirm Delete Event',
       'delete_event_desc': 'Deleted events cannot be recovered. Are you sure?',
+      'privacy_policy': 'Privacy Policy',
     },
     'zh': {
       'app_name': '吐槽',
@@ -268,6 +269,7 @@ class I18n {
       'upload_hint_new': '请上传包含用户名信息，车辆VIN号的App截屏或照片',
       'delete_event_title': '确认删除事件',
       'delete_event_desc': '删除后无法恢复，请确认删除么？',
+      'privacy_policy': '隐私政策',
     },
   };
 
@@ -287,6 +289,6 @@ class I18n {
 // 国际化实例 Provider
 final i18nProvider = Provider<I18n>((ref) {
   final settings = ref.watch(settingsProvider);
-  // 如果 settings.locale 为空，则回退到系统默认语言（这里简单处理为 zh）
-  return I18n(settings.locale ?? const Locale('zh'));
+  // settings.locale 在 SettingsNotifier 中已有初始值探测，且加载后非空
+  return I18n(settings.locale ?? const Locale('en'));
 });

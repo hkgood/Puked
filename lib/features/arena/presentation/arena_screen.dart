@@ -100,9 +100,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
     );
   }
 
-  // 统一的标题样式
+  // 统一的标题样式 (使用 bold 替代 w900)
   TextStyle _headerStyle(BuildContext context) => TextStyle(
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.bold,
         fontSize: 17,
         color: Theme.of(context).colorScheme.onSurface,
       );
@@ -213,7 +213,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                         '${index + 1}',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.bold,
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
@@ -239,7 +239,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                             item.displayName,
                             style: const TextStyle(
                               fontSize: nameFontSize,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.bold,
                               height: 1.2,
                             ),
                           ),
@@ -276,7 +276,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.bold,
                                       fontFamily: 'monospace',
                                     ),
                                   ),
@@ -300,7 +300,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   // --- 卡片1.5：总里程 ---
   Widget _buildTotalMileageCard(ArenaService arena, dynamic i18n) {
     final data = arena.getTotalMileageData();
-    final maxVal = data.isNotEmpty ? (data.first.totalKm ?? 1.0) : 1.0;
+    final maxTotalKm = data.isNotEmpty ? (data.first.totalKm ?? 1.0) : 1.0;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -309,26 +309,60 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // --- 标题行 + 图例右对齐 ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(i18n.t('arena_total_mileage_title'),
-                    style: _headerStyle(context)),
-                const SizedBox(height: 2),
-                Text(i18n.t('arena_total_mileage_subtitle'),
-                    style: _unitStyle(context)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(i18n.t('arena_total_mileage_title'),
+                          style: _headerStyle(context)),
+                      const SizedBox(height: 2),
+                      Text(i18n.t('arena_total_mileage_subtitle'),
+                          style: _unitStyle(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                // 柔和配色图例：单行展示，避免折行
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildLegendItem('>80', const Color(0xFF007AFF)),
+                      const SizedBox(width: 6),
+                      _buildLegendItem('50-80', const Color(0xFF7ABCFF)),
+                      const SizedBox(width: 6),
+                      _buildLegendItem('20-50', const Color(0xFFADEBB3)),
+                      const SizedBox(width: 6),
+                      _buildLegendItem('<20', const Color(0xFFF9E79F)),
+                    ],
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
             ...data.asMap().entries.map((entry) {
               final index = entry.key;
               final item = entry.value;
-              final val = item.totalKm ?? 0.0;
-              final ratio = val / (maxVal * 1.2);
-              const double barHeight = 16.0;
+              final totalKm = item.totalKm ?? 0.0;
+              final ratio = totalKm / (maxTotalKm * 1.1);
+              const double barHeight = 10.0;
               const double nameFontSize = 13.0;
-              const double spacingBetween = 4.0;
+              const double spacingBetween = 6.0;
               const double logoSize = 42.0;
+
+              final breakdown = item.breakdown ?? {};
+              final highway = breakdown['highway'] ?? 0.0;
+              final smooth = breakdown['smooth'] ?? 0.0;
+              final urban = breakdown['urban'] ?? 0.0;
+              final congested = breakdown['congested'] ?? 0.0;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 20.0),
@@ -341,12 +375,12 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                         '${index + 1}',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.bold,
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
                               .withValues(alpha: 0.8),
-                          fontFamily: 'monospace',
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ),
@@ -361,52 +395,82 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            item.brand,
-                            style: const TextStyle(
-                              fontSize: nameFontSize,
-                              fontWeight: FontWeight.w900,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: spacingBetween),
-                          Stack(
-                            alignment: Alignment.centerLeft,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                height: barHeight,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHighest
-                                      .withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(4),
+                              Text(
+                                item.brand.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: nameFontSize,
+                                  fontWeight:
+                                      FontWeight.bold, // 降级 w900 -> bold
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                              FractionallySizedBox(
-                                widthFactor: ratio.clamp(0.08, 1.0),
-                                child: Container(
-                                  height: barHeight,
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).colorScheme.secondary,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: Text(
-                                    '${val.toStringAsFixed(1)} km',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w900,
-                                      fontFamily: 'monospace',
-                                    ),
-                                  ),
+                              Text(
+                                '${totalKm.toStringAsFixed(1)} km',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight:
+                                      FontWeight.bold, // 降级 w900 -> bold
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.8),
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: spacingBetween),
+                          FractionallySizedBox(
+                            widthFactor: ratio.clamp(0.01, 1.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(5),
+                              child: Container(
+                                height: barHeight,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF2F2F7),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // 修复比例计算，避免 int 精度丢失导致单色
+                                    if (highway > 0)
+                                      Expanded(
+                                        flex: (highway * 1000)
+                                            .toInt()
+                                            .clamp(1, 999999),
+                                        child: Container(
+                                            color: const Color(0xFF007AFF)),
+                                      ),
+                                    if (smooth > 0)
+                                      Expanded(
+                                        flex: (smooth * 1000)
+                                            .toInt()
+                                            .clamp(1, 999999),
+                                        child: Container(
+                                            color: const Color(0xFF7ABCFF)),
+                                      ),
+                                    if (urban > 0)
+                                      Expanded(
+                                        flex: (urban * 1000)
+                                            .toInt()
+                                            .clamp(1, 999999),
+                                        child: Container(
+                                            color: const Color(0xFFADEBB3)),
+                                      ),
+                                    if (congested > 0)
+                                      Expanded(
+                                        flex: (congested * 1000)
+                                            .toInt()
+                                            .clamp(1, 999999),
+                                        child: Container(
+                                            color: const Color(0xFFF9E79F)),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -418,6 +482,31 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7, // 稍微增大一点圆点
+          height: 7,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4), // 稍微增加间距
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10, // 增大一号 (8 -> 10)
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
     );
   }
 
@@ -792,7 +881,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontFamily: 'monospace',
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
@@ -849,7 +938,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                     padding: const EdgeInsets.only(left: 8, bottom: 16),
                     child: Text(i18n.t('select_brand'),
                         style: const TextStyle(
-                            fontWeight: FontWeight.w900, fontSize: 18)),
+                            fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
                   Expanded(
                     child: BrandSelectionGrid(

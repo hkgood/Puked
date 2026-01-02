@@ -313,4 +313,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get delete_event_desc =>
       'Deleted events cannot be recovered. Are you sure?';
+
+  @override
+  String get insufficient_data_title => 'Insufficient Trip Data';
+
+  @override
+  String get insufficient_data_message =>
+      'The trip data is too short, please upload trip data with longer mileage';
+
+  @override
+  String get upload => 'Upload';
+
+  @override
+  String get privacy_policy => 'Privacy Policy';
+
+  @override
+  String agree_privacy_link(Object policy) {
+    return 'I agree to $policy';
+  }
 }

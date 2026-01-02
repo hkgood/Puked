@@ -15,9 +15,6 @@ class UpdateService {
 
   static Future<void> checkUpdate(BuildContext context,
       {bool showNoUpdate = false}) async {
-    // iOS 不需要应用内更新功能，统一由 App Store 处理
-    if (Platform.isIOS) return;
-
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return;
 
@@ -26,11 +23,14 @@ class UpdateService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final latestTag = data['tag_name'] as String;
-        final latestVersion = latestTag.replaceAll('v', '');
         final releaseNotes = data['body'] as String;
         final htmlUrl = data['html_url'] as String;
 
+        // iOS 的跳转链接 (请将 123456789 替换为你的实际 App ID)
+        const String appStoreUrl = 'https://apps.apple.com/app/id123456789';
+
         String? apkUrl;
+        String? apkName;
         if (data['assets'] != null) {
           final assets = data['assets'] as List;
           final apkAsset = assets.firstWhere(
@@ -39,17 +39,44 @@ class UpdateService {
           );
           if (apkAsset != null) {
             apkUrl = apkAsset['browser_download_url'] as String;
+            apkName = apkAsset['name'] as String;
           }
         }
 
         final packageInfo = await PackageInfo.fromPlatform();
         final currentVersion = packageInfo.version;
+        final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
 
-        if (_isNewer(latestVersion, currentVersion)) {
+        // 解析远程版本和构建号
+        String latestVersion = latestTag.replaceAll('v', '');
+        int latestBuild = 0;
+
+        // 优先从 Tag 中解析构建号 (e.g. v2.0.1+12)
+        if (latestVersion.contains('+')) {
+          final parts = latestVersion.split('+');
+          latestVersion = parts[0];
+          latestBuild = int.tryParse(parts[1]) ?? 0;
+        }
+
+        // 如果 Tag 里没有构建号，尝试从文件名中提取 (e.g. Puked-2.0.1+12.apk)
+        if (latestBuild == 0 && apkName != null && apkName.contains('+')) {
+          final match = RegExp(r'\+(\d+)').firstMatch(apkName);
+          if (match != null) {
+            latestBuild = int.tryParse(match.group(1)!) ?? 0;
+          }
+        }
+
+        if (_isNewer(latestVersion, currentVersion,
+            latestBuild: latestBuild, currentBuild: currentBuild)) {
           if (context.mounted) {
             _showUpdateDialog(
-                context, latestTag, releaseNotes, apkUrl ?? htmlUrl, l10n,
-                isApk: apkUrl != null);
+              context,
+              latestTag,
+              releaseNotes,
+              Platform.isIOS ? appStoreUrl : (apkUrl ?? htmlUrl),
+              l10n,
+              isApk: Platform.isAndroid && apkUrl != null,
+            );
           }
         } else if (showNoUpdate) {
           if (context.mounted) {
@@ -69,23 +96,38 @@ class UpdateService {
     }
   }
 
-  static bool _isNewer(String latest, String current) {
+  static bool _isNewer(String latestVersion, String currentVersion,
+      {int latestBuild = 0, int currentBuild = 0}) {
     try {
-      List<int> latestParts =
-          latest.split('.').take(3).map((e) => int.tryParse(e) ?? 0).toList();
-      List<int> currentParts =
-          current.split('.').take(3).map((e) => int.tryParse(e) ?? 0).toList();
+      // 1. 对比版本名 (Major.Minor.Patch)
+      // 过滤掉可能存在的构建号干扰，只取前三段数字
+      List<int> latestParts = latestVersion
+          .split('+')[0]
+          .split('.')
+          .take(3)
+          .map((e) => int.tryParse(e) ?? 0)
+          .toList();
+      List<int> currentParts = currentVersion
+          .split('+')[0]
+          .split('.')
+          .take(3)
+          .map((e) => int.tryParse(e) ?? 0)
+          .toList();
 
       for (int i = 0; i < 3; i++) {
         int l = i < latestParts.length ? latestParts[i] : 0;
         int c = i < currentParts.length ? currentParts[i] : 0;
-        if (l > c) return true;
-        if (l < c) return false;
+        if (l > c) return true; // 情况 B: 远程大版本更新
+        if (l < c) return false; // 情况 C: 远程版本更旧，拦截
       }
+
+      // 2. 如果版本名相同，对比构建号 (Case A)
+      return latestBuild > currentBuild;
     } catch (e) {
-      return latest != current;
+      // 兜底：如果解析出错，仅当版本名或构建号不完全一致时（且非空）尝试更新
+      return (latestVersion != currentVersion || latestBuild != currentBuild) &&
+          latestVersion.isNotEmpty;
     }
-    return false;
   }
 
   static void _showUpdateDialog(BuildContext context, String version,

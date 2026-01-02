@@ -40,7 +40,7 @@ class TripAccelerationChart extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.bold,
               color: Theme.of(context)
                   .colorScheme
                   .onSurfaceVariant
@@ -102,7 +102,7 @@ class TripAccelerationChart extends StatelessWidget {
         "NO RECORDED DATA",
         style: TextStyle(
           fontSize: 9,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.bold,
           color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
           letterSpacing: 1.5,
         ),

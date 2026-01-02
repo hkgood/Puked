@@ -180,7 +180,6 @@ class _TripMapViewState extends State<TripMapView>
                 ? Colors.orange.withValues(alpha: 0.5)
                 : Colors.greenAccent,
             strokeWidth: 4,
-            isDotted: currentIsLowConf,
           ));
         }
         // 开始新的一段，为了线段连续，需要包含上一个点的终点
@@ -204,7 +203,6 @@ class _TripMapViewState extends State<TripMapView>
             ? Colors.orange.withValues(alpha: 0.5)
             : Colors.greenAccent,
         strokeWidth: 4,
-        isDotted: currentIsLowConf,
       ));
     }
 

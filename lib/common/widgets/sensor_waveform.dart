@@ -36,7 +36,7 @@ class SensorWaveform extends StatelessWidget {
                           ? colorScheme.onSurfaceVariant.withValues(alpha: 0.9)
                           : colorScheme.onSurface.withValues(alpha: 0.9),
                       fontSize: 10,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     )),
                 if (showAxes && data.isNotEmpty)
@@ -45,7 +45,7 @@ class SensorWaveform extends StatelessWidget {
                     style: TextStyle(
                       color: color,
                       fontSize: 10,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -189,7 +189,7 @@ class WaveformPainter extends CustomPainter {
           style: TextStyle(
             color: gridColor.withValues(alpha: 0.6),
             fontSize: 9,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.bold,
           ),
         );
         textPainter.layout();

@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/features/recording/domain/sensor_engine.dart';
@@ -90,13 +91,15 @@ class RecordingState {
   }
 }
 
-class RecordingNotifier extends StateNotifier<RecordingState> {
+class RecordingNotifier extends StateNotifier<RecordingState>
+    with WidgetsBindingObserver {
   final SensorEngine _engine;
   final StorageService _storage;
   final Ref _ref;
   StreamSubscription<Position>? _positionSub;
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
+  // ... (保持原有常量定义)
   // 事件检测阈值 (m/s²)
   static const double _thresholdAccel = 3.14; // 急加速 (约 0.32G)
   static const double _thresholdDecel = -3.14; // 急刹车 (约 0.32G)
@@ -129,10 +132,21 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
   RecordingNotifier(this._engine, this._storage, this._ref)
       : super(RecordingState(isRecording: false)) {
+    // 注册生命周期监听
+    WidgetsBinding.instance.addObserver(this);
     // 延迟启动定位初始化，避免 Android 12+ 启动时的前台服务限制
     Future.microtask(() => _initializeLocation());
     // 确保引擎启动，以便缓冲区开始填充数据
     _engine.start();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 当 App 回到前台时，如果正在录制，确保 Wakelock 依然开启
+    if (state == AppLifecycleState.resumed && this.state.isRecording) {
+      debugPrint('App resumed, re-enabling Wakelock');
+      WakelockPlus.enable();
+    }
   }
 
   Future<void> _initializeLocation() async {
@@ -640,6 +654,7 @@ class RecordingNotifier extends StateNotifier<RecordingState> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _sensorSub?.close();
     super.dispose();

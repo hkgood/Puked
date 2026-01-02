@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -50,7 +51,10 @@ class SettingsState {
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final Ref _ref;
   SettingsNotifier(this._ref)
-      : super(SettingsState(themeMode: ThemeMode.system)) {
+      : super(SettingsState(
+          themeMode: ThemeMode.system,
+          locale: _getInitialLocale(),
+        )) {
     _loadSettings();
 
     // 监听登录状态变化，自动刷新设置
@@ -60,6 +64,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         _loadSettings();
       }
     });
+  }
+
+  static Locale _getInitialLocale() {
+    // 初始值探测：非中即英
+    final systemLanguageCode =
+        PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    return systemLanguageCode == 'zh' ? const Locale('zh') : const Locale('en');
   }
 
   static const _themeKey = 'theme_mode';
@@ -81,6 +92,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     Locale? locale;
     if (localeCode != null) {
       locale = Locale(localeCode);
+    } else {
+      // 首次打开：使用初始探测逻辑
+      locale = _getInitialLocale();
     }
 
     // 加载敏感度

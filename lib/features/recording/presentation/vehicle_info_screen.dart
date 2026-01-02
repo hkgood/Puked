@@ -312,7 +312,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
               width: constraints.maxWidth,
               hintText: i18n.t('version_hint'),
               label: Text(i18n.t('software_version'),
-                  style: const TextStyle(fontWeight: FontWeight.w900)),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               leadingIcon: const Icon(Icons.code),
               enableSearch: true,
               enableFilter: true,
@@ -393,7 +393,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       appBar: AppBar(
         title: Text(
           widget.isSettingsMode ? i18n.t('my_car') : i18n.t('vehicle_info'),
-          style: const TextStyle(fontWeight: FontWeight.w900),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: SafeArea(
@@ -426,7 +426,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                       decoration: InputDecoration(
                         labelText: i18n.t('car_model'),
                         labelStyle: TextStyle(
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.bold,
                           color: isDark
                               ? Colors.white.withValues(alpha: 0.7)
                               : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -639,7 +639,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
             : Text(
                 i18n.t('submit_for_audit'),
                 style:
-                    const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
       ),
     );
@@ -658,7 +658,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
             ),
             child: Text(
               i18n.t('skip'),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
         ),
@@ -676,7 +676,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
             ),
             child: Text(
               i18n.t('save'),
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
         ),

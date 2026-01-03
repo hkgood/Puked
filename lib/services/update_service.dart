@@ -12,8 +12,14 @@ class UpdateService {
   static const String _repo = 'Puked';
   static const String _githubApiUrl =
       'https://api.github.com/repos/$_owner/$_repo/releases/latest';
-  static const String _giteaApiUrl =
-      'https://gitea.com/api/v1/repos/$_owner/$_repo/releases/latest';
+
+  // 国内常用的 GitHub 加速镜像站列表
+
+  static const List<String> _mirrors = [
+    'https://ghproxy.cn/',
+    'https://mirror.ghproxy.com/',
+    'https://github.moeyy.xyz/',
+  ];
 
   static Future<void> checkUpdate(BuildContext context,
       {bool showNoUpdate = false}) async {
@@ -21,21 +27,13 @@ class UpdateService {
     if (l10n == null) return;
 
     try {
-      // 优先从 GitHub 获取更新信息，如果失败或超时（5秒），则尝试从 Gitea 获取
-      http.Response response;
-      try {
-        response = await http
-            .get(Uri.parse(_githubApiUrl))
-            .timeout(const Duration(seconds: 5));
-        if (response.statusCode != 200) {
-          throw Exception('GitHub API failed');
-        }
-      } catch (e) {
-        debugPrint('GitHub check failed, trying Gitea: $e');
-        response = await http.get(Uri.parse(_giteaApiUrl));
-      }
+      // 从 GitHub 获取更新信息
+      final response = await http
+          .get(Uri.parse(_githubApiUrl))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
+
         final data = json.decode(response.body);
         final latestTag = data['tag_name'] as String;
         final releaseNotes = (data['body'] ?? '') as String;
@@ -55,13 +53,6 @@ class UpdateService {
           if (apkAsset != null) {
             apkUrl = apkAsset['browser_download_url'] as String;
             apkName = apkAsset['name'] as String;
-
-            // 优化逻辑：如果在国内（中文环境），且下载链接是 GitHub，则替换为 Gitea 镜像
-            final isZh = l10n.localeName == 'zh';
-            if (isZh && apkUrl != null && apkUrl.contains('github.com')) {
-              apkUrl = apkUrl.replaceFirst('github.com', 'gitea.com');
-              debugPrint('China detected, using Gitea mirror: $apkUrl');
-            }
           }
         }
 
@@ -279,12 +270,24 @@ class UpdateService {
     final isZh = l10n.localeName == 'zh';
     final colorScheme = Theme.of(context).colorScheme;
 
+    // 构建下载地址候选列表
+    List<String> downloadUrls = [url];
+    if (isZh && url.contains('github.com')) {
+      // 在国内环境下，优先尝试镜像站
+      downloadUrls = _mirrors.map((m) => '$m$url').toList();
+      downloadUrls.add(url); // 最后尝试原地址
+    }
+
+    int currentUrlIndex = 0;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            final currentUrl = downloadUrls[currentUrlIndex];
+
             return AlertDialog(
               backgroundColor: colorScheme.surface,
               surfaceTintColor: Colors.transparent,
@@ -310,11 +313,25 @@ class UpdateService {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (downloadUrls.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        isZh
+                            ? '正在尝试通道 ${currentUrlIndex + 1}/${downloadUrls.length}'
+                            : 'Attempting mirror ${currentUrlIndex + 1}/${downloadUrls.length}',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                 ],
               ),
               content: StreamBuilder<OtaEvent>(
+                key: ValueKey(currentUrl), // 当 URL 改变时重新触发 StreamBuilder
                 stream: OtaUpdate().execute(
-                  url,
+                  currentUrl,
                   destinationFilename: 'puked_update.apk',
                   androidProviderAuthority:
                       'com.osglab.puked.ota_update_provider',
@@ -352,8 +369,8 @@ class UpdateService {
                       case OtaStatus.DOWNLOAD_ERROR:
                       case OtaStatus.CHECKSUM_ERROR:
                         statusText = isZh
-                            ? '下载失败，请稍后重试'
-                            : 'Download failed, please try again';
+                            ? '当前通道下载失败'
+                            : 'Mirror download failed';
                         isError = true;
                         break;
                       default:
@@ -361,8 +378,8 @@ class UpdateService {
                     }
                   } else if (snapshot.hasError) {
                     statusText = isZh
-                        ? '发生错误: ${snapshot.error}'
-                        : 'Error: ${snapshot.error}';
+                        ? '网络连接异常'
+                        : 'Network error';
                     isError = true;
                   }
 
@@ -412,22 +429,40 @@ class UpdateService {
                       if (isError)
                         Padding(
                           padding: const EdgeInsets.only(top: 24),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: colorScheme.errorContainer,
-                                foregroundColor: colorScheme.onErrorContainer,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                          child: Column(
+                            children: [
+                              if (currentUrlIndex < downloadUrls.length - 1)
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      setState(() {
+                                        currentUrlIndex++;
+                                      });
+                                    },
+                                    icon: const Icon(Icons.refresh, size: 18),
+                                    label: Text(isZh ? '切换备用通道' : 'Try next mirror'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: colorScheme.primary,
+                                      foregroundColor: colorScheme.onPrimary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                elevation: 0,
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: Text(
+                                    isZh ? '取消下载' : 'Cancel',
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                ),
                               ),
-                              child: Text(
-                                isZh ? '关闭' : 'Close',
-                              ),
-                            ),
+                            ],
                           ),
                         ),
                     ],

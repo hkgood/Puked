@@ -127,17 +127,21 @@ jobs:
             RELEASE_NAME="Puked Main (Rolling Build)"
           fi
 
-          # 获取刚才上传到 GitHub 的 APK 的公开下载链接 (需要替换为你的真实 GitHub 用户名)
-          # 注意：如果是私有仓库，此链接可能需要登录下载
+          # 获取 GitHub 原始下载链接
           GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-1.0.8.apk"
           if [[ ${{ github.ref }} == refs/tags/v* ]]; then
              GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-${VERSION_NAME#v}.apk"
           fi
 
+          # 生成国内加速链接 (使用常用的 ghproxy 代理)
+          # 这样你在国内点击这个链接，会通过加速节点下载
+          CN_PROXY_URL="https://ghproxy.cn/$GITHUB_APK_URL"
+
           echo "Gitea Syncing... Linking to GitHub APK: $GITHUB_APK_URL"
 
-          # 1. 在 Gitea 上创建/更新 Release，并在正文中加入下载链接
-          RELEASE_BODY="### 🚀 自动构建版本\n\n**[点击此处下载 APK (由 GitHub 提供算力支持)]($GITHUB_APK_URL)**\n\n---\n*同步自 GitHub Actions. Commit: ${{ github.sha }}*"
+          # 1. 在 Gitea 上创建/更新 Release，并在正文中加入两种链接
+          RELEASE_BODY="### 🚀 自动构建版本\n\n#### 📥 下载地址\n\n- **[官方下载 (GitHub 原始链接)]($GITHUB_APK_URL)**\n- **[⚡️ 国内加速下载 (推荐国内用户点击)]($CN_PROXY_URL)**\n\n---\n*同步自 GitHub Actions. Commit: ${{ github.sha }}*"
+
           
           # 确保 jq 已安装
           if ! command -v jq &> /dev/null; then

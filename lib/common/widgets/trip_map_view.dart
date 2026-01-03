@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:puked/common/utils/coordinate_converter.dart';
 
 class RetryTileProvider extends TileProvider {
   final int maxRetries;
@@ -128,14 +129,69 @@ class _TripMapViewState extends State<TripMapView>
   final MapController _mapController = MapController();
   Timer? _recenterTimer;
   bool _isUserInteracting = false;
+  bool _isInChina = true; // 默认国内，避免首屏加载 OSM 失败
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLocation();
+  }
+
+  void _checkLocation() {
+    double? lat;
+    double? lon;
+
+    if (widget.currentPosition != null) {
+      lat = widget.currentPosition!.latitude;
+      lon = widget.currentPosition!.longitude;
+    } else if (widget.trajectory.isNotEmpty) {
+      lat = widget.trajectory.first.lat;
+      lon = widget.trajectory.first.lng;
+    } else {
+      return;
+    }
+
+    if (lat.abs() < 0.1 && lon.abs() < 0.1) return;
+
+    final outOfChina = CoordinateConverter.outOfChina(lat, lon);
+    final inChina = !outOfChina;
+
+    // 逻辑修正：如果当前状态与实际地理位置不符，则更新
+    if (inChina != _isInChina) {
+      debugPrint(
+          ">>> Map Engine Switch: Now ${inChina ? 'IN' : 'OUT'} China (lat:$lat, lon:$lon)");
+      setState(() {
+        _isInChina = inChina;
+      });
+    }
+  }
+
+  LatLng _toDisplay(double lat, double lon) {
+    if (_isInChina) {
+      return CoordinateConverter.wgs84ToGcj02(lat, lon);
+    }
+    return LatLng(lat, lon);
+  }
+
+  // 辅助方法：确保任何移动都不超过 18 级
+  void _safeMove(LatLng dest, double zoom) {
+    _mapController.move(dest, zoom.clamp(0.0, 18.0));
+  }
 
   void _animatedMapMove(LatLng destLocation, double destZoom) {
+    final displayDest = _isInChina
+        ? CoordinateConverter.wgs84ToGcj02(
+            destLocation.latitude, destLocation.longitude)
+        : destLocation;
+
+    final double safeZoom = destZoom.clamp(0.0, 18.0);
     final camera = _mapController.camera;
-    final latTween = Tween<double>(
-        begin: camera.center.latitude, end: destLocation.latitude);
+
+    final latTween =
+        Tween<double>(begin: camera.center.latitude, end: displayDest.latitude);
     final lngTween = Tween<double>(
-        begin: camera.center.longitude, end: destLocation.longitude);
-    final zoomTween = Tween<double>(begin: camera.zoom, end: destZoom);
+        begin: camera.center.longitude, end: displayDest.longitude);
+    final zoomTween = Tween<double>(begin: camera.zoom, end: safeZoom);
 
     final controller = AnimationController(
         duration: const Duration(milliseconds: 800), vsync: this);
@@ -170,6 +226,7 @@ class _TripMapViewState extends State<TripMapView>
     for (var i = 0; i < widget.trajectory.length; i++) {
       final p = widget.trajectory[i];
       final isLow = p.isLowConfidence ?? false;
+      final displayLatLng = _toDisplay(p.lat, p.lng);
 
       if (isLow != currentIsLowConf) {
         // 状态切换，保存当前段
@@ -184,14 +241,12 @@ class _TripMapViewState extends State<TripMapView>
         }
         // 开始新的一段，为了线段连续，需要包含上一个点的终点
         currentSegment = [
-          currentSegment.isNotEmpty
-              ? currentSegment.last
-              : LatLng(p.lat, p.lng),
-          LatLng(p.lat, p.lng)
+          currentSegment.isNotEmpty ? currentSegment.last : displayLatLng,
+          displayLatLng
         ];
         currentIsLowConf = isLow;
       } else {
-        currentSegment.add(LatLng(p.lat, p.lng));
+        currentSegment.add(displayLatLng);
       }
     }
 
@@ -227,20 +282,20 @@ class _TripMapViewState extends State<TripMapView>
 
   void _recenterToCurrentLocation() {
     if (widget.currentPosition != null) {
-      _mapController.move(
-          LatLng(widget.currentPosition!.latitude,
-              widget.currentPosition!.longitude),
-          _mapController.camera.zoom);
+      final displayLatLng = _toDisplay(
+          widget.currentPosition!.latitude, widget.currentPosition!.longitude);
+      _safeMove(displayLatLng, _mapController.camera.zoom);
     } else if (widget.trajectory.isNotEmpty) {
       final last = widget.trajectory.last;
-      _mapController.move(
-          LatLng(last.lat, last.lng), _mapController.camera.zoom);
+      final displayLatLng = _toDisplay(last.lat, last.lng);
+      _safeMove(displayLatLng, _mapController.camera.zoom);
     }
   }
 
   @override
   void didUpdateWidget(TripMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _checkLocation();
 
     // 1. 处理详情模式下的手动聚焦
     if (widget.focusPoint != null &&
@@ -257,35 +312,96 @@ class _TripMapViewState extends State<TripMapView>
     }
   }
 
+  Widget _buildAmapLayer(bool isDarkMode) {
+    final layer = TileLayer(
+      urlTemplate:
+          'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}&key=f318df2044b0aecab275729566e861f2',
+      subdomains: const ['1', '2', '3', '4'],
+      maxZoom: 22, // 允许图层级别超过 18 级而不被卸载，防止变白
+      maxNativeZoom: 18, // 服务器上限是 18 级，超过后拉伸 18 级的图
+      tileProvider: RetryTileProvider(maxRetries: 5),
+      retinaMode: RetinaMode.isHighDensity(context),
+    );
+
+    if (!isDarkMode) return layer;
+
+    // 深色模式：通过颜色矩阵实现底图反转
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix([
+        -1.0, 0.0, 0.0, 0.0, 255.0, // R
+        0.0, -1.0, 0.0, 0.0, 255.0, // G
+        0.0, 0.0, -1.0, 0.0, 255.0, // B
+        0.0, 0.0, 0.0, 1.0, 0.0, // A
+      ]),
+      child: ColorFiltered(
+        // 饱和度减半矩阵
+        colorFilter: const ColorFilter.matrix([
+          0.606,
+          0.358,
+          0.036,
+          0,
+          0,
+          0.107,
+          0.858,
+          0.036,
+          0,
+          0,
+          0.107,
+          0.358,
+          0.536,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+        ]),
+        child: ColorFiltered(
+          // 叠加一层淡淡的蓝色调，增加科技感
+          colorFilter: ColorFilter.mode(
+            Colors.blueAccent.withValues(alpha: 0.08),
+            BlendMode.hardLight,
+          ),
+          child: layer,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    // 初始中心点逻辑
-    LatLng center = const LatLng(31.2304, 121.4737);
+    // 初始中心点逻辑 (WGS-84)
+    LatLng rawCenter = const LatLng(31.2304, 121.4737);
     if (widget.currentPosition != null) {
-      center = LatLng(
+      rawCenter = LatLng(
           widget.currentPosition!.latitude, widget.currentPosition!.longitude);
     } else if (widget.trajectory.isNotEmpty) {
       if (widget.isLive) {
-        // 实时模式：跟随最新点
-        center = LatLng(widget.trajectory.last.lat, widget.trajectory.last.lng);
+        rawCenter =
+            LatLng(widget.trajectory.last.lat, widget.trajectory.last.lng);
       } else {
-        // 详情模式：初始中心点设为轨迹的几何中心，减少 fitCamera 时的视野跳变
         final points =
             widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
         final bounds = LatLngBounds.fromPoints(points);
-        center = bounds.center;
+        rawCenter = bounds.center;
       }
     }
 
+    // 转换为显示坐标
+    final displayCenter = _toDisplay(rawCenter.latitude, rawCenter.longitude);
+
     return Container(
-      color: isDarkMode ? Colors.black : const Color(0xFFF5F5F5), // 夜间模式背景设为黑色
+      color: isDarkMode ? Colors.black : const Color(0xFFF5F5F5),
       child: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
-          initialCenter: center,
+          initialCenter: displayCenter,
           initialZoom: 15,
+          minZoom: 3.0,
+          maxZoom: 18.0, // 核心：交互层级死锁
           interactionOptions: const InteractionOptions(
             flags: InteractiveFlag.all,
           ),
@@ -299,15 +415,16 @@ class _TripMapViewState extends State<TripMapView>
             if (!widget.isLive && widget.trajectory.isNotEmpty) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                final points =
-                    widget.trajectory.map((p) => LatLng(p.lat, p.lng)).toList();
+                final List<LatLng> points = widget.trajectory
+                    .map((p) => _toDisplay(p.lat, p.lng))
+                    .toList();
                 if (points.isNotEmpty) {
                   final bounds = LatLngBounds.fromPoints(points);
                   _mapController.fitCamera(
                     CameraFit.bounds(
                       bounds: bounds,
                       padding: const EdgeInsets.all(50),
-                      maxZoom: 16,
+                      maxZoom: 16.0,
                     ),
                   );
                 }
@@ -316,48 +433,49 @@ class _TripMapViewState extends State<TripMapView>
           },
         ),
         children: [
-          // 1. CartoDB 瓦片源 (WGS-84)
-          TileLayer(
-            urlTemplate:
-                'https://{s}.basemaps.cartocdn.com/${isDarkMode ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png',
-            subdomains: const ['a', 'b', 'c', 'd'],
-            tileProvider: RetryTileProvider(maxRetries: 5), // 使用带重试机制的 Provider
-            retinaMode: RetinaMode.isHighDensity(context),
-            // 瓦片显示优化
-            tileDisplay:
-                const TileDisplay.fadeIn(duration: Duration(milliseconds: 300)),
-            // 错误处理与自动重试策略
-            errorTileCallback: (tile, error, stackTrace) {
-              debugPrint("Tile load error: $error");
-            },
-            // 当瓦片加载错误时，不缓存错误，以便下次重试
-            evictErrorTileStrategy: EvictErrorTileStrategy.notVisible,
-            // 增加缓冲区
-            keepBuffer: 3,
-            panBuffer: 1,
-          ),
+          // 1. 瓦片源选择
+          if (_isInChina)
+            _buildAmapLayer(isDarkMode)
+          else
+            // CartoDB 瓦片源 (WGS-84)
+            TileLayer(
+              urlTemplate:
+                  'https://{s}.basemaps.cartocdn.com/${isDarkMode ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png',
+              subdomains: const ['a', 'b', 'c', 'd'],
+              maxZoom: 22, // 允许图层级别超过限制而不被卸载，防止变白
+              maxNativeZoom: 20, // 海外 OSM 支持到 20 级
+              tileProvider: RetryTileProvider(maxRetries: 5),
+              retinaMode: RetinaMode.isHighDensity(context),
+              tileDisplay: const TileDisplay.fadeIn(
+                  duration: Duration(milliseconds: 300)),
+              errorTileCallback: (tile, error, stackTrace) {
+                debugPrint("Tile load error: $error");
+              },
+              evictErrorTileStrategy: EvictErrorTileStrategy.notVisible,
+              keepBuffer: 3,
+              panBuffer: 1,
+            ),
 
-          // 2. 轨迹线 (WGS-84)
+          // 2. 轨迹线
           PolylineLayer(
             polylines: _buildPolylines(),
           ),
 
-          // 3. 事件标记 (根据类型差异化图标和颜色)
+          // 3. 事件标记
           MarkerLayer(
             markers: widget.events
                 .map((e) {
                   if (e.lat != null && e.lng != null) {
                     final config = _getEventConfig(e.type);
                     return Marker(
-                      point: LatLng(e.lat!, e.lng!),
-                      width: 20, // 缩小至 20
+                      point: _toDisplay(e.lat!, e.lng!),
+                      width: 20,
                       height: 20,
                       child: Container(
                         decoration: BoxDecoration(
                           color: config.color.withValues(alpha: 0.95),
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white, width: 1.5), // 细描边
+                          border: Border.all(color: Colors.white, width: 1.5),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.15),
@@ -369,7 +487,7 @@ class _TripMapViewState extends State<TripMapView>
                         child: Icon(
                           config.icon,
                           color: Colors.white,
-                          size: 10, // 图标随比例缩小
+                          size: 10,
                         ),
                       ),
                     );
@@ -386,7 +504,7 @@ class _TripMapViewState extends State<TripMapView>
               markers: [
                 // 起点
                 Marker(
-                  point: LatLng(
+                  point: _toDisplay(
                       widget.trajectory.first.lat, widget.trajectory.first.lng),
                   width: 20,
                   height: 20,
@@ -406,7 +524,7 @@ class _TripMapViewState extends State<TripMapView>
                 // 终点
                 if (!widget.isLive)
                   Marker(
-                    point: LatLng(
+                    point: _toDisplay(
                         widget.trajectory.last.lat, widget.trajectory.last.lng),
                     width: 20,
                     height: 20,
@@ -432,7 +550,7 @@ class _TripMapViewState extends State<TripMapView>
             MarkerLayer(
               markers: [
                 Marker(
-                  point: center,
+                  point: displayCenter,
                   width: 40,
                   height: 40,
                   child: _CurrentLocationMarker(),

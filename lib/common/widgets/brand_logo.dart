@@ -175,7 +175,8 @@ class BrandLogo extends ConsumerWidget {
 
   Widget _buildEmptyBrand(BuildContext context, double? constrainedSize) {
     final iconSize = constrainedSize != null ? constrainedSize * 0.5 : 24.0;
-    return Center(
+    return Container(
+      alignment: const Alignment(0, -0.1), // 关键修复：微调偏移量，解决 '?' 视觉偏下的问题
       child: Text(
         '?',
         style: TextStyle(
@@ -185,6 +186,7 @@ class BrandLogo extends ConsumerWidget {
               .colorScheme
               .onSurfaceVariant
               .withValues(alpha: 0.5),
+          height: 1.0, // 强制行高为 1.0，减少字体内部边距干扰
         ),
       ),
     );

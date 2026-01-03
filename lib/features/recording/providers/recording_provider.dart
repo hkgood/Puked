@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/features/recording/domain/sensor_engine.dart';
 import 'package:puked/models/db_models.dart';
@@ -27,6 +28,11 @@ final sensorStreamProvider = StreamProvider<SensorData>((ref) {
   return engine.sensorStream;
 });
 
+enum AlgorithmMode {
+  standard, // 库 A: 精简优化
+  expert // 库 B: 顶级动态 (卡尔曼)
+}
+
 class RecordingState {
   final bool isRecording;
   final bool isCalibrating;
@@ -41,6 +47,7 @@ class RecordingState {
   final String debugMessage; // 调试信息
   final LocationPermission? permissionStatus; // 权限状态
   final bool isLowConfidenceGPS; // 是否处于弱信号/地库模式
+  final AlgorithmMode algorithmMode; // 算法模式
 
   RecordingState({
     required this.isRecording,
@@ -56,6 +63,7 @@ class RecordingState {
     this.debugMessage = '',
     this.permissionStatus,
     this.isLowConfidenceGPS = false,
+    this.algorithmMode = AlgorithmMode.expert, // 将默认值改为 expert
   });
 
   RecordingState copyWith({
@@ -72,6 +80,7 @@ class RecordingState {
     String? debugMessage,
     LocationPermission? permissionStatus,
     bool? isLowConfidenceGPS,
+    AlgorithmMode? algorithmMode,
   }) {
     return RecordingState(
       isRecording: isRecording ?? this.isRecording,
@@ -87,6 +96,7 @@ class RecordingState {
       debugMessage: debugMessage ?? this.debugMessage,
       permissionStatus: permissionStatus ?? this.permissionStatus,
       isLowConfidenceGPS: isLowConfidenceGPS ?? this.isLowConfidenceGPS,
+      algorithmMode: algorithmMode ?? this.algorithmMode,
     );
   }
 }
@@ -131,7 +141,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   static const Duration _fusionWindow = Duration(milliseconds: 3000);
 
   RecordingNotifier(this._engine, this._storage, this._ref)
-      : super(RecordingState(isRecording: false)) {
+      : super(RecordingState(
+          isRecording: false,
+          algorithmMode: AlgorithmMode.expert, // 默认改为算法 B (专家模式)
+        )) {
     // 注册生命周期监听
     WidgetsBinding.instance.addObserver(this);
     // 延迟启动定位初始化，避免 Android 12+ 启动时的前台服务限制
@@ -500,10 +513,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               final accelForPeak = sensorData.filteredAccel;
               final rawG = accelForPeak.length / 9.80665;
 
-              // 100ms 实时平滑 (30Hz 采样下约 3 帧)
-              // 理由：防止单帧高频振动导致实时最大 G 值虚高
+              // 实时平滑处理
               _realtimeGHistory.addLast(rawG);
-              if (_realtimeGHistory.length > 3) _realtimeGHistory.removeFirst();
+              if (_realtimeGHistory.length > (Platform.isIOS ? 6 : 3)) {
+                _realtimeGHistory.removeFirst();
+              }
 
               final smoothedG = _realtimeGHistory.reduce((a, b) => a + b) /
                   _realtimeGHistory.length;
@@ -511,7 +525,16 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               if (smoothedG > state.maxGForce) {
                 state = state.copyWith(maxGForce: smoothedG);
               }
-              _detectAutoEvents(sensorData);
+
+              if (Platform.isIOS) {
+                if (state.algorithmMode == AlgorithmMode.standard) {
+                  _detectAutoEventsStandard(sensorData);
+                } else {
+                  _detectAutoEventsExpert(sensorData);
+                }
+              } else {
+                _detectAutoEvents(sensorData); // Android 保持原有逻辑
+              }
             }
           });
         },
@@ -560,7 +583,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (!state.isRecording || state.currentTrip == null) return;
 
     final now = DateTime.now();
-    final fragment = _engine.getLookbackBuffer(10);
+    // iOS 使用下采样存储 (20Hz)，Android 维持原样
+    final fragment =
+        _engine.getLookbackBuffer(10, targetHz: Platform.isIOS ? 20 : 30);
 
     final event = RecordedEvent()
       ..uuid = const Uuid().v4()
@@ -573,9 +598,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
             ..ax = d.processedAccel.x
             ..ay = d.processedAccel.y
             ..az = d.processedAccel.z
-            ..gx = d.gyroscope.x
-            ..gy = d.gyroscope.y
-            ..gz = d.gyroscope.z
+            ..gx = d.processedGyro.x
+            ..gy = d.processedGyro.y
+            ..gz = d.processedGyro.z
             ..mx = d.magnetometer.x
             ..my = d.magnetometer.y
             ..mz = d.magnetometer.z
@@ -589,6 +614,204 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     await _storage.saveEvent(state.currentTrip!.id, event);
     state = state.copyWith(events: [...state.events, event]);
+  }
+
+  void setAlgorithmMode(AlgorithmMode mode) {
+    state = state.copyWith(algorithmMode: mode);
+  }
+
+  // --- 库 A: iOS 精简优化版 (Refined Standard) ---
+  void _detectAutoEventsStandard(SensorData data) {
+    final now = DateTime.now();
+    final accel = data.filteredAccel;
+    final gyro = data.processedGyro;
+
+    _xHistory.addLast(MapEntry(now, accel.x));
+    _yHistory.addLast(MapEntry(now, accel.y));
+    _yawRateHistory.addLast(MapEntry(now, gyro.z));
+
+    // 窗口清理 (iOS 60Hz 需保留更多点)
+    while (_xHistory.isNotEmpty &&
+        now.difference(_xHistory.first.key) > _wobbleWindow) {
+      _xHistory.removeFirst();
+    }
+    while (_yHistory.isNotEmpty &&
+        now.difference(_yHistory.first.key) >
+            const Duration(milliseconds: 1500)) {
+      _yHistory.removeFirst();
+    }
+    while (_yawRateHistory.isNotEmpty &&
+        now.difference(_yawRateHistory.first.key) > _wobbleWindow) {
+      _yawRateHistory.removeFirst();
+    }
+
+    final multiplier = _getFinalMultiplier();
+
+    bool isDebounced(String type) {
+      final last = _lastTriggered[type];
+      return last != null && now.difference(last) < _debounceDuration;
+    }
+
+    // 1. 急加减速 + Jerk 物理熔断
+    // 逻辑：如果 Y 轴变化率极其恐怖 (> 40m/s³)，视为传感器跳变噪声，熔断
+    final recentY =
+        _yHistory.where((e) => now.difference(e.key) < _jerkWindow).toList();
+    double jerk = 0;
+    if (recentY.length >= 3) {
+      final deltaA = recentY.last.value - recentY.first.value;
+      final deltaT =
+          recentY.last.key.difference(recentY.first.key).inMilliseconds /
+              1000.0;
+      if (deltaT > 0) jerk = deltaA / deltaT;
+    }
+
+    if (jerk.abs() < 40.0) {
+      // 只有在物理合理的范围内才检测
+      if (accel.y < (_thresholdDecel * multiplier) &&
+          !isDebounced('rapidDeceleration')) {
+        _lastTriggered['rapidDeceleration'] = now;
+        _enqueueEvent(EventType.rapidDeceleration, now);
+      } else if (accel.y > (_thresholdAccel * multiplier) &&
+          !isDebounced('rapidAcceleration')) {
+        _lastTriggered['rapidAcceleration'] = now;
+        _enqueueEvent(EventType.rapidAcceleration, now);
+      }
+    }
+
+    // 2. 摆动检测 + 零点交叉 (Zero-crossing)
+    if (!isDebounced('wobble') && _xHistory.length > 20) {
+      double minX = 0;
+      double maxX = 0;
+      int crossCount = 0;
+      double? lastVal;
+
+      for (var entry in _xHistory) {
+        if (entry.value < minX) minX = entry.value;
+        if (entry.value > maxX) maxX = entry.value;
+
+        // 统计过零点次数
+        if (lastVal != null &&
+            ((lastVal <= 0 && entry.value > 0) ||
+                (lastVal >= 0 && entry.value < 0))) {
+          crossCount++;
+        }
+        lastVal = entry.value;
+      }
+
+      final span = maxX - minX;
+      // 摆动必须满足：幅度够大 + 至少有一次完整的往返 (过零点次数 >= 2)
+      if (span > (_thresholdWobbleSpan * multiplier) && crossCount >= 2) {
+        // Z 轴联动过滤：如果此时 Z 轴也在剧烈跳变 (> 3.0)，说明是手晃
+        if (accel.z.abs() < 3.0) {
+          _lastTriggered['wobble'] = now;
+          _enqueueEvent(EventType.wobble, now);
+        }
+      }
+    }
+
+    // 3. 颠簸检测
+    if (accel.z.abs() > (_thresholdBump * multiplier) && !isDebounced('bump')) {
+      _lastTriggered['bump'] = now;
+      _enqueueEvent(EventType.bump, now);
+    }
+  }
+
+  // --- 库 B: iOS 专家引擎 (World-Class Expert) ---
+  void _detectAutoEventsExpert(SensorData data) {
+    final now = DateTime.now();
+    final accel = data.filteredAccel;
+
+    // 专家级额外逻辑：多轴 Jerk 能量评估
+    // 计算 X, Y, Z 三轴的综合跳变能量
+    final recentPoints =
+        _engine.getLookbackBuffer(1, targetHz: 60); // 获取最近 1 秒高频原始点
+    double totalJerkEnergy = 0;
+    if (recentPoints.length > 2) {
+      for (int i = 1; i < recentPoints.length; i++) {
+        final dA = (recentPoints[i].processedAccel -
+                recentPoints[i - 1].processedAccel)
+            .length;
+        totalJerkEnergy += dA;
+      }
+    }
+
+    // 如果总能量异常高 (> 50)，判定为“剧烈非匀速运动场景”（如手抖、掉落、越野）
+    // 此时将灵敏度倍率降低 2.0 倍 (即门槛提高 2 倍)，防止误报
+    double expertMultiplier = 1.0;
+    if (totalJerkEnergy > 50.0) {
+      expertMultiplier = 2.0;
+    }
+
+    final baseMultiplier = _getFinalMultiplier();
+    final finalMultiplier = baseMultiplier * expertMultiplier;
+
+    bool isDebounced(String type) {
+      final last = _lastTriggered[type];
+      return last != null && now.difference(last) < _debounceDuration;
+    }
+
+    // 执行检测 (带上专家倍率)
+    if (accel.y < (_thresholdDecel * finalMultiplier) &&
+        !isDebounced('rapidDeceleration')) {
+      _lastTriggered['rapidDeceleration'] = now;
+      _enqueueEvent(EventType.rapidDeceleration, now);
+    } else if (accel.y > (_thresholdAccel * finalMultiplier) &&
+        !isDebounced('rapidAcceleration')) {
+      _lastTriggered['rapidAcceleration'] = now;
+      _enqueueEvent(EventType.rapidAcceleration, now);
+    }
+
+    // 摆动检测：专家模式要求更严苛的零点交叉 (3次以上)
+    if (!isDebounced('wobble') && _xHistory.length > 30) {
+      double minX = 0;
+      double maxX = 0;
+      int crossCount = 0;
+      double? lastVal;
+      for (var entry in _xHistory) {
+        if (entry.value < minX) minX = entry.value;
+        if (entry.value > maxX) maxX = entry.value;
+        if (lastVal != null &&
+            ((lastVal <= 0 && entry.value > 0) ||
+                (lastVal >= 0 && entry.value < 0))) {
+          crossCount++;
+        }
+        lastVal = entry.value;
+      }
+
+      final span = maxX - minX;
+      if (span > (_thresholdWobbleSpan * finalMultiplier) && crossCount >= 3) {
+        if (accel.z.abs() < 2.0) {
+          // 更严的 Z 轴约束
+          _lastTriggered['wobble'] = now;
+          _enqueueEvent(EventType.wobble, now);
+        }
+      }
+    }
+
+    if (accel.z.abs() > (_thresholdBump * finalMultiplier) &&
+        !isDebounced('bump')) {
+      _lastTriggered['bump'] = now;
+      _enqueueEvent(EventType.bump, now);
+    }
+  }
+
+  double _getFinalMultiplier() {
+    final sensitivity = _ref.read(settingsProvider).sensitivity;
+    double sensitivityMultiplier = 1.0;
+    if (sensitivity == SensitivityLevel.medium) sensitivityMultiplier = 0.8;
+    if (sensitivity == SensitivityLevel.high) sensitivityMultiplier = 0.6;
+
+    double speedMultiplier = 1.0;
+    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+
+    if (currentSpeedKmh < 10.0) {
+      speedMultiplier = 0.8;
+    } else if (currentSpeedKmh < 60.0) {
+      speedMultiplier = 0.8 + 0.2 * ((currentSpeedKmh - 10.0) / 50.0);
+    } else if (currentSpeedKmh > 80.0) {
+      speedMultiplier = 1.2;
+    }
+    return sensitivityMultiplier * speedMultiplier;
   }
 
   // --- 聚合引擎核心逻辑 ---

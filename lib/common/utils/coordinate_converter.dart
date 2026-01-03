@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:latlong2/latlong.dart';
 
 /// 坐标转换工具
 /// 解决中国境内 WGS-84 (原始 GPS) 与 GCJ-02 (火星坐标系) 之间的偏转问题
@@ -8,9 +9,9 @@ class CoordinateConverter {
   static const double ee = 0.00669342162296594323; // 偏心率平方
 
   /// WGS-84 转 GCJ-02
-  static Map<String, double> wgs84ToGcj02(double lat, double lon) {
-    if (_outOfChina(lat, lon)) {
-      return {'lat': lat, 'lon': lon};
+  static LatLng wgs84ToGcj02(double lat, double lon) {
+    if (outOfChina(lat, lon)) {
+      return LatLng(lat, lon);
     }
     double dlat = _transformLat(lon - 105.0, lat - 35.0);
     double dlon = _transformLon(lon - 105.0, lat - 35.0);
@@ -20,10 +21,10 @@ class CoordinateConverter {
     double sqrtMagic = sqrt(magic);
     dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * pi);
     dlon = (dlon * 180.0) / (a / sqrtMagic * cos(radLat) * pi);
-    return {'lat': lat + dlat, 'lon': lon + dlon};
+    return LatLng(lat + dlat, lon + dlon);
   }
 
-  static bool _outOfChina(double lat, double lon) {
+  static bool outOfChina(double lat, double lon) {
     if (lon < 72.004 || lon > 137.8347) return true;
     if (lat < 0.8293 || lat > 55.8271) return true;
     return false;

@@ -587,7 +587,7 @@ abstract class AppLocalizations {
   /// No description provided for @no_data_for_brand.
   ///
   /// In en, this message translates to:
-  /// **'No data available for the selected brand or version.'**
+  /// **'No Data'**
   String get no_data_for_brand;
 
   /// No description provided for @events_count.
@@ -703,6 +703,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'I agree to {policy}'**
   String agree_privacy_link(Object policy);
+
+  /// No description provided for @onboarding_step1.
+  ///
+  /// In en, this message translates to:
+  /// **'Mount your phone, aligned with the car\'s direction'**
+  String get onboarding_step1;
+
+  /// No description provided for @onboarding_step2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay still, tap \'Start Trip\' to calibrate sensors'**
+  String get onboarding_step2;
+
+  /// No description provided for @onboarding_step3.
+  ///
+  /// In en, this message translates to:
+  /// **'Start testing, avoid picking up your phone'**
+  String get onboarding_step3;
+
+  /// No description provided for @onboarding_step4.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the vehicle, tap \'End Trip\' before picking up'**
+  String get onboarding_step4;
+
+  /// No description provided for @onboarding_step5.
+  ///
+  /// In en, this message translates to:
+  /// **'Share your trip and data with others'**
+  String get onboarding_step5;
+
+  /// No description provided for @onboarding_start.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Experience'**
+  String get onboarding_start;
+
+  /// No description provided for @onboarding_welcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Puked'**
+  String get onboarding_welcome;
 }
 
 class _AppLocalizationsDelegate

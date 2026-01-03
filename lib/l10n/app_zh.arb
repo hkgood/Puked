@@ -80,7 +80,7 @@
     "all_versions": "所有版本",
     "select_brand": "选择品牌",
     "no_trips_yet": "还没有行程数据，开始一段智驾行程来查看统计吧！",
-    "no_data_for_brand": "所选品牌或版本暂无数据。",
+    "no_data_for_brand": "暂无数据",
     "events_count": "{count} 次事件",
     "trips_count": "{count} 次行程",
     "mileage_label": "里程",
@@ -99,5 +99,12 @@
     "insufficient_data_message": "行程数据较短，请上传更更长里程的行程数据",
     "upload": "上传",
     "privacy_policy": "隐私政策",
-    "agree_privacy_link": "勾选同意{policy}"
+    "agree_privacy_link": "勾选同意{policy}",
+    "onboarding_step1": "固定手机，与车头方向一致",
+    "onboarding_step2": "保持静止，点击“开始行程”校准传感器",
+    "onboarding_step3": "开始测试，避免中途拿起手机",
+    "onboarding_step4": "停下车辆，点击“结束行程”再拿起手机",
+    "onboarding_step5": "点击分享行程，与大家一起共享数据",
+    "onboarding_start": "开始体验",
+    "onboarding_welcome": "欢迎使用吐槽"
 }

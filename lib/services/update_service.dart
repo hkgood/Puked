@@ -10,8 +10,10 @@ import 'package:puked/generated/l10n/app_localizations.dart';
 class UpdateService {
   static const String _owner = 'hkgood';
   static const String _repo = 'Puked';
-  static const String _apiUrl =
+  static const String _githubApiUrl =
       'https://api.github.com/repos/$_owner/$_repo/releases/latest';
+  static const String _giteaApiUrl =
+      'https://gitea.com/api/v1/repos/$_owner/$_repo/releases/latest';
 
   static Future<void> checkUpdate(BuildContext context,
       {bool showNoUpdate = false}) async {
@@ -19,15 +21,28 @@ class UpdateService {
     if (l10n == null) return;
 
     try {
-      final response = await http.get(Uri.parse(_apiUrl));
+      // 优先从 GitHub 获取更新信息，如果失败或超时（5秒），则尝试从 Gitea 获取
+      http.Response response;
+      try {
+        response = await http
+            .get(Uri.parse(_githubApiUrl))
+            .timeout(const Duration(seconds: 5));
+        if (response.statusCode != 200) {
+          throw Exception('GitHub API failed');
+        }
+      } catch (e) {
+        debugPrint('GitHub check failed, trying Gitea: $e');
+        response = await http.get(Uri.parse(_giteaApiUrl));
+      }
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final latestTag = data['tag_name'] as String;
-        final releaseNotes = data['body'] as String;
-        final htmlUrl = data['html_url'] as String;
+        final releaseNotes = (data['body'] ?? '') as String;
+        final htmlUrl = (data['html_url'] ?? '') as String;
 
-        // iOS 的跳转链接 (请将 123456789 替换为你的实际 App ID)
-        const String appStoreUrl = 'https://apps.apple.com/app/id123456789';
+        // iOS 的跳转链接 (当前使用 TestFlight 链接)
+        const String appStoreUrl = 'https://testflight.apple.com/join/e9E3RRBh';
 
         String? apkUrl;
         String? apkName;
@@ -40,6 +55,13 @@ class UpdateService {
           if (apkAsset != null) {
             apkUrl = apkAsset['browser_download_url'] as String;
             apkName = apkAsset['name'] as String;
+
+            // 优化逻辑：如果在国内（中文环境），且下载链接是 GitHub，则替换为 Gitea 镜像
+            final isZh = l10n.localeName == 'zh';
+            if (isZh && apkUrl != null && apkUrl.contains('github.com')) {
+              apkUrl = apkUrl.replaceFirst('github.com', 'gitea.com');
+              debugPrint('China detected, using Gitea mirror: $apkUrl');
+            }
           }
         }
 

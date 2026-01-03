@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/main/presentation/main_screen.dart';
+import 'package:puked/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
 import 'package:puked/common/theme/app_theme.dart';
 import 'package:puked/services/pocketbase_service.dart';
@@ -79,7 +80,9 @@ class _PukedAppState extends ConsumerState<PukedApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
 
-      home: const MainScreen(),
+      home: settings.isFirstLaunch
+          ? const OnboardingScreen()
+          : const MainScreen(),
     );
   }
 }

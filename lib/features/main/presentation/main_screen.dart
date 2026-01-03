@@ -4,6 +4,7 @@ import 'package:puked/features/recording/presentation/recording_screen.dart';
 import 'package:puked/features/history/presentation/history_screen.dart';
 import 'package:puked/features/settings/presentation/settings_screen.dart';
 import 'package:puked/features/arena/presentation/arena_screen.dart';
+import 'package:puked/features/arena/providers/arena_provider.dart';
 import 'package:puked/common/utils/i18n.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
@@ -49,6 +50,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         setState(() {
                           _selectedIndex = index;
                         });
+                        // 每次点击 Arena 标签时，主动触发云端数据刷新
+                        if (index == 1) {
+                          ref.read(arenaCloudTripsProvider.notifier).refresh();
+                        }
                       },
                       destinations: [
                         NavigationDestination(

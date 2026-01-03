@@ -18,18 +18,24 @@ final arenaTripsProvider = StreamProvider<List<Trip>>((ref) {
 
 /// 云端公开行程 Provider
 final arenaCloudTripsProvider =
-    StateNotifierProvider<ArenaCloudTripsNotifier, List<Trip>>((ref) {
+    StateNotifierProvider<ArenaCloudTripsNotifier, AsyncValue<List<Trip>>>(
+        (ref) {
   return ArenaCloudTripsNotifier(ref);
 });
 
-class ArenaCloudTripsNotifier extends StateNotifier<List<Trip>> {
+class ArenaCloudTripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
   final Ref ref;
-  ArenaCloudTripsNotifier(this.ref) : super([]);
+  ArenaCloudTripsNotifier(this.ref) : super(const AsyncValue.loading());
 
   Future<void> refresh() async {
-    final cloudService = ref.read(cloudTripServiceProvider);
-    final trips = await cloudService.fetchPublicTrips();
-    state = trips;
+    state = const AsyncValue.loading();
+    try {
+      final cloudService = ref.read(cloudTripServiceProvider);
+      final trips = await cloudService.fetchPublicTrips();
+      state = AsyncValue.data(trips);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
   }
 }
 
@@ -40,7 +46,9 @@ final arenaProvider = Provider((ref) {
       data: (d) => d, loading: () => <Brand>[], error: (_, __) => <Brand>[]);
 
   // 监听云端公开行程 (Arena 只统计云端公开数据)
-  final cloudTrips = ref.watch(arenaCloudTripsProvider);
+  final cloudTripsAsync = ref.watch(arenaCloudTripsProvider);
+  final cloudTrips = cloudTripsAsync.when(
+      data: (d) => d, loading: () => <Trip>[], error: (_, __) => <Trip>[]);
 
   return ArenaService(ref, brands, cloudTrips);
 });
@@ -64,7 +72,9 @@ class ArenaService {
 
     for (final trip in trips) {
       final brandName = trip.brand;
-      if (brandName == null || brandName.isEmpty) continue;
+      if (brandName == null ||
+          brandName.isEmpty ||
+          brandName.toLowerCase() == 'unknown') continue;
 
       String key;
       String? version;
@@ -72,7 +82,9 @@ class ArenaService {
         key = brandName;
       } else {
         version = trip.softwareVersion;
-        if (version == null || version.isEmpty) continue;
+        if (version == null ||
+            version.isEmpty ||
+            version.toLowerCase() == 'unknown') continue;
         key = '$brandName|$version';
       }
 
@@ -94,7 +106,11 @@ class ArenaService {
       result.add(BrandData(
         brand: brand,
         version: version,
-        kmPerEvent: totalEvents == 0 ? totalDist : totalDist / totalEvents,
+        // 关键改进：如果 evt 为 0，表示“完美舒适度”，
+        // 但为了防止坐标轴被撑爆，将其上限限制在 10km (或公里数本身，取小者)
+        kmPerEvent: totalEvents == 0
+            ? (totalDist > 10 ? 10.0 : totalDist)
+            : totalDist / totalEvents,
       ));
     });
 
@@ -126,21 +142,37 @@ class ArenaService {
       }
       points.add(VersionPoint(
         version: version,
-        kmPerEvent: totalEvents == 0 ? totalDist : totalDist / totalEvents,
+        // 关键改进：如果 evt 为 0，表示“完美舒适度”，将其上限限制在 10km (或公里数本身，取小者)
+        kmPerEvent: totalEvents == 0
+            ? (totalDist > 10 ? 10.0 : totalDist)
+            : totalDist / totalEvents,
       ));
     });
 
+    // 关键修复：使用自然排序法排列版本号，确保 5.8.10 在 5.8.6 之后，旧版永远在左侧
     points.sort((a, b) {
-      final firstA = brandTrips
-          .firstWhere((t) => t.softwareVersion == a.version)
-          .startTime;
-      final firstB = brandTrips
-          .firstWhere((t) => t.softwareVersion == b.version)
-          .startTime;
-      return firstA.compareTo(firstB);
+      // 定义一个简单的版本号自然比较器
+      return _compareVersions(a.version, b.version);
     });
 
     return VersionEvolutionData(brand: brand, evolution: points);
+  }
+
+  /// 版本号自然排序比较逻辑
+  int _compareVersions(String v1, String v2) {
+    if (v1 == 'Unknown') return -1;
+    if (v2 == 'Unknown') return 1;
+
+    final regExp = RegExp(r'(\d+)');
+    final nums1 =
+        regExp.allMatches(v1).map((m) => int.parse(m.group(0)!)).toList();
+    final nums2 =
+        regExp.allMatches(v2).map((m) => int.parse(m.group(0)!)).toList();
+
+    for (var i = 0; i < nums1.length && i < nums2.length; i++) {
+      if (nums1[i] != nums2[i]) return nums1[i].compareTo(nums2[i]);
+    }
+    return nums1.length.compareTo(nums2.length);
   }
 
   int _getFilteredEventCount(Trip t) {
@@ -322,7 +354,8 @@ class ArenaService {
 
     for (final t in trips) {
       final brand = t.brand;
-      if (brand == null || brand.isEmpty) continue;
+      if (brand == null || brand.isEmpty || brand.toLowerCase() == 'unknown')
+        continue;
 
       final km = t.distance / 1000.0;
       if (!mileageMap.containsKey(brand)) {

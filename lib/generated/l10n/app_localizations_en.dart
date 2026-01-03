@@ -262,8 +262,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'No trip data recorded yet. Start a trip to see statistics!';
 
   @override
-  String get no_data_for_brand =>
-      'No data available for the selected brand or version.';
+  String get no_data_for_brand => 'No Data';
 
   @override
   String events_count(Object count) {
@@ -331,4 +330,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String agree_privacy_link(Object policy) {
     return 'I agree to $policy';
   }
+
+  @override
+  String get onboarding_step1 =>
+      'Mount your phone, aligned with the car\'s direction';
+
+  @override
+  String get onboarding_step2 =>
+      'Stay still, tap \'Start Trip\' to calibrate sensors';
+
+  @override
+  String get onboarding_step3 => 'Start testing, avoid picking up your phone';
+
+  @override
+  String get onboarding_step4 =>
+      'Stop the vehicle, tap \'End Trip\' before picking up';
+
+  @override
+  String get onboarding_step5 => 'Share your trip and data with others';
+
+  @override
+  String get onboarding_start => 'Start Experience';
+
+  @override
+  String get onboarding_welcome => 'Welcome to Puked';
 }

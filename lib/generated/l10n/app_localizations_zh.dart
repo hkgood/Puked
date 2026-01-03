@@ -258,7 +258,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get no_trips_yet => '还没有行程数据，开始一段智驾行程来查看统计吧！';
 
   @override
-  String get no_data_for_brand => '所选品牌或版本暂无数据。';
+  String get no_data_for_brand => '暂无数据';
 
   @override
   String events_count(Object count) {
@@ -322,4 +322,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String agree_privacy_link(Object policy) {
     return '勾选同意$policy';
   }
+
+  @override
+  String get onboarding_step1 => '固定手机，与车头方向一致';
+
+  @override
+  String get onboarding_step2 => '保持静止，点击“开始行程”校准传感器';
+
+  @override
+  String get onboarding_step3 => '开始测试，避免中途拿起手机';
+
+  @override
+  String get onboarding_step4 => '停下车辆，点击“结束行程”再拿起手机';
+
+  @override
+  String get onboarding_step5 => '点击分享行程，与大家一起共享数据';
+
+  @override
+  String get onboarding_start => '开始体验';
+
+  @override
+  String get onboarding_welcome => '欢迎使用吐槽';
 }

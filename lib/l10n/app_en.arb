@@ -80,7 +80,7 @@
     "all_versions": "All Versions",
     "select_brand": "Select Brand",
     "no_trips_yet": "No trip data recorded yet. Start a trip to see statistics!",
-    "no_data_for_brand": "No data available for the selected brand or version.",
+    "no_data_for_brand": "No Data",
     "events_count": "{count} Events",
     "trips_count": "{count} Trips",
     "mileage_label": "Mileage",
@@ -99,5 +99,12 @@
     "insufficient_data_message": "The trip data is too short, please upload trip data with longer mileage",
     "upload": "Upload",
     "privacy_policy": "Privacy Policy",
-    "agree_privacy_link": "I agree to {policy}"
+    "agree_privacy_link": "I agree to {policy}",
+    "onboarding_step1": "Mount your phone, aligned with the car's direction",
+    "onboarding_step2": "Stay still, tap 'Start Trip' to calibrate sensors",
+    "onboarding_step3": "Start testing, avoid picking up your phone",
+    "onboarding_step4": "Stop the vehicle, tap 'End Trip' before picking up",
+    "onboarding_step5": "Share your trip and data with others",
+    "onboarding_start": "Start Experience",
+    "onboarding_welcome": "Welcome to Puked"
 }

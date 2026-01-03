@@ -289,19 +289,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         Positioned(
           top: 12,
           left: 12,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(8)),
-            child: Text(
-              "GPS: ${recordingState.debugMessage}",
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
+          child: _buildGpsStatusTag(recordingState, i18n),
         ),
 
         // 3. 前台交互层
@@ -667,23 +655,132 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           Positioned(
             top: (isLandscape || noMargin) ? 12 : 16,
             left: (isLandscape || noMargin) ? 12 : 16, // 同步调整
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                "GPS: ${state.debugMessage}",
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold),
+            child: Consumer(builder: (context, ref, child) {
+              final i18n = ref.watch(i18nProvider);
+              return _buildGpsStatusTag(state, i18n);
+            }),
+          ),
+          // iOS 算法切换按钮 (右上角，缩小 50%)
+          if (Theme.of(context).platform == TargetPlatform.iOS &&
+              !state.isCalibrating)
+            Positioned(
+              top: (isLandscape || noMargin) ? 12 : 16,
+              right: (isLandscape || noMargin) ? 12 : 16,
+              child: Transform.scale(
+                scale: 0.75, // 缩小至约 75%，50% 可能太小无法点击，此处取平衡
+                alignment: Alignment.topRight,
+                child: Consumer(builder: (context, ref, child) {
+                  return ElevatedButton.icon(
+                    onPressed: () {
+                      final current = state.algorithmMode;
+                      final next = current == AlgorithmMode.standard
+                          ? AlgorithmMode.expert
+                          : AlgorithmMode.standard;
+                      ref
+                          .read(recordingProvider.notifier)
+                          .setAlgorithmMode(next);
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              "算法已切换至: ${next == AlgorithmMode.standard ? '库 A (精简优化)' : '库 B (专家引擎)'}"),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.psychology, size: 18),
+                    label: Text(
+                      state.algorithmMode == AlgorithmMode.standard
+                          ? "算法 A"
+                          : "算法 B",
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          state.algorithmMode == AlgorithmMode.standard
+                              ? Colors.blueGrey.withValues(alpha: 0.8)
+                              : Colors.deepPurple.withValues(alpha: 0.8),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                  );
+                }),
               ),
             ),
-          ),
         ],
       );
     });
+  }
+
+  Widget _buildGpsStatusTag(RecordingState state, dynamic i18n) {
+    final position = state.currentPosition;
+    final accuracy = position?.accuracy ?? 999.0;
+
+    Color statusColor;
+    String statusText;
+
+    if (position == null) {
+      statusColor = Colors.grey;
+      statusText = i18n.t('gps_no_signal');
+    } else if (accuracy < 15) {
+      statusColor = const Color(0xFF4CD964); // iOS Green
+      statusText = i18n.t('gps_strong');
+    } else if (accuracy < 50) {
+      statusColor = const Color(0xFFFFCC00); // iOS Yellow
+      statusText = i18n.t('gps_fair');
+    } else {
+      statusColor = const Color(0xFFFF3B30); // iOS Red
+      statusText = i18n.t('gps_weak');
+    }
+
+    // 判断是否为 GPS 相关的 debug 信息
+    bool isGpsMessage = state.debugMessage.contains('GPS') ||
+        state.debugMessage.contains('Signal');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: statusColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: statusColor.withValues(alpha: 0.4),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                )
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isGpsMessage
+                ? "$statusText (${accuracy.toStringAsFixed(0)}m)"
+                : state.debugMessage,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSensorSection(BuildContext context, dynamic i18n,

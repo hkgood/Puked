@@ -30,6 +30,7 @@ class I18n {
       'calibration_tip':
           'Please keep the vehicle stationary and the phone fixed',
       'no_trips': 'No trip records',
+      'no_data_for_brand': 'No Data',
       'exporting': 'Exporting data...',
       'car_model': 'Car Model',
       'peak_g': 'Peak G',
@@ -144,6 +145,10 @@ class I18n {
       'delete_event_title': 'Confirm Delete Event',
       'delete_event_desc': 'Deleted events cannot be recovered. Are you sure?',
       'privacy_policy': 'Privacy Policy',
+      'gps_strong': 'Strong',
+      'gps_fair': 'Fair',
+      'gps_weak': 'Weak',
+      'gps_no_signal': 'No Signal',
     },
     'zh': {
       'app_name': '吐槽',
@@ -167,6 +172,7 @@ class I18n {
       'recorded_msg': '已记录 (包含过去10秒数据)',
       'calibration_tip': '请保持车辆静止，手机已固定',
       'no_trips': '暂无行程记录',
+      'no_data_for_brand': '暂无数据',
       'exporting': '正在导出数据...',
       'car_model': '车型',
       'peak_g': '峰值 G',
@@ -270,6 +276,10 @@ class I18n {
       'delete_event_title': '确认删除事件',
       'delete_event_desc': '删除后无法恢复，请确认删除么？',
       'privacy_policy': '隐私政策',
+      'gps_strong': '强',
+      'gps_fair': '中',
+      'gps_weak': '弱',
+      'gps_no_signal': '无信号',
     },
   };
 

@@ -98,7 +98,7 @@ jobs:
           path: build/app/outputs/flutter-apk/Puked-*.apk
 
       # 仅在推送以 v 开头的标签时才创建 GitHub Release
-      - name: Create Release
+      - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
@@ -107,10 +107,54 @@ jobs:
           body: |
             ## Puked ${{ github.ref_name }}
             
-            这是自动构建的版本。
+            这是从 GitHub Actions 自动构建并同步的版本。
             
             ### 更新日志
             ${{ github.event.head_commit.message }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 新增：同步上传到 Gitea
+      - name: Upload to Gitea Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION_NAME=${{ github.ref_name }}
+          APK_PATH=$(ls build/app/outputs/flutter-apk/Puked-*.apk | head -n 1)
+          
+          echo "Syncing $VERSION_NAME to Gitea..."
+          
+          # 1. 创建或获取 Gitea Release
+          # 注意：这里需要安装 jq
+          sudo apt-get update && sudo apt-get install -y jq
+          
+          RELEASE_JSON=$(curl -s -X 'POST' \
+            "https://gitea.com/api/v1/repos/hkgood/Puked/releases" \
+            -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"tag_name\": \"$VERSION_NAME\",
+              \"name\": \"Puked $VERSION_NAME\",
+              \"body\": \"Auto-synced from GitHub Actions\",
+              \"draft\": false,
+              \"prerelease\": false
+            }")
+          
+          RELEASE_ID=$(echo $RELEASE_JSON | jq -r '.id')
+          
+          # 如果已存在，尝试获取 ID
+          if [ "$RELEASE_ID" == "null" ] || [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              "https://gitea.com/api/v1/repos/hkgood/Puked/releases" | \
+              jq -r ".[] | select(.tag_name==\"$VERSION_NAME\") | .id")
+          fi
+          
+          echo "Gitea Release ID: $RELEASE_ID"
+          
+          # 2. 上传 APK 到 Gitea
+          curl -X 'POST' \
+            "https://gitea.com/api/v1/repos/hkgood/Puked/releases/$RELEASE_ID/assets" \
+            -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            -H "Content-Type: multipart/form-data" \
+            -F "attachment=@$APK_PATH"
+

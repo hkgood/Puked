@@ -117,32 +117,40 @@ jobs:
 
       # 新增：同步上传到 Gitea
       - name: Upload to Gitea Release
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          VERSION_NAME=${{ github.ref_name }}
-          APK_PATH=$(ls build/app/outputs/flutter-apk/Puked-*.apk | head -n 1)
+          # 确定版本名
+          if [[ ${{ github.ref }} == refs/tags/v* ]]; then
+            VERSION_NAME=${{ github.ref_name }}
+            RELEASE_NAME="Puked $VERSION_NAME"
+          else
+            VERSION_NAME="latest-main"
+            RELEASE_NAME="Puked Main (Rolling Build)"
+          fi
           
+          APK_PATH=$(ls build/app/outputs/flutter-apk/Puked-*.apk | head -n 1)
           echo "Syncing $VERSION_NAME to Gitea..."
           
-          # 1. 创建或获取 Gitea Release
-          # 注意：这里需要安装 jq
-          sudo apt-get update && sudo apt-get install -y jq
+          # 确保 jq 已安装
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
           
+          # 1. 创建或获取 Gitea Release
           RELEASE_JSON=$(curl -s -X 'POST' \
             "https://gitea.com/api/v1/repos/hkgood/Puked/releases" \
             -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{
               \"tag_name\": \"$VERSION_NAME\",
-              \"name\": \"Puked $VERSION_NAME\",
-              \"body\": \"Auto-synced from GitHub Actions\",
+              \"name\": \"$RELEASE_NAME\",
+              \"body\": \"Auto-synced from GitHub Actions. Commit: ${{ github.sha }}\",
               \"draft\": false,
               \"prerelease\": false
             }")
           
           RELEASE_ID=$(echo $RELEASE_JSON | jq -r '.id')
           
-          # 如果已存在，尝试获取 ID
+          # 如果已存在 (409 conflict)，尝试直接获取 ID
           if [ "$RELEASE_ID" == "null" ] || [ -z "$RELEASE_ID" ]; then
             RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
               "https://gitea.com/api/v1/repos/hkgood/Puked/releases" | \
@@ -151,10 +159,23 @@ jobs:
           
           echo "Gitea Release ID: $RELEASE_ID"
           
-          # 2. 上传 APK 到 Gitea
+          # 2. 如果是 Rolling Build，先删除旧的同名 Asset (防止覆盖失败)
+          ASSET_ID=$(curl -s -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            "https://gitea.com/api/v1/repos/hkgood/Puked/releases/$RELEASE_ID/assets" | \
+            jq -r ".[] | select(.name==\"$(basename $APK_PATH)\") | .id")
+          
+          if [ ! -z "$ASSET_ID" ] && [ "$ASSET_ID" != "null" ]; then
+            echo "Deleting old asset $ASSET_ID..."
+            curl -s -X 'DELETE' \
+              "https://gitea.com/api/v1/repos/hkgood/Puked/releases/$RELEASE_ID/assets/$ASSET_ID" \
+              -H "Authorization: token ${{ secrets.GITEA_TOKEN }}"
+          fi
+          
+          # 3. 上传 APK 到 Gitea
           curl -X 'POST' \
             "https://gitea.com/api/v1/repos/hkgood/Puked/releases/$RELEASE_ID/assets" \
             -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
             -H "Content-Type: multipart/form-data" \
             -F "attachment=@$APK_PATH"
+
 

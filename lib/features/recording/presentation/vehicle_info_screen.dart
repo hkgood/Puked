@@ -146,9 +146,10 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   }
 
   Future<void> _saveInfo(bool skip) async {
-    final brand = _selectedBrand;
-    final version = _versionController.text.trim();
-    final model = _modelController.text.trim();
+    // 即使点击跳过，也记录为 'Others'，避免 Arena 出现 unknown 数据
+    final brand = skip ? 'Others' : _selectedBrand;
+    final version = skip ? 'Others' : _versionController.text.trim();
+    final model = skip ? 'Others' : _modelController.text.trim();
 
     if (!skip && brand != null && version.isNotEmpty) {
       final storage = ref.read(storageServiceProvider);
@@ -171,14 +172,12 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
 
     final storage = ref.read(storageServiceProvider);
 
-    if (!skip) {
-      await storage.updateTripVehicleInfo(
-        widget.tripId!,
-        brand: brand,
-        carModel: model,
-        softwareVersion: version,
-      );
-    }
+    await storage.updateTripVehicleInfo(
+      widget.tripId!,
+      brand: brand,
+      carModel: model,
+      softwareVersion: version,
+    );
 
     if (mounted) {
       if (widget.isEdit) {

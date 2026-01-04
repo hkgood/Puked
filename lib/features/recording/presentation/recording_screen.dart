@@ -483,8 +483,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                   _buildStatDivider(colorScheme, height: 16),
                   Expanded(
                     child: _RecordingStat(
-                        label: i18n.t('peak_g'),
-                        value: "${state.maxGForce.toStringAsFixed(2)}G",
+                        label: isRecording
+                            ? i18n.t('realtime_g')
+                            : i18n.t('peak_g'),
+                        value:
+                            "${(isRecording ? state.currentGForce : state.maxGForce).toStringAsFixed(2)}G",
                         icon: Icons.shutter_speed,
                         compact: true),
                   ),
@@ -597,7 +600,25 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                     );
                   }
                 } else {
-                  ref.read(recordingProvider.notifier).startRecording();
+                  try {
+                    await ref.read(recordingProvider.notifier).startRecording();
+                  } catch (e) {
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(i18n.t('calibration_failed')),
+                          content: Text(i18n.t('calibration_failed_desc')),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(i18n.t('ok')),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  }
                 }
               },
         child: Text(
@@ -865,8 +886,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                   _buildStatDivider(colorScheme, height: 24),
                   Expanded(
                     child: _RecordingStat(
-                        label: i18n.t('peak_g'),
-                        value: "${state.maxGForce.toStringAsFixed(2)}G",
+                        label: isRecording
+                            ? i18n.t('realtime_g')
+                            : i18n.t('peak_g'),
+                        value:
+                            "${(isRecording ? state.currentGForce : state.maxGForce).toStringAsFixed(2)}G",
                         icon: Icons.shutter_speed,
                         compact: true),
                   ),

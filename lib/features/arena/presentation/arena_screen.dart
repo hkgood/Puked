@@ -325,13 +325,30 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            item.displayName,
-                            style: const TextStyle(
-                              fontSize: nameFontSize,
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                item.displayName,
+                                style: const TextStyle(
+                                  fontSize: nameFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.2,
+                                ),
+                              ),
+                              Text(
+                                val.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.8),
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: spacingBetween),
                           Stack(
@@ -358,17 +375,6 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                                     color:
                                         Theme.of(context).colorScheme.primary,
                                     borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: Text(
-                                    val.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'monospace',
-                                    ),
                                   ),
                                 ),
                               ),

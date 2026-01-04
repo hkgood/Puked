@@ -62,9 +62,9 @@ class CloudTripService {
       final record = await _pbService.pb.collection('trips').create(
         body: {
           'user': userId,
-          'brand': trip.brand ?? 'Unknown',
-          'car_model': trip.carModel ?? 'Unknown',
-          'software_version': trip.softwareVersion ?? 'Unknown',
+          'brand': trip.brand ?? 'Others',
+          'car_model': trip.carModel ?? 'Others',
+          'software_version': trip.softwareVersion ?? 'Others',
           'is_public': true,
           'metrics': metrics,
           'route_summary': {}, // 如果有聚合路径可以放在这里

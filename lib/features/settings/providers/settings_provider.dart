@@ -20,6 +20,7 @@ class SettingsState {
   final String? carModel;
   final String? softwareVersion;
   final bool isFirstLaunch;
+  final bool isEventSoundEnabled;
 
   SettingsState({
     required this.themeMode,
@@ -29,6 +30,7 @@ class SettingsState {
     this.carModel,
     this.softwareVersion,
     this.isFirstLaunch = false,
+    this.isEventSoundEnabled = false,
   });
 
   SettingsState copyWith({
@@ -39,6 +41,7 @@ class SettingsState {
     String? carModel,
     String? softwareVersion,
     bool? isFirstLaunch,
+    bool? isEventSoundEnabled,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -48,6 +51,7 @@ class SettingsState {
       carModel: carModel ?? this.carModel,
       softwareVersion: softwareVersion ?? this.softwareVersion,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
+      isEventSoundEnabled: isEventSoundEnabled ?? this.isEventSoundEnabled,
     );
   }
 }
@@ -84,12 +88,16 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   static const _carModelKey = 'default_car_model';
   static const _softwareVersionKey = 'default_software_version';
   static const _firstLaunchKey = 'is_first_launch';
+  static const _eventSoundKey = 'is_event_sound_enabled';
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
     // 加载首次启动标志，默认 true
     final isFirstLaunch = prefs.getBool(_firstLaunchKey) ?? true;
+
+    // 加载负体验音效开关，默认 false
+    final isEventSoundEnabled = prefs.getBool(_eventSoundKey) ?? false;
 
     // 加载主题
     final themeIndex = prefs.getInt(_themeKey) ?? ThemeMode.system.index;
@@ -138,7 +146,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       carModel: carModel,
       softwareVersion: softwareVersion,
       isFirstLaunch: isFirstLaunch,
+      isEventSoundEnabled: isEventSoundEnabled,
     );
+  }
+
+  Future<void> setEventSoundEnabled(bool enabled) async {
+    state = state.copyWith(isEventSoundEnabled: enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_eventSoundKey, enabled);
   }
 
   Future<void> completeOnboarding() async {

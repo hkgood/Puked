@@ -19,11 +19,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
@@ -36,6 +36,8 @@
 	<string>Puked 需要访问运动传感器数据，以测量车辆行驶中的加速度(G值)和乘坐舒适度。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Puked 需要访问您的相册，以便您可以为记录的行程上传车辆或路况照片。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Puked 需要访问您的相册，以便您可以保存行程详情截图。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Puked 需要访问您的相机，以便您可以拍摄并上传车辆或路况照片。</string>
 	<key>NSMicrophoneUsageDescription</key>

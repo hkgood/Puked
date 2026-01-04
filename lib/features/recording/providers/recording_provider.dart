@@ -15,6 +15,7 @@ import 'package:puked/services/amap_service.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'dart:collection';
 
@@ -45,6 +46,7 @@ class RecordingState {
   final List<TrajectoryPoint> trajectory; // 增加内存中的轨迹缓存，加速 UI 渲染
   final double currentDistance; // 当前行程里程 (米)
   final double maxGForce; // 本次行程的最大 G 值
+  final double currentGForce; // 当前实时的 G 值
   final Position? currentPosition; // 实时位置
   final DateTime? lastLocationTime; // 上一次位置更新时间
   final int locationUpdateCount; // 位置更新计数
@@ -65,6 +67,7 @@ class RecordingState {
     this.trajectory = const [],
     this.currentDistance = 0.0,
     this.maxGForce = 0.0,
+    this.currentGForce = 0.0,
     this.currentPosition,
     this.lastLocationTime,
     this.locationUpdateCount = 0,
@@ -86,6 +89,7 @@ class RecordingState {
     List<TrajectoryPoint>? trajectory,
     double? currentDistance,
     double? maxGForce,
+    double? currentGForce,
     Position? currentPosition,
     DateTime? lastLocationTime,
     int? locationUpdateCount,
@@ -106,6 +110,7 @@ class RecordingState {
       trajectory: trajectory ?? this.trajectory,
       currentDistance: currentDistance ?? this.currentDistance,
       maxGForce: maxGForce ?? this.maxGForce,
+      currentGForce: currentGForce ?? this.currentGForce,
       currentPosition: currentPosition ?? this.currentPosition,
       lastLocationTime: lastLocationTime ?? this.lastLocationTime,
       locationUpdateCount: locationUpdateCount ?? this.locationUpdateCount,
@@ -128,6 +133,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   final Ref _ref;
   final InertialNavigationEngine _insEngine = InertialNavigationEngine();
   final AmapService _amapService = AmapService();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   StreamSubscription<Position>? _positionSub;
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
@@ -617,9 +623,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               final smoothedG = _realtimeGHistory.reduce((a, b) => a + b) /
                   _realtimeGHistory.length;
 
-              if (smoothedG > state.maxGForce) {
-                state = state.copyWith(maxGForce: smoothedG);
-              }
+              state = state.copyWith(
+                currentGForce: smoothedG,
+                maxGForce:
+                    smoothedG > state.maxGForce ? smoothedG : state.maxGForce,
+              );
 
               if (Platform.isIOS) {
                 if (state.algorithmMode == AlgorithmMode.standard) {
@@ -767,6 +775,12 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     await _storage.saveEvent(state.currentTrip!.id, event);
     state = state.copyWith(events: [...state.events, event]);
+
+    // 播放负体验音效：仅在非手动标记且设置开启时播放
+    if (type != EventType.manual &&
+        _ref.read(settingsProvider).isEventSoundEnabled) {
+      _audioPlayer.play(AssetSource('sound/events.mp3'));
+    }
   }
 
   void setAlgorithmMode(AlgorithmMode mode) {
@@ -887,24 +901,36 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     final accel = data.filteredAccel;
 
     // 专家级额外逻辑：多轴 Jerk 能量评估
-    // 计算 X, Y, Z 三轴的综合跳变能量
     final recentPoints =
         _engine.getLookbackBuffer(1, targetHz: 60); // 获取最近 1 秒高频原始点
     double totalJerkEnergy = 0;
+    double maxAngularRate = 0; // 新增：窗口内最大旋转角速度
+
     if (recentPoints.length > 2) {
       for (int i = 1; i < recentPoints.length; i++) {
         final dA = (recentPoints[i].processedAccel -
                 recentPoints[i - 1].processedAccel)
             .length;
         totalJerkEnergy += dA;
+
+        // 跟踪最大旋转强度
+        final rotationStrength = recentPoints[i].processedGyro.length;
+        if (rotationStrength > maxAngularRate)
+          maxAngularRate = rotationStrength;
       }
     }
 
-    // 如果总能量异常高 (> 50)，判定为“剧烈非匀速运动场景”（如手抖、掉落、越野）
-    // 此时将灵敏度倍率降低 2.0 倍 (即门槛提高 2 倍)，防止误报
     double expertMultiplier = 1.0;
+
+    // --- 动态姿态守卫 (支架共振识别) ---
+    if (maxAngularRate > 0.4) {
+      expertMultiplier *= 3.0; // 严重抖动：三倍压制
+    } else if (maxAngularRate > 0.2) {
+      expertMultiplier *= 1.5; // 轻微晃动：1.5倍压制
+    }
+
     if (totalJerkEnergy > 50.0) {
-      expertMultiplier = 2.0;
+      expertMultiplier *= 2.0;
     }
 
     final baseMultiplier = _getFinalMultiplier();
@@ -915,19 +941,30 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       return last != null && now.difference(last) < _debounceDuration;
     }
 
-    // 轴间相关性压制逻辑：如果 Z 轴也在剧烈抖动，说明是路面原因
-    bool isVerticalSuppressed = accel.z.abs() > (accel.y.abs() * 1.5);
+    // 执行纵向检测 (带上专家倍率 + 物理极值 + 轴间压制)
+    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+    double speedFloor = 1.8;
+    if (currentSpeedKmh < 15.0) {
+      speedFloor = 2.5;
+    }
 
-    // 执行检测 (带上专家倍率 + 轴间压制)
-    if (accel.y < (_thresholdDecel * finalMultiplier) &&
-        !isDebounced('rapidDeceleration')) {
-      if (!isVerticalSuppressed) {
+    final double currentAccelThreshold =
+        (_thresholdAccel * finalMultiplier).clamp(speedFloor, 15.0);
+    final double currentDecelThreshold =
+        (_thresholdDecel * finalMultiplier).clamp(-15.0, -speedFloor);
+
+    // 轴间相关性压制逻辑
+    bool isVerticalSuppressed = accel.z.abs() > (accel.y.abs() * 1.5);
+    bool isHorizontalSuppressed = accel.x.abs() > (accel.y.abs() * 0.8);
+
+    if (accel.y < currentDecelThreshold && !isDebounced('rapidDeceleration')) {
+      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
         _lastTriggered['rapidDeceleration'] = now;
         _enqueueEvent(EventType.rapidDeceleration, now);
       }
-    } else if (accel.y > (_thresholdAccel * finalMultiplier) &&
+    } else if (accel.y > currentAccelThreshold &&
         !isDebounced('rapidAcceleration')) {
-      if (!isVerticalSuppressed) {
+      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
         _lastTriggered['rapidAcceleration'] = now;
         _enqueueEvent(EventType.rapidAcceleration, now);
       }
@@ -982,6 +1019,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     // 3. 动态能量评估与物理熔断 (归一化适配 Android 30Hz)
     final recentPoints = _engine.getLookbackBuffer(1, targetHz: 30);
     double totalJerkEnergy = 0;
+    double maxAngularRate = 0; // 新增：窗口内最大旋转角速度
+
     if (recentPoints.length > 2) {
       for (int i = 1; i < recentPoints.length; i++) {
         // 计算相邻点的变化率矢量模长
@@ -989,6 +1028,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                 recentPoints[i - 1].processedAccel)
             .length;
         totalJerkEnergy += dA;
+
+        // 跟踪最大旋转强度
+        final rotationStrength = recentPoints[i].processedGyro.length;
+        if (rotationStrength > maxAngularRate)
+          maxAngularRate = rotationStrength;
       }
     }
 
@@ -996,9 +1040,18 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         recentPoints.isNotEmpty ? totalJerkEnergy / recentPoints.length : 0;
 
     double expertMultiplier = 1.0;
-    // 物理熔断门槛：如果点均能量超过 0.85，判定为极端环境（手抖、手机跌落、剧烈颠簸）
+
+    // --- 动态姿态守卫 (支架共振识别) ---
+    // 如果窗口内角速度过大 ( > 0.4 rad/s )，说明手机在支架上剧烈晃动，大幅提高门槛
+    if (maxAngularRate > 0.4) {
+      expertMultiplier *= 3.0; // 严重抖动：三倍压制
+    } else if (maxAngularRate > 0.2) {
+      expertMultiplier *= 1.5; // 轻微晃动：1.5倍压制
+    }
+
+    // 物理熔断门槛：如果点均能量超过 0.85，判定为极端环境
     if (meanEnergy > 0.85) {
-      expertMultiplier = 2.0;
+      expertMultiplier *= 2.0;
     }
 
     // 4. 唤醒/异常跳变熔断 (Brake Spike Filter)
@@ -1021,22 +1074,34 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     }
 
     // 5. 执行纵向检测 (带上专家倍率 + 硬性物理保底 + 轴间压制)
-    final double currentAccelThreshold =
-        (_thresholdAccel * finalMultiplier).clamp(1.8, 15.0);
-    final double currentDecelThreshold =
-        (_thresholdDecel * finalMultiplier).clamp(-15.0, -2.1);
+    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
 
-    // 轴间相关性压制逻辑：如果 Z 轴也在剧烈抖动，说明是路面原因
+    // 物理常识校验：低速下限制最大加速度阈值
+    // 如果速度低于 15km/h，除非角速度极低且轴向纯净，否则门槛不得低于 2.5G (防止支架点头)
+    double speedFloor = 1.8;
+    if (currentSpeedKmh < 15.0) {
+      speedFloor = 2.5;
+    }
+
+    final double currentAccelThreshold =
+        (_thresholdAccel * finalMultiplier).clamp(speedFloor, 15.0);
+    final double currentDecelThreshold =
+        (_thresholdDecel * finalMultiplier).clamp(-15.0, -speedFloor);
+
+    // 轴间相关性压制逻辑：
+    // 1. Z 轴耦合压制 (路面垂直抖动)
     bool isVerticalSuppressed = accel.z.abs() > (accel.y.abs() * 1.5);
+    // 2. X 轴相关性压制 (支架左右横摆)
+    bool isHorizontalSuppressed = accel.x.abs() > (accel.y.abs() * 0.8);
 
     if (accel.y < currentDecelThreshold && !isDebounced('rapidDeceleration')) {
-      if (!isVerticalSuppressed) {
+      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
         _lastTriggered['rapidDeceleration'] = now;
         _enqueueEvent(EventType.rapidDeceleration, now);
       }
     } else if (accel.y > currentAccelThreshold &&
         !isDebounced('rapidAcceleration')) {
-      if (!isVerticalSuppressed) {
+      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
         _lastTriggered['rapidAcceleration'] = now;
         _enqueueEvent(EventType.rapidAcceleration, now);
       }
@@ -1160,6 +1225,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
   @override
   void dispose() {
+    _audioPlayer.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _sensorSub?.close();

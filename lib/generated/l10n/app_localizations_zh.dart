@@ -343,4 +343,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboarding_welcome => '欢迎使用吐槽';
+
+  @override
+  String get saving_image => '正在保存为图片...';
+
+  @override
+  String get save_success => '图片已保存至相册';
+
+  @override
+  String get save_failed => '保存图片失败';
+
+  @override
+  String get error_no_photo_permission => '请开启相册访问权限';
 }

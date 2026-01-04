@@ -71,7 +71,8 @@ class StorageService {
       'Nvidia',
       'Horizon',
       'Deeproute',
-      'Leapmotor'
+      'Leapmotor',
+      'Others'
     ];
 
     await _isar!.writeTxn(() async {

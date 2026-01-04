@@ -354,4 +354,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboarding_welcome => 'Welcome to Puked';
+
+  @override
+  String get saving_image => 'Saving as image...';
+
+  @override
+  String get save_success => 'Image saved to gallery';
+
+  @override
+  String get save_failed => 'Failed to save image';
+
+  @override
+  String get error_no_photo_permission =>
+      'Please grant photo gallery permission';
 }

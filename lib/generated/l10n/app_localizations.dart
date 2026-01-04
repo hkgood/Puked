@@ -745,6 +745,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Welcome to Puked'**
   String get onboarding_welcome;
+
+  /// No description provided for @saving_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving as image...'**
+  String get saving_image;
+
+  /// No description provided for @save_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Image saved to gallery'**
+  String get save_success;
+
+  /// No description provided for @save_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save image'**
+  String get save_failed;
+
+  /// No description provided for @error_no_photo_permission.
+  ///
+  /// In en, this message translates to:
+  /// **'Please grant photo gallery permission'**
+  String get error_no_photo_permission;
 }
 
 class _AppLocalizationsDelegate

@@ -106,5 +106,9 @@
     "onboarding_step4": "停下车辆，点击“结束行程”再拿起手机",
     "onboarding_step5": "点击分享行程，与大家一起共享数据",
     "onboarding_start": "开始体验",
-    "onboarding_welcome": "欢迎使用吐槽"
+    "onboarding_welcome": "欢迎使用吐槽",
+    "saving_image": "正在保存为图片...",
+    "save_success": "图片已保存至相册",
+    "save_failed": "保存图片失败",
+    "error_no_photo_permission": "请开启相册访问权限"
 }

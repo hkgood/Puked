@@ -333,6 +333,21 @@ class SettingsScreen extends ConsumerWidget {
               ),
 
               const Divider(),
+              // 负体验音效
+              _buildSectionHeader(context, i18n.t('event_sound')),
+              SwitchListTile(
+                title: Text(i18n.t('event_sound')),
+                subtitle: Text(
+                  i18n.t('event_sound_desc'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+                value: settings.isEventSoundEnabled,
+                onChanged: (value) => ref
+                    .read(settingsProvider.notifier)
+                    .setEventSoundEnabled(value),
+              ),
+
+              const Divider(),
 
               // 关于与更新
               _buildSectionHeader(context, i18n.t('about')),

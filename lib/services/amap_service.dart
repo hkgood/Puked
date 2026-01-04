@@ -11,7 +11,8 @@ class AmapService {
     if (points.isEmpty) return [];
 
     final coords = points.map((p) => "${p.longitude},${p.latitude}").join("|");
-    final url = "https://restapi.amap.com/v3/assistant/grab?key=$apiKey&coords=$coords";
+    final url =
+        "https://restapi.amap.com/v3/assistant/grab?key=$apiKey&coords=$coords";
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -33,10 +34,13 @@ class AmapService {
 
   /// 路径规划：获取两点之间的标准导航路径 (用于长隧道建模)
   Future<List<LatLng>> getRouteGeometry(LatLng start, LatLng end) async {
-    final origin = "${start.longitude.toStringAsFixed(6)},${start.latitude.toStringAsFixed(6)}";
-    final destination = "${end.longitude.toStringAsFixed(6)},${end.latitude.toStringAsFixed(6)}";
-    
-    final url = "https://restapi.amap.com/v3/direction/driving?key=$apiKey&origin=$origin&destination=$destination&extensions=all";
+    final origin =
+        "${start.longitude.toStringAsFixed(6)},${start.latitude.toStringAsFixed(6)}";
+    final destination =
+        "${end.longitude.toStringAsFixed(6)},${end.latitude.toStringAsFixed(6)}";
+
+    final url =
+        "https://restapi.amap.com/v3/direction/driving?key=$apiKey&origin=$origin&destination=$destination&extensions=all";
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -50,7 +54,8 @@ class AmapService {
             final pts = polyline.split(';');
             for (var pt in pts) {
               final lonlat = pt.split(',');
-              fullPath.add(LatLng(double.parse(lonlat[1]), double.parse(lonlat[0])));
+              fullPath.add(
+                  LatLng(double.parse(lonlat[1]), double.parse(lonlat[0])));
             }
           }
           return fullPath;
@@ -62,4 +67,3 @@ class AmapService {
     return [start, end];
   }
 }
-

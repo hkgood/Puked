@@ -183,7 +183,8 @@ class SensorEngine {
   void _learnHeading(Vector3 accel) {
     // 逻辑：寻找车辆起步瞬间的加速度矢量方向
     // 如果纵向加速度较大（> 1.0 m/s²），记录其在水平面 (X-Y) 的偏移角
-    final double horizontalMag = Math.sqrt(accel.x * accel.x + accel.y * accel.y);
+    final double horizontalMag =
+        Math.sqrt(accel.x * accel.x + accel.y * accel.y);
     if (horizontalMag > 1.5 && accel.y > 0) {
       _headingLearningBuffer.addLast(accel.clone());
       if (_headingLearningBuffer.length > 20) {
@@ -197,7 +198,8 @@ class SensorEngine {
         // 如果偏角超过 3 度，触发修正
         if (avgAngle.abs() > 0.05) {
           _dynamicYawOffset -= avgAngle; // 减去偏角以归零
-          debugPrint("Heading Aligned: Adjusted by ${(avgAngle * 180 / Math.pi).toStringAsFixed(1)}°");
+          debugPrint(
+              "Heading Aligned: Adjusted by ${(avgAngle * 180 / Math.pi).toStringAsFixed(1)}°");
         }
         _isHeadingAligned = true;
         _headingLearningBuffer.clear();
@@ -237,7 +239,8 @@ class SensorEngine {
     _gravityMagnitude = gMean.length;
     // 强制校验：如果重力模长不在合理范围内 (8.0 ~ 12.0)，说明传感器还在假死或读数异常
     if (_gravityMagnitude < 8.0 || _gravityMagnitude > 12.0) {
-      throw Exception("校准失败：传感器读数异常 (G: ${_gravityMagnitude.toStringAsFixed(2)})，请检查权限或重启 App");
+      throw Exception(
+          "校准失败：传感器读数异常 (G: ${_gravityMagnitude.toStringAsFixed(2)})，请检查权限或重启 App");
     }
 
     final unitZ = gMean.normalized();

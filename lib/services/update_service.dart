@@ -33,7 +33,6 @@ class UpdateService {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-
         final data = json.decode(response.body);
         final latestTag = data['tag_name'] as String;
         final releaseNotes = (data['body'] ?? '') as String;
@@ -368,18 +367,15 @@ class UpdateService {
                       case OtaStatus.INTERNAL_ERROR:
                       case OtaStatus.DOWNLOAD_ERROR:
                       case OtaStatus.CHECKSUM_ERROR:
-                        statusText = isZh
-                            ? '当前通道下载失败'
-                            : 'Mirror download failed';
+                        statusText =
+                            isZh ? '当前通道下载失败' : 'Mirror download failed';
                         isError = true;
                         break;
                       default:
                         statusText = isZh ? '处理中...' : 'Processing...';
                     }
                   } else if (snapshot.hasError) {
-                    statusText = isZh
-                        ? '网络连接异常'
-                        : 'Network error';
+                    statusText = isZh ? '网络连接异常' : 'Network error';
                     isError = true;
                   }
 
@@ -441,7 +437,8 @@ class UpdateService {
                                       });
                                     },
                                     icon: const Icon(Icons.refresh, size: 18),
-                                    label: Text(isZh ? '切换备用通道' : 'Try next mirror'),
+                                    label: Text(
+                                        isZh ? '切换备用通道' : 'Try next mirror'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: colorScheme.primary,
                                       foregroundColor: colorScheme.onPrimary,

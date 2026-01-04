@@ -128,7 +128,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   final Ref _ref;
   final InertialNavigationEngine _insEngine = InertialNavigationEngine();
   final AmapService _amapService = AmapService();
-  
+
   StreamSubscription<Position>? _positionSub;
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
@@ -542,7 +542,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       state = state.copyWith(debugMessage: 'Initing Storage...');
       await _storage.init();
       final trip = await _storage.startTrip(
-          carModel: carModel, notes: notes, algorithm: state.algorithmMode.name);
+          carModel: carModel,
+          notes: notes,
+          algorithm: state.algorithmMode.name);
       _recordingStartTime = DateTime.now();
       _xHistory.clear();
       _yHistory.clear();
@@ -714,18 +716,18 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     // 1. 地图纠偏：利用高德“抓路”服务修正隧道内的轨迹
     // 我们可以取隧道内的最后 10 个点进行修正
-    final tunnelPoints = state.trajectory
-        .where((p) => p.isLowConfidence == true)
-        .toList();
-    
+    final tunnelPoints =
+        state.trajectory.where((p) => p.isLowConfidence == true).toList();
+
     if (tunnelPoints.length > 2) {
-      final List<LatLng> rawPts = tunnelPoints.map((p) => LatLng(p.lat, p.lng)).toList();
+      final List<LatLng> rawPts =
+          tunnelPoints.map((p) => LatLng(p.lat, p.lng)).toList();
       final correctedPts = await _amapService.grabRoad(rawPts);
-      
+
       // 更新内存中的轨迹（这里可以做更复杂的平滑，目前先直接替换）
       // ... 逻辑略 ...
     }
-    
+
     debugPrint('INS Drift Corrected by GPS');
   }
 

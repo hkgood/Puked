@@ -618,7 +618,16 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
     } else {
       // 预定义的“规整”间隔
       final List<double> niceIntervals = [
-        1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0
+        1.0,
+        2.0,
+        5.0,
+        10.0,
+        20.0,
+        50.0,
+        100.0,
+        200.0,
+        500.0,
+        1000.0
       ];
       for (var interval in niceIntervals) {
         // 目标：标签数 (maxVal / interval) 的向上取整 + 1 (0刻度) + 1 (顶层余量) <= 8

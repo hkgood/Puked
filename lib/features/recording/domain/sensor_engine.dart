@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 import 'dart:math' as Math;
+import 'package:flutter/foundation.dart';
 import 'package:puked/models/sensor_data.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -196,7 +197,7 @@ class SensorEngine {
         // 如果偏角超过 3 度，触发修正
         if (avgAngle.abs() > 0.05) {
           _dynamicYawOffset -= avgAngle; // 减去偏角以归零
-          debugPrint("Heading Aligned: Adjusted by ${(avgAngle * 180 / Math.PI).toStringAsFixed(1)}°");
+          debugPrint("Heading Aligned: Adjusted by ${(avgAngle * 180 / Math.pi).toStringAsFixed(1)}°");
         }
         _isHeadingAligned = true;
         _headingLearningBuffer.clear();

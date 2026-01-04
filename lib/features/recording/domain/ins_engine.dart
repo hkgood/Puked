@@ -15,11 +15,11 @@ class InertialNavigationEngine {
 
   // --- 协方差矩阵 (简化为块处理以提高性能) ---
   // P 矩阵通常为 15x15，这里我们重点追踪对角线分量
-  final Vector3 _pPos = Vector3.all(1.0);
-  final Vector3 _pVel = Vector3.all(0.1);
-  final Vector3 _pAtt = Vector3.all(0.01);
-  final Vector3 _pAccBias = Vector3.all(0.0001);
-  final Vector3 _pGyroBias = Vector3.all(0.00001);
+  Vector3 _pPos = Vector3.all(1.0);
+  Vector3 _pVel = Vector3.all(0.1);
+  Vector3 _pAtt = Vector3.all(0.01);
+  Vector3 _pAccBias = Vector3.all(0.0001);
+  Vector3 _pGyroBias = Vector3.all(0.00001);
 
   // --- 常量与噪声参数 ---
   static const double _g = 9.80665;

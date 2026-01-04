@@ -76,9 +76,9 @@ jobs:
         run: |
           # 提取版本号，去除 v 前缀 (例如 v1.0.3 -> 1.0.3)
           VERSION_NAME=$(echo ${{ github.ref_name }} | sed 's/^v//')
-          # 如果不是从 tag 触发，则使用默认版本
+          # 如果不是从 tag 触发，则使用当前主版本号
           if [[ ! ${{ github.ref_name }} =~ ^v ]]; then
-            VERSION_NAME="1.0.8"
+            VERSION_NAME="2.1.0"
           fi
           
           flutter pub get
@@ -128,7 +128,7 @@ jobs:
           fi
 
           # 获取 GitHub 原始下载链接
-          GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-1.0.8.apk"
+          GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-2.1.0.apk"
           if [[ ${{ github.ref }} == refs/tags/v* ]]; then
              GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-${VERSION_NAME#v}.apk"
           fi

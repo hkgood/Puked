@@ -611,16 +611,28 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
       if (item.kmPerEvent > maxVal) maxVal = item.kmPerEvent;
     }
 
-    double niceMax;
-    double intervalY;
+    // 抽稀算法：根据最大值动态计算合适的 Y 轴间隔 (最多约 8 个标签)
+    double intervalY = 1.0;
     if (maxVal <= 2.5) {
-      niceMax = (maxVal / 0.5).ceil() * 0.5;
       intervalY = 0.5;
     } else {
-      niceMax = maxVal.ceilToDouble();
-      intervalY = 1.0;
+      // 预定义的“规整”间隔
+      final List<double> niceIntervals = [
+        1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0
+      ];
+      for (var interval in niceIntervals) {
+        // 目标：标签数 (maxVal / interval) 的向上取整 + 1 (0刻度) + 1 (顶层余量) <= 8
+        // 即 ceil(maxVal / interval) <= 6
+        if ((maxVal / interval).ceil() <= 6) {
+          intervalY = interval;
+          break;
+        }
+        intervalY = interval; // 如果都不满足，使用最大的间隔
+      }
     }
-    // 留出至少一个间隔的余量，避免柱子触顶
+
+    double niceMax = (maxVal / intervalY).ceil() * intervalY;
+    // 留出至少一个间隔的余量，避免柱子触顶，同时也作为 Y 轴最大刻度
     niceMax += intervalY;
     if (niceMax < 1.0) niceMax = 1.0;
 

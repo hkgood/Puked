@@ -17,58 +17,78 @@ const TripSchema = CollectionSchema(
   name: r'Trip',
   id: 2639069002795865543,
   properties: {
-    r'brand': PropertySchema(
+    r'algorithm': PropertySchema(
       id: 0,
+      name: r'algorithm',
+      type: IsarType.string,
+    ),
+    r'appVersion': PropertySchema(
+      id: 1,
+      name: r'appVersion',
+      type: IsarType.string,
+    ),
+    r'brand': PropertySchema(
+      id: 2,
       name: r'brand',
       type: IsarType.string,
     ),
     r'carModel': PropertySchema(
-      id: 1,
+      id: 3,
       name: r'carModel',
       type: IsarType.string,
     ),
     r'cloudId': PropertySchema(
-      id: 2,
+      id: 4,
       name: r'cloudId',
       type: IsarType.string,
     ),
     r'distance': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'distance',
       type: IsarType.double,
     ),
     r'endTime': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'endTime',
       type: IsarType.dateTime,
     ),
     r'eventCount': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'eventCount',
       type: IsarType.long,
     ),
+    r'isDataSufficient': PropertySchema(
+      id: 8,
+      name: r'isDataSufficient',
+      type: IsarType.bool,
+    ),
     r'isUploaded': PropertySchema(
-      id: 6,
+      id: 9,
       name: r'isUploaded',
       type: IsarType.bool,
     ),
     r'notes': PropertySchema(
-      id: 7,
+      id: 10,
       name: r'notes',
       type: IsarType.string,
     ),
+    r'platform': PropertySchema(
+      id: 11,
+      name: r'platform',
+      type: IsarType.string,
+    ),
     r'softwareVersion': PropertySchema(
-      id: 8,
+      id: 12,
       name: r'softwareVersion',
       type: IsarType.string,
     ),
     r'startTime': PropertySchema(
-      id: 9,
+      id: 13,
       name: r'startTime',
       type: IsarType.dateTime,
     ),
     r'uuid': PropertySchema(
-      id: 10,
+      id: 14,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -121,6 +141,18 @@ int _tripEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.algorithm;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.appVersion;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.brand;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -145,6 +177,12 @@ int _tripEstimateSize(
     }
   }
   {
+    final value = object.platform;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.softwareVersion;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -160,17 +198,21 @@ void _tripSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.brand);
-  writer.writeString(offsets[1], object.carModel);
-  writer.writeString(offsets[2], object.cloudId);
-  writer.writeDouble(offsets[3], object.distance);
-  writer.writeDateTime(offsets[4], object.endTime);
-  writer.writeLong(offsets[5], object.eventCount);
-  writer.writeBool(offsets[6], object.isUploaded);
-  writer.writeString(offsets[7], object.notes);
-  writer.writeString(offsets[8], object.softwareVersion);
-  writer.writeDateTime(offsets[9], object.startTime);
-  writer.writeString(offsets[10], object.uuid);
+  writer.writeString(offsets[0], object.algorithm);
+  writer.writeString(offsets[1], object.appVersion);
+  writer.writeString(offsets[2], object.brand);
+  writer.writeString(offsets[3], object.carModel);
+  writer.writeString(offsets[4], object.cloudId);
+  writer.writeDouble(offsets[5], object.distance);
+  writer.writeDateTime(offsets[6], object.endTime);
+  writer.writeLong(offsets[7], object.eventCount);
+  writer.writeBool(offsets[8], object.isDataSufficient);
+  writer.writeBool(offsets[9], object.isUploaded);
+  writer.writeString(offsets[10], object.notes);
+  writer.writeString(offsets[11], object.platform);
+  writer.writeString(offsets[12], object.softwareVersion);
+  writer.writeDateTime(offsets[13], object.startTime);
+  writer.writeString(offsets[14], object.uuid);
 }
 
 Trip _tripDeserialize(
@@ -180,18 +222,21 @@ Trip _tripDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Trip();
-  object.brand = reader.readStringOrNull(offsets[0]);
-  object.carModel = reader.readStringOrNull(offsets[1]);
-  object.cloudId = reader.readStringOrNull(offsets[2]);
-  object.distance = reader.readDouble(offsets[3]);
-  object.endTime = reader.readDateTimeOrNull(offsets[4]);
-  object.eventCount = reader.readLong(offsets[5]);
+  object.algorithm = reader.readStringOrNull(offsets[0]);
+  object.appVersion = reader.readStringOrNull(offsets[1]);
+  object.brand = reader.readStringOrNull(offsets[2]);
+  object.carModel = reader.readStringOrNull(offsets[3]);
+  object.cloudId = reader.readStringOrNull(offsets[4]);
+  object.distance = reader.readDouble(offsets[5]);
+  object.endTime = reader.readDateTimeOrNull(offsets[6]);
+  object.eventCount = reader.readLong(offsets[7]);
   object.id = id;
-  object.isUploaded = reader.readBool(offsets[6]);
-  object.notes = reader.readStringOrNull(offsets[7]);
-  object.softwareVersion = reader.readStringOrNull(offsets[8]);
-  object.startTime = reader.readDateTime(offsets[9]);
-  object.uuid = reader.readString(offsets[10]);
+  object.isUploaded = reader.readBool(offsets[9]);
+  object.notes = reader.readStringOrNull(offsets[10]);
+  object.platform = reader.readStringOrNull(offsets[11]);
+  object.softwareVersion = reader.readStringOrNull(offsets[12]);
+  object.startTime = reader.readDateTime(offsets[13]);
+  object.uuid = reader.readString(offsets[14]);
   return object;
 }
 
@@ -209,20 +254,28 @@ P _tripDeserializeProp<P>(
     case 2:
       return (reader.readStringOrNull(offset)) as P;
     case 3:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 4:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 6:
-      return (reader.readBool(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 7:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 8:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 9:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 10:
+      return (reader.readStringOrNull(offset)) as P;
+    case 11:
+      return (reader.readStringOrNull(offset)) as P;
+    case 12:
+      return (reader.readStringOrNull(offset)) as P;
+    case 13:
+      return (reader.readDateTime(offset)) as P;
+    case 14:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -418,6 +471,298 @@ extension TripQueryWhere on QueryBuilder<Trip, Trip, QWhereClause> {
 }
 
 extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'algorithm',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'algorithm',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'algorithm',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'algorithm',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'algorithm',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'algorithm',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'algorithm',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'algorithm',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'algorithm',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'algorithm',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'algorithm',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'algorithm',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'appVersion',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'appVersion',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'appVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'appVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'appVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'appVersion',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'appVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'appVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'appVersion',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'appVersion',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'appVersion',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> appVersionIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'appVersion',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> brandIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1086,6 +1431,16 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> isDataSufficientEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isDataSufficient',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> isUploadedEqualTo(
       bool value) {
     return QueryBuilder.apply(this, (query) {
@@ -1235,6 +1590,151 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'notes',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'platform',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'platform',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'platform',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'platform',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'platform',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'platform',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'platform',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'platform',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformContains(String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'platform',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'platform',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'platform',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> platformIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'platform',
         value: '',
       ));
     });
@@ -1685,6 +2185,30 @@ extension TripQueryLinks on QueryBuilder<Trip, Trip, QFilterCondition> {
 }
 
 extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAlgorithm() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'algorithm', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAlgorithmDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'algorithm', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAppVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAppVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByBrand() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'brand', Sort.asc);
@@ -1757,6 +2281,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByIsDataSufficient() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isDataSufficient', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByIsDataSufficientDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isDataSufficient', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByIsUploaded() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isUploaded', Sort.asc);
@@ -1778,6 +2314,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByNotesDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notes', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByPlatform() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'platform', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByPlatformDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'platform', Sort.desc);
     });
   }
 
@@ -1819,6 +2367,30 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
 }
 
 extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAlgorithm() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'algorithm', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAlgorithmDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'algorithm', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAppVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appVersion', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAppVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appVersion', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByBrand() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'brand', Sort.asc);
@@ -1903,6 +2475,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByIsDataSufficient() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isDataSufficient', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByIsDataSufficientDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isDataSufficient', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByIsUploaded() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isUploaded', Sort.asc);
@@ -1924,6 +2508,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByNotesDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notes', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByPlatform() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'platform', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByPlatformDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'platform', Sort.desc);
     });
   }
 
@@ -1965,6 +2561,20 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
 }
 
 extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
+  QueryBuilder<Trip, Trip, QDistinct> distinctByAlgorithm(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'algorithm', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QDistinct> distinctByAppVersion(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'appVersion', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByBrand(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2004,6 +2614,12 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QDistinct> distinctByIsDataSufficient() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isDataSufficient');
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByIsUploaded() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isUploaded');
@@ -2014,6 +2630,13 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'notes', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QDistinct> distinctByPlatform(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'platform', caseSensitive: caseSensitive);
     });
   }
 
@@ -2043,6 +2666,18 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
   QueryBuilder<Trip, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> algorithmProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'algorithm');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> appVersionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'appVersion');
     });
   }
 
@@ -2082,6 +2717,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
     });
   }
 
+  QueryBuilder<Trip, bool, QQueryOperations> isDataSufficientProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isDataSufficient');
+    });
+  }
+
   QueryBuilder<Trip, bool, QQueryOperations> isUploadedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isUploaded');
@@ -2091,6 +2732,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
   QueryBuilder<Trip, String?, QQueryOperations> notesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'notes');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> platformProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'platform');
     });
   }
 

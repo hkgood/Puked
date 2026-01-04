@@ -15,6 +15,9 @@ class Trip {
   String? carModel;
   String? brand;
   String? softwareVersion;
+  String? appVersion;
+  String? platform;
+  String? algorithm;
   String? notes;
 
   // 云端关联 ID (PocketBase Record ID)

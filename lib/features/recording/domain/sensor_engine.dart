@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
+import 'dart:math' as Math;
 import 'package:puked/models/sensor_data.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -27,10 +28,27 @@ class SensorEngine {
   Vector3 _filteredAccel = Vector3.zero();
   Vector3 _gravityEstimate = Vector3.zero();
 
+  // --- 顶级滤波矩阵成员 ---
+  final ListQueue<Vector3> _medianBuffer = ListQueue<Vector3>();
+  static const int _medianWindowSize = 3;
+
+  // 卡尔曼滤波器状态 (简单版用于重力追踪)
+  Vector3 _kalmanGravity = Vector3.zero();
+  Vector3 _kalmanP = Vector3.all(0.1); // 误差协方差
+  static const double _kalmanQ = 0.001; // 过程噪声
+  static const double _kalmanR = 0.1; // 测量噪声
+
+  // 动态航向修正相关
+  double _dynamicYawOffset = 0.0;
+  final ListQueue<Vector3> _headingLearningBuffer = ListQueue<Vector3>();
+  bool _isHeadingAligned = false;
+
   // 临时存储最新的传感器原始值
   final Vector3 _latestAccel = Vector3.zero();
   final Vector3 _latestGyro = Vector3.zero();
   final Vector3 _latestMag = Vector3.zero();
+  DateTime _lastSensorEventTime = DateTime.now();
+  int _sensorEventCount = 0;
 
   StreamSubscription? _accelSub;
   StreamSubscription? _gyroSub;
@@ -38,6 +56,8 @@ class SensorEngine {
   Timer? _samplingTimer;
   bool _isRunning = false;
   bool get isRunning => _isRunning;
+  DateTime get lastSensorEventTime => _lastSensorEventTime;
+  int get sensorEventCount => _sensorEventCount;
 
   // 广播流，供 UI 订阅
   final _dataController = StreamController<SensorData>.broadcast();
@@ -56,6 +76,8 @@ class SensorEngine {
     _accelSub =
         accelerometerEventStream(samplingPeriod: sensorInterval).listen((e) {
       _latestAccel.setValues(e.x, e.y, e.z);
+      _lastSensorEventTime = DateTime.now();
+      _sensorEventCount++;
       // iOS 采用“同步驱动”：传感器一更新，立刻触发 tick，消除真空期
       if (Platform.isIOS) _processTick();
     });
@@ -76,25 +98,49 @@ class SensorEngine {
   void _processTick() {
     final now = DateTime.now();
 
-    // 1. 应用旋转矩阵
-    final rotatedAccel = _rotationMatrix.transformed(_latestAccel);
-    final rotatedGyro = _rotationMatrix.transformed(_latestGyro);
+    // Stage 1: 中值滤波 (Median Filter) - 消除硬件毛刺
+    _medianBuffer.addLast(_latestAccel.clone());
+    if (_medianBuffer.length > _medianWindowSize) _medianBuffer.removeFirst();
 
-    // 2. 实时估计重力分量
-    if (_isCalibrated) {
-      _gravityEstimate = _gravityEstimate * (1.0 - _rampFilterCoeff) +
-          rotatedAccel * _rampFilterCoeff;
+    final Vector3 smoothedAccel = _calculateMedian(_medianBuffer.toList());
+
+    // Stage 2: 卡尔曼滤波 (Kalman Filter) - 动态追踪重力姿态
+    if (!_isCalibrated) {
+      _kalmanGravity = smoothedAccel.clone();
+      _isCalibrated = true; // 初始状态下直接采信
     } else {
-      _gravityEstimate = rotatedAccel.clone();
+      // 简单卡尔曼更新：预测
+      // Gravity doesn't change much, so prediction is same as last state
+      // 修正：计算卡尔曼增益
+      for (int i = 0; i < 3; i++) {
+        _kalmanP[i] = _kalmanP[i] + _kalmanQ;
+        double kGain = _kalmanP[i] / (_kalmanP[i] + _kalmanR);
+        _kalmanGravity[i] =
+            _kalmanGravity[i] + kGain * (smoothedAccel[i] - _kalmanGravity[i]);
+        _kalmanP[i] = (1 - kGain) * _kalmanP[i];
+      }
     }
 
-    // 3. 低通滤波
-    _filteredAccel =
-        _filteredAccel * (1.0 - _lpfCoeff) + rotatedAccel * _lpfCoeff;
+    // Stage 3: 应用旋转矩阵 (包含动态航向修正)
+    // 基础旋转（由静态校准确定）
+    Vector3 rotatedAccel = _rotationMatrix.transformed(smoothedAccel);
+    Vector3 rotatedGyro = _rotationMatrix.transformed(_latestGyro);
 
-    // 4. 扣除重力
-    final processedAccel = rotatedAccel - _gravityEstimate;
-    final processedFilteredAccel = _filteredAccel - _gravityEstimate;
+    // 应用动态航向修正 (Yaw)
+    if (_dynamicYawOffset != 0) {
+      final yawMatrix = Matrix3.rotationZ(_dynamicYawOffset);
+      rotatedAccel = yawMatrix.transformed(rotatedAccel);
+      rotatedGyro = yawMatrix.transformed(rotatedGyro);
+    }
+
+    // Stage 4: 扣除动态重力
+    final Vector3 currentGravityInRef =
+        _rotationMatrix.transformed(_kalmanGravity);
+    final processedAccel = rotatedAccel - currentGravityInRef;
+
+    // 低通滤波用于平滑显示
+    _filteredAccel =
+        _filteredAccel * (1.0 - _lpfCoeff) + processedAccel * _lpfCoeff;
 
     final data = SensorData(
       timestamp: now,
@@ -103,8 +149,13 @@ class SensorEngine {
       magnetometer: _latestMag.clone(),
       processedAccel: processedAccel,
       processedGyro: rotatedGyro,
-      filteredAccel: processedFilteredAccel,
+      filteredAccel: _filteredAccel,
     );
+
+    // 动态航向学习逻辑：在启动的前 30 秒，如果检测到明显的纵向加速，自动对齐
+    if (!_isHeadingAligned && _buffer.length > 30) {
+      _learnHeading(processedAccel);
+    }
 
     // 更新缓冲区
     if (_buffer.length >= bufferLimit) {
@@ -114,6 +165,43 @@ class SensorEngine {
 
     // 推送到 UI 层
     _dataController.add(data);
+  }
+
+  Vector3 _calculateMedian(List<Vector3> samples) {
+    if (samples.isEmpty) return Vector3.zero();
+    if (samples.length == 1) return samples[0];
+
+    final xValues = samples.map((s) => s.x).toList()..sort();
+    final yValues = samples.map((s) => s.y).toList()..sort();
+    final zValues = samples.map((s) => s.z).toList()..sort();
+
+    final mid = samples.length ~/ 2;
+    return Vector3(xValues[mid], yValues[mid], zValues[mid]);
+  }
+
+  void _learnHeading(Vector3 accel) {
+    // 逻辑：寻找车辆起步瞬间的加速度矢量方向
+    // 如果纵向加速度较大（> 1.0 m/s²），记录其在水平面 (X-Y) 的偏移角
+    final double horizontalMag = Math.sqrt(accel.x * accel.x + accel.y * accel.y);
+    if (horizontalMag > 1.5 && accel.y > 0) {
+      _headingLearningBuffer.addLast(accel.clone());
+      if (_headingLearningBuffer.length > 20) {
+        // 计算平均偏角
+        double avgAngle = 0;
+        for (var a in _headingLearningBuffer) {
+          avgAngle += Math.atan2(a.x, a.y);
+        }
+        avgAngle /= _headingLearningBuffer.length;
+
+        // 如果偏角超过 3 度，触发修正
+        if (avgAngle.abs() > 0.05) {
+          _dynamicYawOffset -= avgAngle; // 减去偏角以归零
+          debugPrint("Heading Aligned: Adjusted by ${(avgAngle * 180 / Math.PI).toStringAsFixed(1)}°");
+        }
+        _isHeadingAligned = true;
+        _headingLearningBuffer.clear();
+      }
+    }
   }
 
   /// 顶级校准逻辑：增加方差校验，确保校准时手机是静止的
@@ -146,7 +234,10 @@ class SensorEngine {
     }
 
     _gravityMagnitude = gMean.length;
-    if (_gravityMagnitude < 0.1) return;
+    // 强制校验：如果重力模长不在合理范围内 (8.0 ~ 12.0)，说明传感器还在假死或读数异常
+    if (_gravityMagnitude < 8.0 || _gravityMagnitude > 12.0) {
+      throw Exception("校准失败：传感器读数异常 (G: ${_gravityMagnitude.toStringAsFixed(2)})，请检查权限或重启 App");
+    }
 
     final unitZ = gMean.normalized();
     Vector3 reference = Vector3(0, 1, 0);
@@ -162,6 +253,8 @@ class SensorEngine {
       ..invert();
     _gravityEstimate = _rotationMatrix.transformed(gMean);
     _isCalibrated = true;
+    _isHeadingAligned = false; // 重置航向对齐标志
+    _dynamicYawOffset = 0.0; // 重置航向偏角
 
     _processTick();
   }

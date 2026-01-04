@@ -660,14 +660,13 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
               return _buildGpsStatusTag(state, i18n);
             }),
           ),
-          // iOS 算法切换按钮 (右上角，缩小 50%)
-          if (Theme.of(context).platform == TargetPlatform.iOS &&
-              !state.isCalibrating)
+          // 算法切换按钮 (右上角，缩小 75%)
+          if (!state.isCalibrating)
             Positioned(
               top: (isLandscape || noMargin) ? 12 : 16,
               right: (isLandscape || noMargin) ? 12 : 16,
               child: Transform.scale(
-                scale: 0.75, // 缩小至约 75%，50% 可能太小无法点击，此处取平衡
+                scale: 0.75,
                 alignment: Alignment.topRight,
                 child: Consumer(builder: (context, ref, child) {
                   return ElevatedButton.icon(

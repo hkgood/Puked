@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -188,13 +190,18 @@ class StorageService {
     });
   }
 
-  Future<Trip> startTrip({String? carModel, String? notes}) async {
+  Future<Trip> startTrip(
+      {String? carModel, String? notes, String? algorithm}) async {
     await init();
+    final packageInfo = await PackageInfo.fromPlatform();
     final trip = Trip()
       ..uuid = const Uuid().v4()
       ..startTime = DateTime.now()
       ..carModel = carModel
-      ..notes = notes;
+      ..notes = notes
+      ..appVersion = packageInfo.version
+      ..platform = Platform.operatingSystem
+      ..algorithm = algorithm;
 
     await _isar!.writeTxn(() async {
       await _isar!.trips.put(trip);

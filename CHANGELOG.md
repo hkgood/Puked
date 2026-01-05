@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.2] - 2026-01-05
+
+### Added
+- **里程贡献榜单**：Arena 页面新增用户里程贡献排行榜，量化每位 PM 的路测贡献。
+
+### Fixed
+- **安卓轨迹漂移修复**：优化低 GPS 信号下的位置平滑算法，解决地库或高架下行程轨迹紊乱的问题。
+
 ## [2.1.1] - 2026-01-04
 
 ### Added

@@ -74,7 +74,9 @@ class ArenaService {
       final brandName = trip.brand;
       if (brandName == null ||
           brandName.isEmpty ||
-          brandName.toLowerCase() == 'unknown') continue;
+          brandName.toLowerCase() == 'unknown') {
+        continue;
+      }
 
       String key;
       String? version;
@@ -84,7 +86,9 @@ class ArenaService {
         version = trip.softwareVersion;
         if (version == null ||
             version.isEmpty ||
-            version.toLowerCase() == 'unknown') continue;
+            version.toLowerCase() == 'unknown') {
+          continue;
+        }
         key = '$brandName|$version';
       }
 
@@ -354,8 +358,9 @@ class ArenaService {
 
     for (final t in trips) {
       final brand = t.brand;
-      if (brand == null || brand.isEmpty || brand.toLowerCase() == 'unknown')
+      if (brand == null || brand.isEmpty || brand.toLowerCase() == 'unknown') {
         continue;
+      }
 
       final km = t.distance / 1000.0;
       if (!mileageMap.containsKey(brand)) {
@@ -455,6 +460,54 @@ class ArenaService {
     return result;
   }
 
+  // --- 用户里程贡献榜 ---
+  List<UserLeaderboardData> getUserLeaderboard({bool weekly = false}) {
+    if (trips.isEmpty) return [];
+
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+
+    // 使用 userId 作为 Key 进行聚合，而不是用户名
+    final Map<String, _UserMileageRecord> userMap = {};
+
+    for (final t in trips) {
+      if (weekly && t.startTime.isBefore(sevenDaysAgo)) {
+        continue;
+      }
+
+      // 如果 userId 缺失，则使用 'unknown_user'，但这种情况理论上不应该发生
+      final uId = t.userId ?? 'unknown_user';
+
+      if (!userMap.containsKey(uId)) {
+        // 如果没有用户名，生成一个可读的临时名称，如 User-a1b2
+        String displayName = t.userName ?? '';
+        if (displayName.isEmpty) {
+          if (uId.length > 4) {
+            displayName = 'User-${uId.substring(uId.length - 4)}';
+          } else {
+            displayName = 'Anonymous';
+          }
+        }
+        userMap[uId] = _UserMileageRecord(displayName);
+      }
+
+      final record = userMap[uId]!;
+      record.totalKm += (t.distance / 1000.0);
+      record.tripCount += 1;
+    }
+
+    final List<UserLeaderboardData> result = userMap.values
+        .map((e) => UserLeaderboardData(
+              userName: e.userName,
+              totalKm: e.totalKm,
+              tripCount: e.tripCount,
+            ))
+        .toList();
+
+    result.sort((a, b) => b.totalKm.compareTo(a.totalKm));
+    return result.take(10).toList(); // 只取前 10 名
+  }
+
   String getDefaultBrand() {
     final settings = _ref.read(settingsProvider);
     if (settings.brand != null && settings.brand!.isNotEmpty) {
@@ -478,4 +531,12 @@ class _MileageRecord {
   };
 
   _MileageRecord(this.brand);
+}
+
+class _UserMileageRecord {
+  final String userName;
+  double totalKm = 0;
+  int tripCount = 0;
+
+  _UserMileageRecord(this.userName);
 }

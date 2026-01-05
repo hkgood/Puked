@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/services/pocketbase_service.dart';
 
@@ -115,6 +116,7 @@ class CloudTripService {
       final records = await _pbService.pb.collection('trips').getFullList(
             filter: 'is_public = true',
             sort: '-created',
+            expand: 'user,owner', // 尝试同时展开 user 和 owner 字段
           );
 
       return records.map((r) {
@@ -122,6 +124,47 @@ class CloudTripService {
         final distanceKm =
             double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
         final eventCount = metrics['event_count'] as int? ?? 0;
+
+        // 获取用户信息
+        String? userName;
+        String? userId = r.getStringValue('user');
+
+        // 优先尝试直接访问 expand['user']，这是最标准的方式
+        final expandedUsers = r.get<List<RecordModel>?>('expand.user');
+        if (expandedUsers != null && expandedUsers.isNotEmpty) {
+          final userRecord = expandedUsers.first;
+          userId = userRecord.id;
+
+          // 调试：打印所有可用字段以防命名不一致
+          // debugPrint('User record fields: ${userRecord.data.keys}');
+
+          final name = userRecord.get<String>('name');
+          final username = userRecord.get<String>('username');
+
+          if (name != null && name.isNotEmpty) {
+            userName = name;
+          } else if (username != null && username.isNotEmpty) {
+            userName = username;
+          }
+        } else {
+          // 备用方案：如果 expand['user'] 为空，递归扫描所有 expand 入口
+          // 有时关联字段可能被命名为 owner 或其他
+          final expand = r.get<Map<String, List<RecordModel>>?>('expand');
+          if (expand != null) {
+            for (final entry in expand.entries) {
+              for (final record in entry.value) {
+                final n = record.get<String>('name') ?? '';
+                final un = record.get<String>('username') ?? '';
+                if (n.isNotEmpty || un.isNotEmpty) {
+                  userId = record.id;
+                  userName = n.isNotEmpty ? n : un;
+                  break;
+                }
+              }
+              if (userName != null) break;
+            }
+          }
+        }
 
         // 重构一个用于展示的 Trip 对象
         final trip = Trip()
@@ -132,7 +175,9 @@ class CloudTripService {
           ..distance = distanceKm * 1000 // 转回米
           ..eventCount = eventCount
           ..startTime = DateTime.parse(r.get<String>('created'))
-          ..cloudId = r.id;
+          ..cloudId = r.id
+          ..userName = userName
+          ..userId = userId;
 
         // 这里有个难点：RecordedEvent 是 Isar 集合，不能直接在内存中构建并关联。
         // 我们在 ArenaService 中需要修改逻辑，使其支持这种从 metrics 中读取的 breakdown。

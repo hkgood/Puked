@@ -20,6 +20,12 @@ class Trip {
   String? algorithm;
   String? notes;
 
+  @ignore
+  String? userName;
+
+  @ignore
+  String? userId;
+
   // 云端关联 ID (PocketBase Record ID)
   String? cloudId;
 

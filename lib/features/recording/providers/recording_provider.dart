@@ -58,6 +58,7 @@ class RecordingState {
   final DateTime? lastSensorTime; // 最后一个真实的传感器时间
   final LatLng? lastInsLocation; // 惯导推算的最后一个位置
   final bool isInsActive; // 是否正在使用惯导推算
+  final DateTime? lastHardwareTimestamp; // 上一次 GPS 硬件时间戳
 
   RecordingState({
     required this.isRecording,
@@ -79,6 +80,7 @@ class RecordingState {
     this.lastSensorTime,
     this.lastInsLocation,
     this.isInsActive = false,
+    this.lastHardwareTimestamp,
   });
 
   RecordingState copyWith({
@@ -101,6 +103,7 @@ class RecordingState {
     DateTime? lastSensorTime,
     LatLng? lastInsLocation,
     bool? isInsActive,
+    DateTime? lastHardwareTimestamp,
   }) {
     return RecordingState(
       isRecording: isRecording ?? this.isRecording,
@@ -122,6 +125,8 @@ class RecordingState {
       lastSensorTime: lastSensorTime ?? this.lastSensorTime,
       lastInsLocation: lastInsLocation ?? this.lastInsLocation,
       isInsActive: isInsActive ?? this.isInsActive,
+      lastHardwareTimestamp:
+          lastHardwareTimestamp ?? this.lastHardwareTimestamp,
     );
   }
 }
@@ -182,21 +187,43 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     // 注册生命周期监听
     WidgetsBinding.instance.addObserver(this);
     // 延迟启动定位初始化，避免 Android 12+ 启动时的前台服务限制
-    Future.microtask(() => _initializeLocation());
+    Future.microtask(() => _startLocationUpdates());
     // 确保引擎启动，以便缓冲区开始填充数据
     _engine.start();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 当 App 回到前台时，如果正在录制，确保 Wakelock 依然开启
-    if (state == AppLifecycleState.resumed && this.state.isRecording) {
-      debugPrint('App resumed, re-enabling Wakelock');
-      WakelockPlus.enable();
+    debugPrint('App lifecycle changed to: $state');
+    // 当 App 回到前台时
+    if (state == AppLifecycleState.resumed) {
+      // 无论是否在录制，回到前台都要开启定位，以便 UI 显示
+      _startLocationUpdates();
+      if (this.state.isRecording) {
+        debugPrint('App resumed, re-enabling Wakelock');
+        WakelockPlus.enable();
+      }
+    }
+    // 当 App 进入后台（暂停或失去焦点）时
+    else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // 如果没有在录制行程，则停止定位流以省电
+      if (!this.state.isRecording) {
+        debugPrint(
+            'App backgrounded and not recording, stopping location updates');
+        _stopLocationUpdates();
+      } else {
+        debugPrint('App backgrounded but recording, keeping location updates');
+      }
     }
   }
 
-  Future<void> _initializeLocation() async {
+  Future<void> _startLocationUpdates() async {
+    if (_positionSub != null) {
+      debugPrint('Location updates already running');
+      return;
+    }
+
     try {
       state = state.copyWith(debugMessage: 'Checking Permission...');
 
@@ -209,26 +236,23 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
-        state = state.copyWith(debugMessage: 'Getting Initial Position...');
+        state = state.copyWith(debugMessage: 'Starting GPS Stream...');
 
-        // 1. 获取初始位置作为“启动触发器”
+        // 1. 获取最近一次位置（如果 stream 还没出点）
         final lastKnown = await Geolocator.getLastKnownPosition();
-        if (lastKnown != null) {
+        if (lastKnown != null && state.currentPosition == null) {
           state = state.copyWith(
               currentPosition: lastKnown, debugMessage: 'Initial GPS OK');
         }
 
         // 2. 启动定位流
-        _positionSub?.cancel();
-
         late LocationSettings locationSettings;
         if (defaultTargetPlatform == TargetPlatform.android) {
           locationSettings = AndroidSettings(
             accuracy: LocationAccuracy.high,
             distanceFilter: 0,
-            intervalDuration: const Duration(seconds: 2), // 调低频率到 2s 规避拦截
-            forceLocationManager:
-                true, // 【关键优化】强制使用系统原生 GPS，绕过 Fused Location 的智能合并/延迟
+            intervalDuration: const Duration(seconds: 2),
+            forceLocationManager: true,
             foregroundNotificationConfig: const ForegroundNotificationConfig(
               notificationText: "Puked 正在记录行程中",
               notificationTitle: "实时记录中",
@@ -252,20 +276,32 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           },
           onError: (error) {
             state = state.copyWith(debugMessage: 'Stream Error: $error');
+            _stopLocationUpdates(); // 出错时尝试清理，以便后续重启
           },
         );
 
-        // 异步尝试获取更高精度的起始点
-        Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-          ),
-        ).timeout(const Duration(seconds: 5)).then((pos) {
-          if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
-        }).catchError((_) {});
+        // 异步尝试获取更高精度的起始点 (仅在 stream 还没稳定时)
+        if (state.locationUpdateCount == 0) {
+          Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+            ),
+          ).timeout(const Duration(seconds: 5)).then((pos) {
+            if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
+          }).catchError((_) {});
+        }
       }
     } catch (e) {
-      state = state.copyWith(debugMessage: 'Init Error: $e');
+      state = state.copyWith(debugMessage: 'Start Location Error: $e');
+    }
+  }
+
+  void _stopLocationUpdates() {
+    if (_positionSub != null) {
+      debugPrint('Stopping location updates');
+      _positionSub?.cancel();
+      _positionSub = null;
+      state = state.copyWith(debugMessage: 'GPS Stopped (Eco Mode)');
     }
   }
 
@@ -276,6 +312,16 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     // 第一性原理：UI 必须更新
     final prevPosition = state.currentPosition;
     final now = DateTime.now();
+    final hwTimestamp = position.timestamp; // 获取硬件/系统下发的原始时间戳
+
+    // --- 守卫 1: 时间单调性守卫 (Monotonicity Guard) ---
+    // Android 会注入旧的 LastKnownLocation，其时间戳会早于当前已记录的点
+    if (state.lastHardwareTimestamp != null &&
+        !hwTimestamp.isAfter(state.lastHardwareTimestamp!)) {
+      debugPrint(
+          'Guard 1 Triggered: Stale GPS timestamp (HW: $hwTimestamp, Last: ${state.lastHardwareTimestamp})');
+      return;
+    }
 
     // 判断是否在“行程起始宽容期”（前 60 秒）
     bool isInGracePeriod = false;
@@ -289,9 +335,28 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     final bool isLowConfidence =
         position.accuracy > 40.0; // 只要精度大于 40m，我们就认为是弱信号/室内场景
 
+    // --- 守卫 2: 物理速度守卫 (Velocity Guard) ---
+    // 如果相对于上一个点产生了不合理的瞬时位移（例如跳回 200m），判定为异常
+    if (state.isRecording && prevPosition != null && isReliable) {
+      final double distance = Geolocator.distanceBetween(prevPosition.latitude,
+          prevPosition.longitude, position.latitude, position.longitude);
+      final double timeDiff = hwTimestamp
+          .difference(state.lastHardwareTimestamp ?? now)
+          .inSeconds
+          .toDouble();
+
+      // 如果 1 秒内位移超过 100m (360km/h)，且不是行程刚开始，视为跳变
+      if (timeDiff > 0 && (distance / timeDiff) > 100.0 && !isInGracePeriod) {
+        debugPrint(
+            'Guard 2 Triggered: Impossible velocity jump (${(distance / timeDiff).toStringAsFixed(1)} m/s)');
+        return;
+      }
+    }
+
     state = state.copyWith(
       currentPosition: position,
       lastLocationTime: now,
+      lastHardwareTimestamp: hwTimestamp,
       locationUpdateCount: state.locationUpdateCount + 1,
       isLowConfidenceGPS: isLowConfidence,
       debugMessage: isReliable
@@ -343,7 +408,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         ..lng = position.longitude
         ..altitude = position.altitude
         ..speed = position.speed
-        ..timestamp = now
+        ..timestamp = hwTimestamp // 使用硬件时间戳，保持物理一致性
         ..isLowConfidence = isLowConfidence;
 
       final newDistance = state.currentDistance + addedDistance;
@@ -589,7 +654,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                 );
               }
 
-              if (isFrozen) return; // 假死状态，不进行任何自动打标，保护滤波器
+              if (isFrozen) {
+                return; // 假死状态，不进行任何自动打标，保护滤波器
+              }
 
               // --- 惯导引擎预测 (核心) ---
               if (state.isRecording) {
@@ -674,6 +741,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     _sensorSub?.close();
     _sensorSub = null;
     await WakelockPlus.disable();
+
+    final isResumed =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
     state = state.copyWith(
       isRecording: false,
       isCalibrating: false,
@@ -684,6 +755,12 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       maxGForce: 0.0,
       currentPosition: state.currentPosition,
     );
+
+    // 如果行程结束时 App 已经处于后台，则立即停止定位以省电
+    if (!isResumed) {
+      debugPrint('Trip ended in background, stopping location updates');
+      _stopLocationUpdates();
+    }
   }
 
   /// 惯导模式下的轨迹记录点
@@ -730,7 +807,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (tunnelPoints.length > 2) {
       final List<LatLng> rawPts =
           tunnelPoints.map((p) => LatLng(p.lat, p.lng)).toList();
-      final correctedPts = await _amapService.grabRoad(rawPts);
+      await _amapService.grabRoad(rawPts);
 
       // 更新内存中的轨迹（这里可以做更复杂的平滑，目前先直接替换）
       // ... 逻辑略 ...
@@ -915,8 +992,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
         // 跟踪最大旋转强度
         final rotationStrength = recentPoints[i].processedGyro.length;
-        if (rotationStrength > maxAngularRate)
+        if (rotationStrength > maxAngularRate) {
           maxAngularRate = rotationStrength;
+        }
       }
     }
 
@@ -1031,8 +1109,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
         // 跟踪最大旋转强度
         final rotationStrength = recentPoints[i].processedGyro.length;
-        if (rotationStrength > maxAngularRate)
+        if (rotationStrength > maxAngularRate) {
           maxAngularRate = rotationStrength;
+        }
       }
     }
 

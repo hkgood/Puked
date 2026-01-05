@@ -599,8 +599,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                       sum += magnitudes[i + j];
                                     }
                                     final avg = sum / windowSize;
-                                    if (avg > maxSmoothedVal)
+                                    if (avg > maxSmoothedVal) {
                                       maxSmoothedVal = avg;
+                                    }
                                   }
                                 } else if (magnitudes.isNotEmpty) {
                                   maxSmoothedVal =

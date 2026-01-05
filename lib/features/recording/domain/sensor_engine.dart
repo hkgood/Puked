@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
-import 'dart:math' as Math;
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:puked/models/sensor_data.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -184,14 +185,14 @@ class SensorEngine {
     // 逻辑：寻找车辆起步瞬间的加速度矢量方向
     // 如果纵向加速度较大（> 1.0 m/s²），记录其在水平面 (X-Y) 的偏移角
     final double horizontalMag =
-        Math.sqrt(accel.x * accel.x + accel.y * accel.y);
+        math.sqrt(accel.x * accel.x + accel.y * accel.y);
     if (horizontalMag > 1.5 && accel.y > 0) {
       _headingLearningBuffer.addLast(accel.clone());
       if (_headingLearningBuffer.length > 20) {
         // 计算平均偏角
         double avgAngle = 0;
         for (var a in _headingLearningBuffer) {
-          avgAngle += Math.atan2(a.x, a.y);
+          avgAngle += math.atan2(a.x, a.y);
         }
         avgAngle /= _headingLearningBuffer.length;
 
@@ -199,7 +200,7 @@ class SensorEngine {
         if (avgAngle.abs() > 0.05) {
           _dynamicYawOffset -= avgAngle; // 减去偏角以归零
           debugPrint(
-              "Heading Aligned: Adjusted by ${(avgAngle * 180 / Math.pi).toStringAsFixed(1)}°");
+              "Heading Aligned: Adjusted by ${(avgAngle * 180 / math.pi).toStringAsFixed(1)}°");
         }
         _isHeadingAligned = true;
         _headingLearningBuffer.clear();

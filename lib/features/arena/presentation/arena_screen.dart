@@ -16,6 +16,7 @@ class ArenaScreen extends ConsumerStatefulWidget {
 class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   // 状态变量
   bool _groupByBrand = true; // 卡片1的 toggle
+  bool _leaderboardWeekly = true; // 里程榜 toggle
   String? _card2Brand;
   String? _card3Brand;
   String? _card3Version;
@@ -176,6 +177,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                       children: [
                         _buildCard1(arena, i18n),
                         const SizedBox(height: 16),
+                        _buildUserLeaderboardCard(arena, i18n),
+                        const SizedBox(height: 16),
                         _buildTotalMileageCard(arena, i18n),
                         const SizedBox(height: 16),
                         _buildCard2(arena, i18n),
@@ -203,6 +206,199 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
         fontWeight: FontWeight.w600,
         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
       );
+
+  // --- 用户里程贡献榜 ---
+  Widget _buildUserLeaderboardCard(ArenaService arena, dynamic i18n) {
+    final data = arena.getUserLeaderboard(weekly: _leaderboardWeekly);
+    final maxVal = data.isNotEmpty ? data.first.totalKm : 1.0;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(i18n.t('arena_leaderboard_title'),
+                    style: _headerStyle(context)),
+                Row(
+                  children: [
+                    Text(
+                        _leaderboardWeekly
+                            ? i18n.t('weekly_rank')
+                            : i18n.t('total_rank'),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.7),
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () => setState(
+                          () => _leaderboardWeekly = !_leaderboardWeekly),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 44,
+                        height: 24,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: _leaderboardWeekly
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: AnimatedAlign(
+                          duration: const Duration(milliseconds: 200),
+                          alignment: _leaderboardWeekly
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (data.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    i18n.t('no_data_for_brand'),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.outline,
+                        fontSize: 12),
+                  ),
+                ),
+              )
+            else
+              ...data.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final val = item.totalKm;
+                final ratio = val / (maxVal * 1.1);
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: Row(
+                    children: [
+                      // 排名
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      // 头像占位/用户图标
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.person_outline,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // 姓名和进度条
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  item.userName,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '${val.toStringAsFixed(1)} ${i18n.t('user_mileage_unit')}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Stack(
+                              children: [
+                                Container(
+                                  height: 8,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: ratio.clamp(0.02, 1.0),
+                                  child: Container(
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
 
   // --- 卡片1：无负体验里程 TOP10 ---
   Widget _buildCard1(ArenaService arena, dynamic i18n) {

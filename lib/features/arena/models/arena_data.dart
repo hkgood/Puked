@@ -53,3 +53,15 @@ class SymptomData {
     required this.tripCount,
   });
 }
+
+class UserLeaderboardData {
+  final String userName;
+  final double totalKm;
+  final int tripCount;
+
+  UserLeaderboardData({
+    required this.userName,
+    required this.totalKm,
+    required this.tripCount,
+  });
+}

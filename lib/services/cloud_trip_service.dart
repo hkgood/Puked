@@ -135,9 +135,6 @@ class CloudTripService {
           final userRecord = expandedUsers.first;
           userId = userRecord.id;
 
-          // 调试：打印所有可用字段以防命名不一致
-          // debugPrint('User record fields: ${userRecord.data.keys}');
-
           final name = userRecord.get<String>('name');
           final username = userRecord.get<String>('username');
 
@@ -155,9 +152,13 @@ class CloudTripService {
               for (final record in entry.value) {
                 final n = record.get<String>('name') ?? '';
                 final un = record.get<String>('username') ?? '';
-                if (n.isNotEmpty || un.isNotEmpty) {
+                if (n.isNotEmpty) {
                   userId = record.id;
-                  userName = n.isNotEmpty ? n : un;
+                  userName = n;
+                  break;
+                } else if (un.isNotEmpty) {
+                  userId = record.id;
+                  userName = un;
                   break;
                 }
               }

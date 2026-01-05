@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
@@ -27,7 +28,7 @@ class AmapService {
         }
       }
     } catch (e) {
-      print("Amap grabRoad error: $e");
+      debugPrint("Amap grabRoad error: $e");
     }
     return points;
   }
@@ -62,7 +63,7 @@ class AmapService {
         }
       }
     } catch (e) {
-      print("Amap getRouteGeometry error: $e");
+      debugPrint("Amap getRouteGeometry error: $e");
     }
     return [start, end];
   }

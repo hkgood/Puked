@@ -9,6 +9,7 @@ import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
 import 'package:puked/services/pocketbase_service.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/common/widgets/brand_logo.dart';
+import 'package:puked/services/algorithm_config_service.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -32,6 +33,7 @@ class SettingsScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final i18n = ref.watch(i18nProvider);
     final packageInfo = ref.watch(packageInfoProvider);
+    final algoConfig = ref.watch(algorithmConfigProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -329,6 +331,50 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   error: (_, __) => Text(i18n.t('unknown')),
                 ),
+              ),
+              ListTile(
+                title: Text(
+                  i18n.t('algorithm_version'),
+                  style: const TextStyle(),
+                ),
+                trailing: Text(
+                  'v${algoConfig.version}',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                onTap: () async {
+                  // 显示加载提示
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(i18n.t('syncing'))),
+                  );
+
+                  try {
+                    await ref
+                        .read(algorithmConfigProvider.notifier)
+                        .fetchAndSync();
+                    final newConfig = ref.read(algorithmConfigProvider);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(i18n.t('algorithm_update_success',
+                              args: ['${newConfig.version}'])),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(i18n.t('algorithm_update_failed')),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
               ),
               if (Theme.of(context).platform == TargetPlatform.android)
                 ListTile(

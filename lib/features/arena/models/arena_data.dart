@@ -3,6 +3,7 @@ class BrandData {
   final String? version;
   final double? kmPerEvent; // 公里/次
   final double? totalKm; // 总里程
+  final int? totalEvents; // 总负体验次数
   final Map<String, double>? breakdown; // 速度区间分布
 
   BrandData({
@@ -10,6 +11,7 @@ class BrandData {
     this.version,
     this.kmPerEvent,
     this.totalKm,
+    this.totalEvents,
     this.breakdown,
   });
 

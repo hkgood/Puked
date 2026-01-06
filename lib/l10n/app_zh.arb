@@ -110,5 +110,8 @@
     "saving_image": "正在保存为图片...",
     "save_success": "图片已保存至相册",
     "save_failed": "保存图片失败",
-    "error_no_photo_permission": "请开启相册访问权限"
+    "error_no_photo_permission": "请开启相册访问权限",
+    "algorithm_version": "算法版本",
+    "algorithm_update_success": "算法参数同步成功 (v{version})",
+    "algorithm_update_failed": "参数同步失败，请检查网络"
 }

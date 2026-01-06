@@ -15,17 +15,17 @@ class InertialNavigationEngine {
 
   // --- 协方差矩阵 (简化为块处理以提高性能) ---
   // P 矩阵通常为 15x15，这里我们重点追踪对角线分量
-  Vector3 _pPos = Vector3.all(1.0);
-  Vector3 _pVel = Vector3.all(0.1);
-  Vector3 _pAtt = Vector3.all(0.01);
-  final Vector3 _pAccBias = Vector3.all(0.0001);
-  final Vector3 _pGyroBias = Vector3.all(0.00001);
+  // Vector3 _pPos = Vector3.all(1.0);
+  // Vector3 _pVel = Vector3.all(0.1);
+  // Vector3 _pAtt = Vector3.all(0.01);
+  // final Vector3 _pAccBias = Vector3.all(0.0001);
+  // final Vector3 _pGyroBias = Vector3.all(0.00001);
 
   // --- 常量与噪声参数 ---
-  static const double _g = 9.80665;
-  final double _qAcc = 0.05; // 加速度计过程噪声
-  final double _qGyro = 0.005; // 陀螺仪过程噪声
-  static const double _rNhc = 0.1; // NHC 约束噪声 (越小约束越强)
+  // static const double _g = 9.80665;
+  // static const double _qAcc = 0.05; // 加速度计过程噪声
+  // static const double _qGyro = 0.005; // 陀螺仪过程噪声
+  // static const double _rNhc = 0.1; // NHC 约束噪声 (越小约束越强)
 
   DateTime? _lastTime;
   LatLng? _startLatLng;
@@ -109,9 +109,9 @@ class InertialNavigationEngine {
     }
 
     // 4. 协方差增长 (简化模型)
-    _pPos += _pVel * dt;
-    _pVel += Vector3.all(_qAcc * dt);
-    _pAtt += Vector3.all(_qGyro * dt);
+    // _pPos += _pVel * dt;
+    // _pVel += Vector3.all(_qAcc * dt);
+    // _pAtt += Vector3.all(_qGyro * dt);
 
     // 5. 应用 NHC 约束 (非整体性约束：车辆不能横着走或跳起来)
     _applyNHC();
@@ -126,7 +126,7 @@ class InertialNavigationEngine {
 
     // 侧向速度 (X) 和 垂直速度 (Z) 的观测值为 0
     // 我们使用简单的增益反馈来模拟 EKF 更新
-    final double gain = 0.05; // 约束强度
+    const double gain = 0.05; // 约束强度
     velBody.x *= (1.0 - gain);
     velBody.z *= (1.0 - gain);
 

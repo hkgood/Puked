@@ -355,4 +355,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get error_no_photo_permission => '请开启相册访问权限';
+
+  @override
+  String get algorithm_version => '算法版本';
+
+  @override
+  String algorithm_update_success(Object version) {
+    return '算法参数同步成功 (v$version)';
+  }
+
+  @override
+  String get algorithm_update_failed => '参数同步失败，请检查网络';
 }

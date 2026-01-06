@@ -66,11 +66,30 @@ class ArenaService {
 
   // 卡片1: Top 10 平均无负面体验里程 (km/Event)
   List<BrandData> getTop10Data({bool groupByBrand = true}) {
+    return _calculateRanking(trips, groupByBrand: groupByBrand);
+  }
+
+  // --- 深度同步 Web 端：分场景排行榜 (城市 < 50km/h, 高速 >= 50km/h) ---
+  List<BrandData> getScenarioRankingData(
+      {required String scenario, bool groupByBrand = true}) {
     if (trips.isEmpty) return [];
+
+    final filteredTrips = trips.where((t) {
+      final avgSpeed = _calculateTripAvgSpeed(t);
+      if (avgSpeed < 0 || avgSpeed > 200) return false;
+      return scenario == 'city' ? avgSpeed < 50 : avgSpeed >= 50;
+    }).toList();
+
+    return _calculateRanking(filteredTrips, groupByBrand: groupByBrand);
+  }
+
+  List<BrandData> _calculateRanking(List<Trip> sourceTrips,
+      {bool groupByBrand = true}) {
+    if (sourceTrips.isEmpty) return [];
 
     final Map<String, List<Trip>> groups = {};
 
-    for (final trip in trips) {
+    for (final trip in sourceTrips) {
       final brandName = trip.brand;
       if (brandName == null ||
           brandName.isEmpty ||
@@ -79,11 +98,10 @@ class ArenaService {
       }
 
       String key;
-      String? version;
       if (groupByBrand) {
         key = brandName;
       } else {
-        version = trip.softwareVersion;
+        final version = trip.softwareVersion;
         if (version == null ||
             version.isEmpty ||
             version.toLowerCase() == 'unknown') {
@@ -110,18 +128,81 @@ class ArenaService {
       result.add(BrandData(
         brand: brand,
         version: version,
-        // 关键改进：如果 evt 为 0，表示“完美舒适度”，
-        // 但为了防止坐标轴被撑爆，将其上限限制在 10km (或公里数本身，取小者)
+        totalKm: totalDist,
+        totalEvents: totalEvents,
         kmPerEvent: totalEvents == 0
             ? (totalDist > 10 ? 10.0 : totalDist)
             : totalDist / totalEvents,
       ));
     });
 
-    final filtered = result.where((e) => (e.kmPerEvent ?? 0) > 0).toList();
+    final filtered = result
+        .where((e) => (e.totalKm ?? 0) >= 100) // 完全对齐 Web 端：里程需满 100km
+        .toList();
     filtered
         .sort((a, b) => (b.kmPerEvent ?? 0.0).compareTo(a.kmPerEvent ?? 0.0));
     return filtered.take(10).toList();
+  }
+
+  double _calculateTripAvgSpeed(Trip t) {
+    double durationHours = 0;
+    Map<String, dynamic>? metrics;
+    Map<String, dynamic>? metadata;
+
+    if (t.notes != null && t.notes!.contains('{')) {
+      try {
+        final data = jsonDecode(t.notes!);
+        metrics = data['metrics'] as Map<String, dynamic>?;
+        metadata = data['metadata'] as Map<String, dynamic>?;
+      } catch (_) {}
+    }
+
+    if (metadata != null || metrics != null) {
+      final source = {...(metrics ?? {}), ...(metadata ?? {})};
+      final startStr = source['start_time'];
+      final endStr = source['end_time'];
+      if (startStr != null && endStr != null) {
+        try {
+          final start = DateTime.parse(startStr.toString());
+          final end = DateTime.parse(endStr.toString());
+          if (end.isAfter(start)) {
+            durationHours = end.difference(start).inSeconds / 3600.0;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (durationHours <= 0 && t.endTime != null) {
+      durationHours = t.endTime!.difference(t.startTime).inSeconds / 3600.0;
+    }
+
+    if (durationHours <= 0) {
+      final source = {
+        ...(metrics ?? {}),
+        ...(metadata ?? {}),
+        'duration_seconds':
+            t.endTime != null ? t.endTime!.difference(t.startTime).inSeconds : 0
+      };
+
+      final seconds = double.tryParse((source['duration_seconds'] ??
+                  source['duration_sec'] ??
+                  source['duration_s'] ??
+                  '0')
+              .toString()) ??
+          0.0;
+      if (seconds > 0) {
+        durationHours = seconds / 3600.0;
+      } else {
+        final mins = double.tryParse(
+                (source['duration_minutes'] ?? source['duration_min'] ?? '0')
+                    .toString()) ??
+            0.0;
+        if (mins > 0) durationHours = mins / 60.0;
+      }
+    }
+
+    final km = t.distance / 1000.0;
+    return durationHours > 0.01 ? km / durationHours : -1.0;
   }
 
   VersionEvolutionData getEvolutionData(String brand) {

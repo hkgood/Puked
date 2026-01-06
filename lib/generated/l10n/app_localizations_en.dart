@@ -367,4 +367,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_no_photo_permission =>
       'Please grant photo gallery permission';
+
+  @override
+  String get algorithm_version => 'Algorithm Version';
+
+  @override
+  String algorithm_update_success(Object version) {
+    return 'Algorithm synced (v$version)';
+  }
+
+  @override
+  String get algorithm_update_failed => 'Failed to sync parameters';
 }

@@ -769,6 +769,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please grant photo gallery permission'**
   String get error_no_photo_permission;
+
+  /// No description provided for @algorithm_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Algorithm Version'**
+  String get algorithm_version;
+
+  /// No description provided for @algorithm_update_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Algorithm synced (v{version})'**
+  String algorithm_update_success(Object version);
+
+  /// No description provided for @algorithm_update_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to sync parameters'**
+  String get algorithm_update_failed;
 }
 
 class _AppLocalizationsDelegate

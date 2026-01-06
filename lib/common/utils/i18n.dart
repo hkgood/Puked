@@ -70,6 +70,12 @@ class I18n {
       'arena_brand_evolution_title': '{} Version Comfort',
       'arena_details_title': 'Comfort Details',
       'arena_leaderboard_title': 'Mileage Contributors',
+      'low_speed_ranking': 'Urban Comfort Ranking',
+      'high_speed_ranking': 'Highway Comfort Ranking',
+      'low_speed_desc': 'Events for trips < 50 km/h, km/evt',
+      'high_speed_desc': 'Events for trips >= 50 km/h, km/evt',
+      'city': 'Urban',
+      'highway': 'Highway',
       'weekly_rank': 'Weekly',
       'total_rank': 'Total',
       'user_mileage_unit': 'km',
@@ -167,6 +173,9 @@ class I18n {
       'trip_analysis': 'Trip Analysis',
       'event_breakdown': 'Event Breakdown',
       'error_no_photo_permission': 'Please grant photo gallery permission',
+      'algorithm_version': 'Algorithm Version',
+      'algorithm_update_success': 'Algorithm synced (v{})',
+      'algorithm_update_failed': 'Failed to sync parameters',
     },
     'zh': {
       'app_name': '吐槽',
@@ -229,6 +238,12 @@ class I18n {
       'arena_brand_evolution_title': '{} 版本舒适度',
       'arena_details_title': '症状分布',
       'arena_leaderboard_title': '里程贡献榜',
+      'low_speed_ranking': '低速场景舒适度排名',
+      'high_speed_ranking': '高速场景舒适度排名',
+      'low_speed_desc': '时速小于50公里每小时行程的负体验，公里/次',
+      'high_speed_desc': '时速大于50公里每小时行程的负体验，公里/次',
+      'city': '市区',
+      'highway': '高速',
       'weekly_rank': '周榜',
       'total_rank': '总榜',
       'user_mileage_unit': '公里',
@@ -315,6 +330,9 @@ class I18n {
       'trip_analysis': '行程数据分析',
       'event_breakdown': '负体验分布',
       'error_no_photo_permission': '请开启相册访问权限',
+      'algorithm_version': '算法版本',
+      'algorithm_update_success': '算法参数同步成功 (v{})',
+      'algorithm_update_failed': '参数同步失败，请检查网络',
     },
   };
 
@@ -323,8 +341,9 @@ class I18n {
     final lang = locale.languageCode.split('-')[0].split('_')[0];
     String value = _localizedValues[lang]?[key] ?? key;
     if (args != null) {
+      final regExp = RegExp(r'\{.*?\}');
       for (var arg in args) {
-        value = value.replaceFirst('{}', arg);
+        value = value.replaceFirst(regExp, arg);
       }
     }
     return value;

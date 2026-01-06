@@ -17,6 +17,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   // 状态变量
   bool _groupByBrand = true; // 卡片1的 toggle
   bool _leaderboardWeekly = true; // 里程榜 toggle
+  String _rankingScenario = 'city'; // 场景排名 toggle
   String? _card2Brand;
   String? _card3Brand;
   String? _card3Version;
@@ -176,6 +177,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                     child: Column(
                       children: [
                         _buildCard1(arena, i18n),
+                        const SizedBox(height: 16),
+                        _buildScenarioRankingCard(arena, i18n),
                         const SizedBox(height: 16),
                         _buildUserLeaderboardCard(arena, i18n),
                         const SizedBox(height: 16),
@@ -584,6 +587,211 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
               );
             }),
           ],
+        ),
+      ),
+    );
+  }
+
+  // --- 深度同步 Web 端：分场景排行榜 (城市/高速) ---
+  Widget _buildScenarioRankingCard(ArenaService arena, dynamic i18n) {
+    final data = arena.getScenarioRankingData(
+        scenario: _rankingScenario, groupByBrand: _groupByBrand);
+    final maxVal = data.isNotEmpty ? (data.first.kmPerEvent ?? 1.0) : 1.0;
+    final titleKey =
+        _rankingScenario == 'city' ? 'low_speed_ranking' : 'high_speed_ranking';
+    final descKey =
+        _rankingScenario == 'city' ? 'low_speed_desc' : 'high_speed_desc';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(i18n.t(titleKey), style: _headerStyle(context)),
+                      const SizedBox(height: 2),
+                      Text(i18n.t(descKey), style: _unitStyle(context)),
+                    ],
+                  ),
+                ),
+                // 场景切换器
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildScenarioToggleItem(i18n.t('city'), 'city'),
+                      _buildScenarioToggleItem(i18n.t('highway'), 'highway'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (data.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    i18n.t('no_data_for_brand'),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.outline,
+                        fontSize: 12),
+                  ),
+                ),
+              )
+            else
+              ...data.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final val = item.kmPerEvent ?? 0.0;
+                final ratio = val / (maxVal * 1.2);
+                const double barHeight = 16.0;
+                const double nameFontSize = 13.0;
+                const double spacingBetween = 4.0;
+                const double logoSize = 42.0;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      BrandLogo(
+                        brandName: item.brand,
+                        size: logoSize,
+                        padding: 8,
+                        showBackground: true,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  item.displayName,
+                                  style: const TextStyle(
+                                    fontSize: nameFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  val.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: spacingBetween),
+                            Stack(
+                              alignment: Alignment.centerLeft,
+                              children: [
+                                Container(
+                                  height: barHeight,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: ratio.clamp(0.08, 1.0),
+                                  child: Container(
+                                    height: barHeight,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScenarioToggleItem(String label, String value) {
+    final isSelected = _rankingScenario == value;
+    return GestureDetector(
+      onTap: () => setState(() => _rankingScenario = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.5),
+          ),
         ),
       ),
     );

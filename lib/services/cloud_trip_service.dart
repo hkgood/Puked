@@ -150,8 +150,8 @@ class CloudTripService {
           if (expand != null) {
             for (final entry in expand.entries) {
               for (final record in entry.value) {
-                final n = record.get<String>('name') ?? '';
-                final un = record.get<String>('username') ?? '';
+                final n = record.get<String>('name');
+                final un = record.get<String>('username');
                 if (n.isNotEmpty) {
                   userId = record.id;
                   userName = n;

@@ -33,6 +33,18 @@ class InertialNavigationEngine {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
+  /// 重置引擎状态
+  void reset() {
+    _isInitialized = false;
+    _pos = Vector3.zero();
+    _vel = Vector3.zero();
+    _att = Quaternion.identity();
+    _accBias = Vector3.zero();
+    _gyroBias = Vector3.zero();
+    _startLatLng = null;
+    _lastTime = null;
+  }
+
   /// 初始化：由 GPS 起点和静态校准后的零偏触发
   void initialize(LatLng startPoint, Vector3 initialGyroBias,
       {double initialHeading = 0.0}) {
@@ -78,12 +90,23 @@ class InertialNavigationEngine {
     // 3. 速度与位置更新
     final Matrix3 rotMatrix = _att.asRotationMatrix();
     final Vector3 accNav = rotMatrix.transformed(correctedAcc);
-    // 注意：processedAccel 已经去除了重力，所以这里不需要再减 G
 
-    // 简单的梯形积分
-    final Vector3 oldVel = _vel.clone();
-    _vel += accNav * dt;
-    _pos += (oldVel + _vel) * 0.5 * dt;
+    // 第一性原理：零速修正 (ZUPT)
+    // 如果检测到手机极其静止，强制速度归零，防止积分漂移
+    final bool isStationary = data.accelerometer.length > 9.7 &&
+        data.accelerometer.length < 9.9 &&
+        data.gyroscope.length < 0.03 &&
+        data.processedAccel.length < 0.15;
+
+    if (isStationary) {
+      _vel.setZero();
+      // 位置保持不变
+    } else {
+      // 正常的梯形积分
+      final Vector3 oldVel = _vel.clone();
+      _vel += accNav * dt;
+      _pos += (oldVel + _vel) * 0.5 * dt;
+    }
 
     // 4. 协方差增长 (简化模型)
     _pPos += _pVel * dt;

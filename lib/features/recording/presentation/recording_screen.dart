@@ -40,6 +40,38 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     final isCalibrating = recordingState.isCalibrating;
     final i18n = ref.watch(i18nProvider);
 
+    // 监听警告信息并弹出对话框
+    ref.listen<String?>(
+      recordingProvider.select((s) => s.alertMessage),
+      (previous, next) {
+        if (next != null && next.isNotEmpty) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Text(i18n.t('calibration_failed')),
+                ],
+              ),
+              content: Text(next),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    ref.read(recordingProvider.notifier).clearAlert();
+                    Navigator.pop(context);
+                  },
+                  child: Text(i18n.t('ok')),
+                ),
+              ],
+            ),
+          );
+        }
+      },
+    );
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: Theme.of(context).brightness == Brightness.dark
           ? SystemUiOverlayStyle.light
@@ -600,25 +632,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                     );
                   }
                 } else {
-                  try {
-                    await ref.read(recordingProvider.notifier).startRecording();
-                  } catch (e) {
-                    if (context.mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text(i18n.t('calibration_failed')),
-                          content: Text(i18n.t('calibration_failed_desc')),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(i18n.t('ok')),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  }
+                  await ref.read(recordingProvider.notifier).startRecording();
                 }
               },
         child: Text(
@@ -760,9 +774,17 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       statusText = i18n.t('gps_weak');
     }
 
-    // 判断是否为 GPS 相关的 debug 信息
-    bool isGpsMessage = state.debugMessage.contains('GPS') ||
-        state.debugMessage.contains('Signal');
+    // 状态文本：优先显示传感器假死或惯导状态，其次是 GPS 状态
+    String displayText;
+    if (state.isSensorFrozen) {
+      displayText = "SENSOR FROZEN";
+      statusColor = Colors.orange;
+    } else if (state.isInsActive) {
+      displayText = "INS ACTIVE";
+      statusColor = Colors.blue;
+    } else {
+      displayText = "$statusText (${accuracy.toStringAsFixed(0)}m)";
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -789,9 +811,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           ),
           const SizedBox(width: 6),
           Text(
-            isGpsMessage
-                ? "$statusText (${accuracy.toStringAsFixed(0)}m)"
-                : state.debugMessage,
+            displayText,
             style: const TextStyle(
                 color: Colors.white,
                 fontSize: 9,

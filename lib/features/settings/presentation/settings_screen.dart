@@ -294,45 +294,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
 
               const Divider(),
-
-              // 自动打标敏感度
-              _buildSectionHeader(context, i18n.t('sensitivity')),
-              _buildSensitivityTile(
-                context,
-                ref,
-                i18n.t('sensitivity_low'),
-                'Accel > 3.0m/s², Brake > 3.5m/s²', // Subtitles can stay as descriptions
-                SensitivityLevel.low,
-                settings.sensitivity,
-              ),
-              _buildSensitivityTile(
-                context,
-                ref,
-                i18n.t('sensitivity_medium'),
-                'Accel > 2.4m/s², Brake > 2.8m/s²',
-                SensitivityLevel.medium,
-                settings.sensitivity,
-              ),
-              _buildSensitivityTile(
-                context,
-                ref,
-                i18n.t('sensitivity_high'),
-                'Accel > 1.8m/s², Brake > 2.1m/s²',
-                SensitivityLevel.high,
-                settings.sensitivity,
-              ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  i18n.t('sensitivity_tip'),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                      ),
-                ),
-              ),
-
-              const Divider(),
               // 负体验音效
               _buildSectionHeader(context, i18n.t('event_sound')),
               SwitchListTile(
@@ -405,32 +366,6 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
-  }
-
-  Widget _buildSensitivityTile(
-      BuildContext context,
-      WidgetRef ref,
-      String title,
-      String subtitle,
-      SensitivityLevel level,
-      SensitivityLevel current) {
-    return ListTile(
-      title: Text(
-        title,
-        style: const TextStyle(),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          color: Colors.grey.shade600,
-          fontSize: 12,
-        ),
-      ),
-      trailing: current == level
-          ? const Icon(Icons.check, color: Colors.green)
-          : null,
-      onTap: () => ref.read(settingsProvider.notifier).setSensitivity(level),
     );
   }
 

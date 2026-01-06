@@ -15,43 +15,43 @@ enum SensitivityLevel { low, medium, high }
 class SettingsState {
   final ThemeMode themeMode;
   final Locale? locale;
-  final SensitivityLevel sensitivity;
   final String? brand;
   final String? carModel;
   final String? softwareVersion;
   final bool isFirstLaunch;
   final bool isEventSoundEnabled;
+  final SensitivityLevel sensitivity;
 
   SettingsState({
     required this.themeMode,
     this.locale,
-    this.sensitivity = SensitivityLevel.high,
     this.brand,
     this.carModel,
     this.softwareVersion,
     this.isFirstLaunch = false,
     this.isEventSoundEnabled = false,
+    this.sensitivity = SensitivityLevel.medium,
   });
 
   SettingsState copyWith({
     ThemeMode? themeMode,
     Locale? locale,
-    SensitivityLevel? sensitivity,
     String? brand,
     String? carModel,
     String? softwareVersion,
     bool? isFirstLaunch,
     bool? isEventSoundEnabled,
+    SensitivityLevel? sensitivity,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
       locale: locale ?? this.locale,
-      sensitivity: sensitivity ?? this.sensitivity,
       brand: brand ?? this.brand,
       carModel: carModel ?? this.carModel,
       softwareVersion: softwareVersion ?? this.softwareVersion,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
       isEventSoundEnabled: isEventSoundEnabled ?? this.isEventSoundEnabled,
+      sensitivity: sensitivity ?? this.sensitivity,
     );
   }
 }
@@ -83,12 +83,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   static const _themeKey = 'theme_mode';
   static const _localeKey = 'locale_code';
-  static const _sensitivityKey = 'sensitivity_level';
   static const _brandKey = 'default_brand';
   static const _carModelKey = 'default_car_model';
   static const _softwareVersionKey = 'default_software_version';
   static const _firstLaunchKey = 'is_first_launch';
   static const _eventSoundKey = 'is_event_sound_enabled';
+  static const _sensitivityKey = 'event_sensitivity';
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -98,6 +98,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
     // 加载负体验音效开关，默认 false
     final isEventSoundEnabled = prefs.getBool(_eventSoundKey) ?? false;
+
+    // 加载敏感度，默认 medium
+    final sensitivityIndex =
+        prefs.getInt(_sensitivityKey) ?? SensitivityLevel.medium.index;
+    final sensitivity = SensitivityLevel.values[sensitivityIndex];
 
     // 加载主题
     final themeIndex = prefs.getInt(_themeKey) ?? ThemeMode.system.index;
@@ -112,11 +117,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       // 首次打开：使用初始探测逻辑
       locale = _getInitialLocale();
     }
-
-    // 加载敏感度
-    final sensitivityIndex =
-        prefs.getInt(_sensitivityKey) ?? SensitivityLevel.high.index;
-    final sensitivity = SensitivityLevel.values[sensitivityIndex];
 
     // 加载品牌和车型
     String? brand = prefs.getString(_brandKey);
@@ -141,12 +141,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = SettingsState(
       themeMode: themeMode,
       locale: locale,
-      sensitivity: sensitivity,
       brand: brand,
       carModel: carModel,
       softwareVersion: softwareVersion,
       isFirstLaunch: isFirstLaunch,
       isEventSoundEnabled: isEventSoundEnabled,
+      sensitivity: sensitivity,
     );
   }
 
@@ -154,6 +154,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(isEventSoundEnabled: enabled);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_eventSoundKey, enabled);
+  }
+
+  Future<void> setSensitivity(SensitivityLevel level) async {
+    state = state.copyWith(sensitivity: level);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_sensitivityKey, level.index);
   }
 
   Future<void> completeOnboarding() async {
@@ -178,12 +184,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     } catch (e) {
       debugPrint('Failed to sync vehicle settings to PocketBase: $e');
     }
-  }
-
-  Future<void> setSensitivity(SensitivityLevel level) async {
-    state = state.copyWith(sensitivity: level);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_sensitivityKey, level.index);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {

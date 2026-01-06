@@ -59,6 +59,7 @@ class RecordingState {
   final LatLng? lastInsLocation; // 惯导推算的最后一个位置
   final bool isInsActive; // 是否正在使用惯导推算
   final DateTime? lastHardwareTimestamp; // 上一次 GPS 硬件时间戳
+  final String? alertMessage; // 新增：用于在 UI 弹出警告窗口的信息
 
   RecordingState({
     required this.isRecording,
@@ -81,6 +82,7 @@ class RecordingState {
     this.lastInsLocation,
     this.isInsActive = false,
     this.lastHardwareTimestamp,
+    this.alertMessage,
   });
 
   RecordingState copyWith({
@@ -104,6 +106,7 @@ class RecordingState {
     LatLng? lastInsLocation,
     bool? isInsActive,
     DateTime? lastHardwareTimestamp,
+    String? alertMessage,
   }) {
     return RecordingState(
       isRecording: isRecording ?? this.isRecording,
@@ -127,6 +130,7 @@ class RecordingState {
       isInsActive: isInsActive ?? this.isInsActive,
       lastHardwareTimestamp:
           lastHardwareTimestamp ?? this.lastHardwareTimestamp,
+      alertMessage: alertMessage ?? this.alertMessage,
     );
   }
 }
@@ -145,17 +149,18 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
   // 隧道模式判定逻辑
   DateTime? _lastGpsTime;
-  static const Duration _gpsTimeout = Duration(seconds: 4); // 4秒没GPS视为进入隧道/弱信号
-  Timer? _insTimer;
+  static const Duration _gpsTimeout = Duration(seconds: 5); // 延长到5秒，防止高架下频繁切换
+  static const double _insTriggerAccuracy = 120.0; // 精度大于120米才允许INS介入显示
+  int _gpsStabilityCounter = 0; // 信号稳定性计数器
+  Position? _lastReliableGpsPosition; // 专门用于 GPS 连续性校验，不被 INS 污染
 
   // ... (保持原有常量定义)
-  // 事件检测阈值 (m/s²)
-  static const double _thresholdAccel = 3.14; // 急加速 (约 0.32G)
-  static const double _thresholdDecel = -3.14; // 急刹车 (约 0.32G)
-  static const double _thresholdWobbleSpan = 1.8; // 摆动跨度阈值
-  static const double _thresholdBump = 2.5; // 颠簸 (Z轴突变)
-  static const double _thresholdJerk =
-      6.0; // 顿挫阈值 (m/s³) - 加速度变化率 (调低基准以补偿速度系数增加)
+  // 事件检测阈值 (m/s²) - 第一性原理物理常数
+  static const double _thresholdAccel = 2.3; // 急加速 (0.23G)
+  static const double _thresholdDecel = -2.4; // 急刹车 (0.24G) - 适配 L2 幽灵制动
+  static const double _thresholdWobbleSpan = 2.0; // 摆动 (横向)
+  static const double _thresholdBump = 3.8; // 颠簸 (垂直)
+  static const double _thresholdJerk = 8.0; // 顿挫 (加速度变化率)
 
   // 保护期和检测窗口
   static const Duration _startProtectionDuration = Duration(seconds: 5);
@@ -309,70 +314,84 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     // 调试打印原始精度
     debugPrint('GPS Raw Update: Acc:${position.accuracy}');
 
-    // 第一性原理：UI 必须更新
-    final prevPosition = state.currentPosition;
     final now = DateTime.now();
-    final hwTimestamp = position.timestamp; // 获取硬件/系统下发的原始时间戳
+    final hwTimestamp = position.timestamp;
 
     // --- 守卫 1: 时间单调性守卫 (Monotonicity Guard) ---
-    // Android 会注入旧的 LastKnownLocation，其时间戳会早于当前已记录的点
     if (state.lastHardwareTimestamp != null &&
         !hwTimestamp.isAfter(state.lastHardwareTimestamp!)) {
-      debugPrint(
-          'Guard 1 Triggered: Stale GPS timestamp (HW: $hwTimestamp, Last: ${state.lastHardwareTimestamp})');
       return;
     }
 
-    // 判断是否在“行程起始宽容期”（前 60 秒）
+    // --- 状态独占逻辑：信号恢复锁定 ---
+    // 只有连续 3 个点精度 < 30m，或者当前点精度极佳 (< 15m)，才允许解除 INS 显示模式
+    if (position.accuracy < 30.0) {
+      _gpsStabilityCounter++;
+    } else {
+      _gpsStabilityCounter = 0;
+    }
+
+    bool isGpsTrulyStable =
+        _gpsStabilityCounter >= 3 || position.accuracy < 15.0;
+
+    // 如果当前正在 INS 模式且新来的 GPS 点依然很烂，则继续无视这个 GPS 点
+    if (state.isInsActive && !isGpsTrulyStable && position.accuracy > 60.0) {
+      debugPrint('GPS ignored: INS is active and signal is still poor');
+      return;
+    }
+
+    // 判断是否在“行程起始宽容期”
     bool isInGracePeriod = false;
     if (state.isRecording && _recordingStartTime != null) {
       isInGracePeriod = now.difference(_recordingStartTime!).inSeconds < 60;
     }
 
-    // 动态精度阈值：宽容期 200m，稳定期 50m
-    final double accuracyThreshold = isInGracePeriod ? 200.0 : 50.0;
-    final bool isReliable = position.accuracy <= accuracyThreshold;
-    final bool isLowConfidence =
-        position.accuracy > 40.0; // 只要精度大于 40m，我们就认为是弱信号/室内场景
+    final bool isReliable =
+        position.accuracy <= (isInGracePeriod ? 200.0 : 50.0);
+    final bool isLowConfidence = position.accuracy > 40.0;
 
-    // --- 守卫 2: 物理速度守卫 (Velocity Guard) ---
-    // 如果相对于上一个点产生了不合理的瞬时位移（例如跳回 200m），判定为异常
-    if (state.isRecording && prevPosition != null && isReliable) {
-      final double distance = Geolocator.distanceBetween(prevPosition.latitude,
-          prevPosition.longitude, position.latitude, position.longitude);
+    // --- 守卫 2: 物理速度守卫 (基于纯 GPS 历史) ---
+    if (state.isRecording && _lastReliableGpsPosition != null && isReliable) {
+      final double distance = Geolocator.distanceBetween(
+          _lastReliableGpsPosition!.latitude,
+          _lastReliableGpsPosition!.longitude,
+          position.latitude,
+          position.longitude);
+
       final double timeDiff = hwTimestamp
           .difference(state.lastHardwareTimestamp ?? now)
           .inSeconds
           .toDouble();
-
-      // 如果 1 秒内位移超过 100m (360km/h)，且不是行程刚开始，视为跳变
-      if (timeDiff > 0 && (distance / timeDiff) > 100.0 && !isInGracePeriod) {
-        debugPrint(
-            'Guard 2 Triggered: Impossible velocity jump (${(distance / timeDiff).toStringAsFixed(1)} m/s)');
+      if (timeDiff > 0 && (distance / timeDiff) > 80.0 && !isInGracePeriod) {
+        debugPrint('Guard 2 Triggered: Impossible GPS jump ($distance m)');
         return;
       }
     }
 
+    // 通过所有守卫，更新状态
+    if (isReliable) {
+      _lastReliableGpsPosition = position;
+    }
+
+    // 更新 UI 坐标 (小圆点移动)
     state = state.copyWith(
       currentPosition: position,
       lastLocationTime: now,
       lastHardwareTimestamp: hwTimestamp,
       locationUpdateCount: state.locationUpdateCount + 1,
       isLowConfidenceGPS: isLowConfidence,
-      debugMessage: isReliable
-          ? 'GPS OK (${position.accuracy.toStringAsFixed(0)}m)'
-          : 'Poor Signal (${position.accuracy.toStringAsFixed(0)}m)',
+      isInsActive: !isGpsTrulyStable && position.accuracy > _insTriggerAccuracy,
     );
 
     _lastGpsTime = now;
 
-    // --- 惯导系统修正 ---
+    // --- 惯导引擎观察 ---
     if (isReliable) {
       if (!_insEngine.isInitialized) {
         _insEngine.initialize(
           LatLng(position.latitude, position.longitude),
           Vector3.zero(),
-          initialHeading: position.heading, // 使用 GPS 航向初始化惯导
+          initialHeading: position.heading,
         );
       } else {
         _insEngine.observeGPS(
@@ -381,34 +400,26 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           position.accuracy,
         );
       }
-
-      // 如果之前是惯导模式，现在恢复了，触发“二次修正”
-      if (state.isInsActive) {
-        _handleGpsRecovery(position);
-      }
     }
 
-    // 第二性原理：记录从严 (只有精度达标才进轨迹)
+    // --- 物理记录隔离 (只有真实可靠的点才进入轨迹库) ---
     if (state.isRecording && state.currentTrip != null && isReliable) {
+      // 距离过滤：如果相对于上一个真实点位移过小，不记入轨迹
       double addedDistance = 0;
-      if (prevPosition != null) {
-        addedDistance = Geolocator.distanceBetween(prevPosition.latitude,
-            prevPosition.longitude, position.latitude, position.longitude);
+      if (state.trajectory.isNotEmpty) {
+        final lastPoint = state.trajectory.last;
+        addedDistance = Geolocator.distanceBetween(lastPoint.lat, lastPoint.lng,
+            position.latitude, position.longitude);
       }
 
-      // 距离过滤
-      if (addedDistance < 2.0 &&
-          prevPosition != null &&
-          state.trajectory.isNotEmpty) {
-        return;
-      }
+      if (addedDistance < 2.0 && state.trajectory.isNotEmpty) return;
 
       final point = TrajectoryPoint()
         ..lat = position.latitude
         ..lng = position.longitude
         ..altitude = position.altitude
         ..speed = position.speed
-        ..timestamp = hwTimestamp // 使用硬件时间戳，保持物理一致性
+        ..timestamp = hwTimestamp
         ..isLowConfidence = isLowConfidence;
 
       final newDistance = state.currentDistance + addedDistance;
@@ -424,9 +435,17 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   void _detectAutoEvents(SensorData data) {
     final now = DateTime.now();
     if (state.isCalibrating) return;
-    if (_recordingStartTime != null &&
-        now.difference(_recordingStartTime!) < _startProtectionDuration) {
-      return;
+
+    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+
+    // 启动保护期校验 (5秒内，若检测到明显运动则提前退出)
+    if (_recordingStartTime != null) {
+      final elapsed = now.difference(_recordingStartTime!);
+      if (elapsed < _startProtectionDuration) {
+        if (currentSpeedKmh < 5.0 && data.processedAccel.length < 1.5) {
+          return;
+        }
+      }
     }
 
     final accel = data.filteredAccel;
@@ -450,66 +469,50 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       _yawRateHistory.removeFirst();
     }
 
-    final sensitivity = _ref.read(settingsProvider).sensitivity;
-    double sensitivityMultiplier = 1.0;
-    if (sensitivity == SensitivityLevel.medium) sensitivityMultiplier = 0.8;
-    if (sensitivity == SensitivityLevel.high) sensitivityMultiplier = 0.6;
-
-    // --- 动态速度敏感度计算 ---
-    double speedMultiplier = 1.0;
-    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
-
-    if (currentSpeedKmh < 10.0) {
-      speedMultiplier = 0.8; // 从 0.6 提高到 0.8，减少低速起步误报
-    } else if (currentSpeedKmh < 60.0) {
-      // 10km/h 到 60km/h 线性从 0.8 增长到 1.0
-      speedMultiplier = 0.8 + 0.2 * ((currentSpeedKmh - 10.0) / 50.0);
-    } else if (currentSpeedKmh > 80.0) {
-      speedMultiplier = 1.2;
-    }
-
-    final finalMultiplier = sensitivityMultiplier * speedMultiplier;
-
     bool isDebounced(String type) {
       final last = _lastTriggered[type];
       if (last == null) return false;
       return now.difference(last) < _debounceDuration;
     }
 
-    // --- 1. 急加速/急减速检测 (结合动态阈值 + 硬性物理保底) ---
-    // 强制保底：在高敏感度且低速下，门槛也不得低于 1.8 (加速) / 2.1 (减速)
-    final double currentAccelThreshold =
-        (_thresholdAccel * finalMultiplier).clamp(1.8, 10.0);
-    final double currentDecelThreshold =
-        (_thresholdDecel * finalMultiplier).clamp(-10.0, -2.1);
+    // --- 1. 急加速/急减速检测 ---
+    // 采用第一性原理：不再依赖敏感度设置，直接使用物理常数，并加入持续性校验
+    final recentY = _yHistory
+        .where((e) => now.difference(e.key).inMilliseconds < 150)
+        .toList();
+    if (recentY.length >= 3) {
+      bool isConsistentlyDecel =
+          recentY.every((e) => e.value < _thresholdDecel);
+      bool isConsistentlyAccel =
+          recentY.every((e) => e.value > _thresholdAccel);
 
-    if (accel.y < currentDecelThreshold && !isDebounced('rapidDeceleration')) {
-      _lastTriggered['rapidDeceleration'] = now;
-      _enqueueEvent(EventType.rapidDeceleration, now);
-    } else if (accel.y > currentAccelThreshold &&
-        !isDebounced('rapidAcceleration')) {
-      _lastTriggered['rapidAcceleration'] = now;
-      _enqueueEvent(EventType.rapidAcceleration, now);
+      if (isConsistentlyDecel && !isDebounced('rapidDeceleration')) {
+        _lastTriggered['rapidDeceleration'] = now;
+        _enqueueEvent(EventType.rapidDeceleration, now);
+      } else if (isConsistentlyAccel && !isDebounced('rapidAcceleration')) {
+        _lastTriggered['rapidAcceleration'] = now;
+        _enqueueEvent(EventType.rapidAcceleration, now);
+      }
     }
 
     // --- 2. Jerk (顿挫/点刹) 检测 ---
     if (!isDebounced('jerk') && _yHistory.length > 5) {
-      // 计算最近 150ms 的加速度变化率
-      final recentY =
-          _yHistory.where((e) => now.difference(e.key) < _jerkWindow).toList();
-      if (recentY.length >= 3) {
-        final deltaA = recentY.last.value - recentY.first.value;
-        final deltaT =
-            recentY.last.key.difference(recentY.first.key).inMilliseconds /
-                1000.0;
-        final jerk = deltaA / deltaT;
-
-        // 如果 Jerk 超过阈值 (这里使用绝对值，因为点刹和猛踩都算顿挫)
-        // 修正：将 sensitivityMultiplier 引入 Jerk 检测，使其支持高中低三档设置
-        if (jerk.abs() >
-            (_thresholdJerk * speedMultiplier * sensitivityMultiplier)) {
-          _lastTriggered['jerk'] = now;
-          _enqueueEvent(EventType.jerk, now);
+      // 计算最近 100ms 的加速度变化率
+      final recentPoints = _yHistory
+          .where((e) => now.difference(e.key).inMilliseconds < 100)
+          .toList();
+      if (recentPoints.length >= 2) {
+        final deltaA = recentPoints.last.value - recentPoints.first.value;
+        final deltaT = recentPoints.last.key
+                .difference(recentPoints.first.key)
+                .inMilliseconds /
+            1000.0;
+        if (deltaT > 0) {
+          final jerk = deltaA / deltaT;
+          if (jerk.abs() > _thresholdJerk) {
+            _lastTriggered['jerk'] = now;
+            _enqueueEvent(EventType.jerk, now);
+          }
         }
       }
     }
@@ -580,7 +583,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       // 如果 1 秒内转角超过 15 度 (约 0.26 弧度)，大概率是正在转弯，过滤掉摆动报警
       bool isTurning = totalYawChange.abs() > 0.26;
 
-      if (span > (_thresholdWobbleSpan * sensitivityMultiplier) && !isTurning) {
+      if (span > _thresholdWobbleSpan && !isTurning) {
         if (maxX > 0.4 && minX < -0.4) {
           if (minTime != null && maxTime != null) {
             final jumpDuration = maxTime.difference(minTime).abs();
@@ -593,8 +596,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       }
     }
 
-    if (accel.z.abs() > (_thresholdBump * sensitivityMultiplier) &&
-        !isDebounced('bump')) {
+    if (accel.z.abs() > _thresholdBump && !isDebounced('bump')) {
       _lastTriggered['bump'] = now;
       _enqueueEvent(EventType.bump, now);
     }
@@ -617,6 +619,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           notes: notes,
           algorithm: state.algorithmMode.name);
       _recordingStartTime = DateTime.now();
+      _lastGpsTime = DateTime.now(); // 强制刷新 GPS 时间，防止启动瞬间触发 INS
+      _gpsStabilityCounter = 0;
+      _insEngine.reset(); // 确保引擎状态完全清空
+
       _xHistory.clear();
       _yHistory.clear();
       _yawRateHistory.clear();
@@ -664,17 +670,43 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
                 // 检查是否进入“隧道/弱信号模式”
                 final now = DateTime.now();
-                if (_lastGpsTime != null &&
-                    now.difference(_lastGpsTime!) > _gpsTimeout) {
-                  if (!state.isInsActive) {
-                    state = state.copyWith(
-                      isInsActive: true,
-                      debugMessage: 'INS ACTIVE (Tunnel)',
-                    );
-                  }
 
-                  // 在惯导模式下，定时将推算出的位置存入轨迹
-                  _handleInsTick();
+                // 触发惯导显示的物理条件 (严格限制)：
+                // 1. GPS 信号完全中断超过 5 秒 (5秒未收到任何点)
+                // 2. 精度极差且未进入信号恢复锁定
+                final bool isGpsMissing = _lastGpsTime != null &&
+                    now.difference(_lastGpsTime!) > _gpsTimeout;
+                final bool isGpsUnreliable =
+                    (state.currentPosition?.accuracy ?? 0) >
+                        _insTriggerAccuracy;
+
+                // 只有当惯导已初始化（拿到过好点）且满足触发条件时，才激活 INS 显示
+                if (_insEngine.isInitialized &&
+                    (isGpsMissing || isGpsUnreliable)) {
+                  // 额外的物理熔断：如果丢信号超过 60 秒，惯导也不再可信，停止更新
+                  final bool isInsTooOld = _lastGpsTime != null &&
+                      now.difference(_lastGpsTime!).inSeconds > 60;
+
+                  if (isInsTooOld) {
+                    if (state.isInsActive) {
+                      state = state.copyWith(
+                          isInsActive: false, debugMessage: 'GPS SIGNAL LOST');
+                    }
+                  } else {
+                    if (!state.isInsActive) {
+                      state = state.copyWith(
+                        isInsActive: true,
+                        debugMessage: 'INS ACTIVE (Display Only)',
+                      );
+                    }
+                    // 仅更新实时位置，用于小圆点平滑移动
+                    _handleInsTick();
+                  }
+                } else {
+                  // GPS 信号正常，强制关闭 INS，并清除稳定性计数器
+                  if (state.isInsActive) {
+                    state = state.copyWith(isInsActive: false);
+                  }
                 }
               }
 
@@ -696,20 +728,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                     smoothedG > state.maxGForce ? smoothedG : state.maxGForce,
               );
 
-              if (Platform.isIOS) {
-                if (state.algorithmMode == AlgorithmMode.standard) {
-                  _detectAutoEventsStandard(sensorData);
-                } else {
-                  _detectAutoEventsExpert(sensorData);
-                }
-              } else {
-                // Android 根据模式选择算法
-                if (state.algorithmMode == AlgorithmMode.standard) {
-                  _detectAutoEvents(sensorData);
-                } else {
-                  _detectAutoEventsExpertAndroid(sensorData);
-                }
-              }
+              // 统一调用专家引擎，内部已适配 iOS/Android 物理差异
+              _detectAutoEventsExpert(sensorData);
             }
           });
         },
@@ -730,8 +750,15 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       debugPrint('ERROR startRecording: $e');
       debugPrint(stack.toString());
       state = state.copyWith(
-          isRecording: false, isCalibrating: false, debugMessage: 'CRASH: $e');
+          isRecording: false,
+          isCalibrating: false,
+          debugMessage: 'FAILED',
+          alertMessage: e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  void clearAlert() {
+    state = state.copyWith(alertMessage: null);
   }
 
   Future<void> stopRecording() async {
@@ -763,33 +790,31 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     }
   }
 
-  /// 惯导模式下的轨迹记录点
+  /// 惯导模式下的实时显示更新 (仅用于驱动 UI，不存入正式轨迹)
   void _handleInsTick() {
     final now = DateTime.now();
-    // 限制惯导点记录频率 (例如每 1 秒记一个点)
-    if (state.lastLocationTime != null &&
-        now.difference(state.lastLocationTime!).inMilliseconds < 1000) {
-      return;
-    }
 
+    // 获取惯导预测的经纬度
     final LatLng insLatLng = _insEngine.getCurrentLatLng();
 
-    // 记录惯导轨迹点
-    final point = TrajectoryPoint()
-      ..lat = insLatLng.latitude
-      ..lng = insLatLng.longitude
-      ..speed = 0 // 速度可由 insEngine 估算
-      ..timestamp = now
-      ..isLowConfidence = true;
-
-    if (state.currentTrip != null) {
-      _storage.addTrajectoryPoint(state.currentTrip!.id, point);
-      state = state.copyWith(
-        trajectory: [...state.trajectory, point],
-        lastLocationTime: now,
-        lastInsLocation: insLatLng,
-      );
-    }
+    // 第一性原理：惯导点只影响实时位置显示，不进入 trajectory 列表
+    // 这样就不会在地图上产生黄绿混画或线条叠加
+    state = state.copyWith(
+      currentPosition: Position(
+        latitude: insLatLng.latitude,
+        longitude: insLatLng.longitude,
+        timestamp: now,
+        accuracy: 100.0, // 标记为低精度
+        altitude: state.currentPosition?.altitude ?? 0,
+        heading: state.currentPosition?.heading ?? 0,
+        speed: state.currentPosition?.speed ?? 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      ),
+      lastInsLocation: insLatLng,
+      debugMessage: 'INS ACTIVE (Display Only)',
+    );
   }
 
   /// GPS 恢复瞬间的“二次修正”与“地图抓路”
@@ -864,13 +889,40 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     state = state.copyWith(algorithmMode: mode);
   }
 
+  double _getFinalMultiplier() {
+    final sensitivity = _ref.read(settingsProvider).sensitivity;
+    double sensitivityMultiplier = 1.0;
+    if (sensitivity == SensitivityLevel.medium) {
+      sensitivityMultiplier = 0.8;
+    } else if (sensitivity == SensitivityLevel.high) {
+      sensitivityMultiplier = 0.6;
+    }
+
+    double speedMultiplier = 1.0;
+    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+
+    if (currentSpeedKmh < 10.0) {
+      speedMultiplier = 0.8;
+    } else if (currentSpeedKmh < 60.0) {
+      speedMultiplier = 0.8 + 0.2 * ((currentSpeedKmh - 10.0) / 50.0);
+    } else if (currentSpeedKmh > 80.0) {
+      speedMultiplier = 1.2;
+    }
+    return sensitivityMultiplier * speedMultiplier;
+  }
+
   // --- 库 A: iOS 精简优化版 (Refined Standard) ---
   void _detectAutoEventsStandard(SensorData data) {
     final now = DateTime.now();
-    // 1. 启动保护期校验
-    if (_recordingStartTime != null &&
-        now.difference(_recordingStartTime!) < _startProtectionDuration) {
-      return;
+    // 1. 启动保护期校验 (5秒内，若检测到明显运动则提前退出)
+    if (_recordingStartTime != null) {
+      final elapsed = now.difference(_recordingStartTime!);
+      if (elapsed < _startProtectionDuration) {
+        final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+        if (currentSpeedKmh < 5.0 && data.processedAccel.length < 1.5) {
+          return;
+        }
+      }
     }
 
     final accel = data.filteredAccel;
@@ -895,8 +947,6 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       _yawRateHistory.removeFirst();
     }
 
-    final multiplier = _getFinalMultiplier();
-
     bool isDebounced(String type) {
       final last = _lastTriggered[type];
       return last != null && now.difference(last) < _debounceDuration;
@@ -917,11 +967,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     if (jerk.abs() < 40.0) {
       // 只有在物理合理的范围内才检测
-      if (accel.y < (_thresholdDecel * multiplier) &&
-          !isDebounced('rapidDeceleration')) {
+      if (accel.y < _thresholdDecel && !isDebounced('rapidDeceleration')) {
         _lastTriggered['rapidDeceleration'] = now;
         _enqueueEvent(EventType.rapidDeceleration, now);
-      } else if (accel.y > (_thresholdAccel * multiplier) &&
+      } else if (accel.y > _thresholdAccel &&
           !isDebounced('rapidAcceleration')) {
         _lastTriggered['rapidAcceleration'] = now;
         _enqueueEvent(EventType.rapidAcceleration, now);
@@ -950,7 +999,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
       final span = maxX - minX;
       // 摆动必须满足：幅度够大 + 至少有一次完整的往返 (过零点次数 >= 2)
-      if (span > (_thresholdWobbleSpan * multiplier) && crossCount >= 2) {
+      if (span > _thresholdWobbleSpan && crossCount >= 2) {
         // Z 轴联动过滤：如果此时 Z 轴也在剧烈跳变 (> 3.0)，说明是手晃
         if (accel.z.abs() < 3.0) {
           _lastTriggered['wobble'] = now;
@@ -960,284 +1009,111 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     }
 
     // 3. 颠簸检测
-    if (accel.z.abs() > (_thresholdBump * multiplier) && !isDebounced('bump')) {
+    if (accel.z.abs() > _thresholdBump && !isDebounced('bump')) {
       _lastTriggered['bump'] = now;
       _enqueueEvent(EventType.bump, now);
     }
   }
 
   // --- 库 B: iOS 专家引擎 (World-Class Expert) ---
+  // --- 库 B: iOS 精简专家版 ---
   void _detectAutoEventsExpert(SensorData data) {
     final now = DateTime.now();
-    // 1. 启动保护期校验
-    if (_recordingStartTime != null &&
-        now.difference(_recordingStartTime!) < _startProtectionDuration) {
-      return;
-    }
-
-    final accel = data.filteredAccel;
-
-    // 专家级额外逻辑：多轴 Jerk 能量评估
-    final recentPoints =
-        _engine.getLookbackBuffer(1, targetHz: 60); // 获取最近 1 秒高频原始点
-    double totalJerkEnergy = 0;
-    double maxAngularRate = 0; // 新增：窗口内最大旋转角速度
-
-    if (recentPoints.length > 2) {
-      for (int i = 1; i < recentPoints.length; i++) {
-        final dA = (recentPoints[i].processedAccel -
-                recentPoints[i - 1].processedAccel)
-            .length;
-        totalJerkEnergy += dA;
-
-        // 跟踪最大旋转强度
-        final rotationStrength = recentPoints[i].processedGyro.length;
-        if (rotationStrength > maxAngularRate) {
-          maxAngularRate = rotationStrength;
+    // 1. 启动保护期校验 (5秒内，若未检测到车动则不检测)
+    if (_recordingStartTime != null) {
+      final elapsed = now.difference(_recordingStartTime!);
+      if (elapsed < _startProtectionDuration) {
+        final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+        // 如果速度 < 5km/h 且 瞬间力不大，则继续保护，防止点击按钮时的手抖误报
+        if (currentSpeedKmh < 5.0 && data.processedAccel.length < 1.5) {
+          return;
         }
       }
     }
 
-    double expertMultiplier = 1.0;
-
-    // --- 动态姿态守卫 (支架共振识别) ---
-    if (maxAngularRate > 0.4) {
-      expertMultiplier *= 3.0; // 严重抖动：三倍压制
-    } else if (maxAngularRate > 0.2) {
-      expertMultiplier *= 1.5; // 轻微晃动：1.5倍压制
-    }
-
-    if (totalJerkEnergy > 50.0) {
-      expertMultiplier *= 2.0;
-    }
-
-    final baseMultiplier = _getFinalMultiplier();
-    final finalMultiplier = baseMultiplier * expertMultiplier;
+    // 2. 获取数据 (相信校准，回归物理本质)
+    final accel = data.processedAccel;
 
     bool isDebounced(String type) {
       final last = _lastTriggered[type];
       return last != null && now.difference(last) < _debounceDuration;
     }
 
-    // 执行纵向检测 (带上专家倍率 + 物理极值 + 轴间压制)
-    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
-    double speedFloor = 1.8;
-    if (currentSpeedKmh < 15.0) {
-      speedFloor = 2.5;
-    }
+    // 3. 执行纵向检测 (纯物理阈值 + 持续时间校验)
+    // 第一性原理：瞬时抖动不是负体验，持续的力才是。要求连续 150ms 超过阈值。
+    final recentY = _yHistory
+        .where((e) => now.difference(e.key).inMilliseconds < 150)
+        .toList();
 
-    final double currentAccelThreshold =
-        (_thresholdAccel * finalMultiplier).clamp(speedFloor, 15.0);
-    final double currentDecelThreshold =
-        (_thresholdDecel * finalMultiplier).clamp(-15.0, -speedFloor);
+    final multiplier = _getFinalMultiplier();
 
-    // 轴间相关性压制逻辑
-    bool isVerticalSuppressed = accel.z.abs() > (accel.y.abs() * 1.5);
-    bool isHorizontalSuppressed = accel.x.abs() > (accel.y.abs() * 0.8);
+    if (recentY.length >= 3) {
+      // 算法 B (Android) 灵敏度调优：将 every 改为 count 判定，放宽滤波严苛度
+      int decelCount =
+          recentY.where((e) => e.value < (_thresholdDecel * multiplier)).length;
+      int accelCount =
+          recentY.where((e) => e.value > (_thresholdAccel * multiplier)).length;
 
-    if (accel.y < currentDecelThreshold && !isDebounced('rapidDeceleration')) {
-      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
+      if (decelCount >= 2 && !isDebounced('rapidDeceleration')) {
         _lastTriggered['rapidDeceleration'] = now;
         _enqueueEvent(EventType.rapidDeceleration, now);
-      }
-    } else if (accel.y > currentAccelThreshold &&
-        !isDebounced('rapidAcceleration')) {
-      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
+      } else if (accelCount >= 2 && !isDebounced('rapidAcceleration')) {
         _lastTriggered['rapidAcceleration'] = now;
         _enqueueEvent(EventType.rapidAcceleration, now);
       }
     }
 
-    // 摆动检测：专家模式要求更严苛的零点交叉 (3次以上)
-    if (!isDebounced('wobble') && _xHistory.length > 30) {
-      double minX = 0;
-      double maxX = 0;
-      int crossCount = 0;
-      double? lastVal;
-      for (var entry in _xHistory) {
-        if (entry.value < minX) minX = entry.value;
-        if (entry.value > maxX) maxX = entry.value;
-        if (lastVal != null &&
-            ((lastVal <= 0 && entry.value > 0) ||
-                (lastVal >= 0 && entry.value < 0))) {
-          crossCount++;
+    // 4. 摆动检测 (X轴持续性)
+    if (!isDebounced('wobble')) {
+      final recentX = _xHistory
+          .where((e) => now.difference(e.key).inMilliseconds < 200)
+          .toList();
+      if (recentX.length >= 4) {
+        double minX = 0, maxX = 0;
+        for (var e in recentX) {
+          if (e.value < minX) minX = e.value;
+          if (e.value > maxX) maxX = e.value;
         }
-        lastVal = entry.value;
-      }
-
-      final span = maxX - minX;
-      if (span > (_thresholdWobbleSpan * finalMultiplier) && crossCount >= 3) {
-        if (accel.z.abs() < 2.0) {
-          // 更严的 Z 轴约束
+        if ((maxX - minX) > (_thresholdWobbleSpan * multiplier)) {
           _lastTriggered['wobble'] = now;
           _enqueueEvent(EventType.wobble, now);
         }
       }
     }
 
-    if (accel.z.abs() > (_thresholdBump * finalMultiplier) &&
-        !isDebounced('bump')) {
+    // 5. 颠簸检测 (Z轴瞬时冲击)
+    if (accel.z.abs() > (_thresholdBump * multiplier) && !isDebounced('bump')) {
       _lastTriggered['bump'] = now;
       _enqueueEvent(EventType.bump, now);
+    }
+
+    // 6. 顿挫检测 (Jerk)
+    if (!isDebounced('jerk') && _yHistory.length > 5) {
+      final recentPoints = _yHistory
+          .where((e) => now.difference(e.key).inMilliseconds < 100)
+          .toList();
+      if (recentPoints.length >= 2) {
+        final deltaA = recentPoints.last.value - recentPoints.first.value;
+        final deltaT = recentPoints.last.key
+                .difference(recentPoints.first.key)
+                .inMilliseconds /
+            1000.0;
+        if (deltaT > 0) {
+          final jerk = deltaA / deltaT;
+          if (jerk.abs() > _thresholdJerk) {
+            _lastTriggered['jerk'] = now;
+            _enqueueEvent(EventType.jerk, now);
+          }
+        }
+      }
     }
   }
 
   // --- 库 B (Android 适配版): 专家引擎 ---
+  // --- 库 B (Android 适配版): 专家引擎 ---
   void _detectAutoEventsExpertAndroid(SensorData data) {
-    final now = DateTime.now();
-    // 1. 启动保护期校验 (前 5 秒不检测自动打标)
-    if (_recordingStartTime != null &&
-        now.difference(_recordingStartTime!) < _startProtectionDuration) {
-      return;
-    }
-
-    // 2. 专家级滤波：获取平滑后的数据 (由 SensorEngine 的级联滤波矩阵提供)
-    final accel = data.filteredAccel;
-
-    // 3. 动态能量评估与物理熔断 (归一化适配 Android 30Hz)
-    final recentPoints = _engine.getLookbackBuffer(1, targetHz: 30);
-    double totalJerkEnergy = 0;
-    double maxAngularRate = 0; // 新增：窗口内最大旋转角速度
-
-    if (recentPoints.length > 2) {
-      for (int i = 1; i < recentPoints.length; i++) {
-        // 计算相邻点的变化率矢量模长
-        final dA = (recentPoints[i].processedAccel -
-                recentPoints[i - 1].processedAccel)
-            .length;
-        totalJerkEnergy += dA;
-
-        // 跟踪最大旋转强度
-        final rotationStrength = recentPoints[i].processedGyro.length;
-        if (rotationStrength > maxAngularRate) {
-          maxAngularRate = rotationStrength;
-        }
-      }
-    }
-
-    final double meanEnergy =
-        recentPoints.isNotEmpty ? totalJerkEnergy / recentPoints.length : 0;
-
-    double expertMultiplier = 1.0;
-
-    // --- 动态姿态守卫 (支架共振识别) ---
-    // 如果窗口内角速度过大 ( > 0.4 rad/s )，说明手机在支架上剧烈晃动，大幅提高门槛
-    if (maxAngularRate > 0.4) {
-      expertMultiplier *= 3.0; // 严重抖动：三倍压制
-    } else if (maxAngularRate > 0.2) {
-      expertMultiplier *= 1.5; // 轻微晃动：1.5倍压制
-    }
-
-    // 物理熔断门槛：如果点均能量超过 0.85，判定为极端环境
-    if (meanEnergy > 0.85) {
-      expertMultiplier *= 2.0;
-    }
-
-    // 4. 唤醒/异常跳变熔断 (Brake Spike Filter)
-    if (recentPoints.length >= 2) {
-      final instantJerk = (recentPoints.last.processedAccel -
-                  recentPoints[recentPoints.length - 2].processedAccel)
-              .length /
-          0.033;
-      if (instantJerk > 40.0) {
-        expertMultiplier = 5.0; // 封死由于传感器唤醒包产生的虚假信号
-      }
-    }
-
-    final baseMultiplier = _getFinalMultiplier();
-    final finalMultiplier = baseMultiplier * expertMultiplier;
-
-    bool isDebounced(String type) {
-      final last = _lastTriggered[type];
-      return last != null && now.difference(last) < _debounceDuration;
-    }
-
-    // 5. 执行纵向检测 (带上专家倍率 + 硬性物理保底 + 轴间压制)
-    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
-
-    // 物理常识校验：低速下限制最大加速度阈值
-    // 如果速度低于 15km/h，除非角速度极低且轴向纯净，否则门槛不得低于 2.5G (防止支架点头)
-    double speedFloor = 1.8;
-    if (currentSpeedKmh < 15.0) {
-      speedFloor = 2.5;
-    }
-
-    final double currentAccelThreshold =
-        (_thresholdAccel * finalMultiplier).clamp(speedFloor, 15.0);
-    final double currentDecelThreshold =
-        (_thresholdDecel * finalMultiplier).clamp(-15.0, -speedFloor);
-
-    // 轴间相关性压制逻辑：
-    // 1. Z 轴耦合压制 (路面垂直抖动)
-    bool isVerticalSuppressed = accel.z.abs() > (accel.y.abs() * 1.5);
-    // 2. X 轴相关性压制 (支架左右横摆)
-    bool isHorizontalSuppressed = accel.x.abs() > (accel.y.abs() * 0.8);
-
-    if (accel.y < currentDecelThreshold && !isDebounced('rapidDeceleration')) {
-      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
-        _lastTriggered['rapidDeceleration'] = now;
-        _enqueueEvent(EventType.rapidDeceleration, now);
-      }
-    } else if (accel.y > currentAccelThreshold &&
-        !isDebounced('rapidAcceleration')) {
-      if (!isVerticalSuppressed && !isHorizontalSuppressed) {
-        _lastTriggered['rapidAcceleration'] = now;
-        _enqueueEvent(EventType.rapidAcceleration, now);
-      }
-    }
-
-    // 6. 摆动检测：专家模式要求更严苛的零点交叉 (3次以上)
-    if (!isDebounced('wobble') && _xHistory.length > 20) {
-      double minX = 0;
-      double maxX = 0;
-      int crossCount = 0;
-      double? lastVal;
-      for (var entry in _xHistory) {
-        if (entry.value < minX) minX = entry.value;
-        if (entry.value > maxX) maxX = entry.value;
-        if (lastVal != null &&
-            ((lastVal <= 0 && entry.value > 0) ||
-                (lastVal >= 0 && entry.value < 0))) {
-          crossCount++;
-        }
-        lastVal = entry.value;
-      }
-
-      final span = maxX - minX;
-      // 专家模式：幅度 + 过零点 (左-右-左) + Z轴静默
-      if (span > (_thresholdWobbleSpan * finalMultiplier) &&
-          crossCount >= 3 &&
-          accel.z.abs() < 2.0) {
-        _lastTriggered['wobble'] = now;
-        _enqueueEvent(EventType.wobble, now);
-      }
-    }
-
-    // 7. 颠簸检测
-    if (accel.z.abs() > (_thresholdBump * finalMultiplier) &&
-        !isDebounced('bump')) {
-      _lastTriggered['bump'] = now;
-      _enqueueEvent(EventType.bump, now);
-    }
-  }
-
-  double _getFinalMultiplier() {
-    final sensitivity = _ref.read(settingsProvider).sensitivity;
-    double sensitivityMultiplier = 1.0;
-    if (sensitivity == SensitivityLevel.medium) sensitivityMultiplier = 0.8;
-    if (sensitivity == SensitivityLevel.high) sensitivityMultiplier = 0.6;
-
-    double speedMultiplier = 1.0;
-    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
-
-    if (currentSpeedKmh < 10.0) {
-      speedMultiplier = 0.8;
-    } else if (currentSpeedKmh < 60.0) {
-      speedMultiplier = 0.8 + 0.2 * ((currentSpeedKmh - 10.0) / 50.0);
-    } else if (currentSpeedKmh > 80.0) {
-      speedMultiplier = 1.2;
-    }
-    return sensitivityMultiplier * speedMultiplier;
+    // Android 版与 iOS 版使用相同的物理常数逻辑，实现平台一致性
+    _detectAutoEventsExpert(data);
   }
 
   // --- 聚合引擎核心逻辑 ---

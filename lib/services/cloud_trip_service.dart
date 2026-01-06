@@ -138,9 +138,9 @@ class CloudTripService {
           final name = userRecord.get<String>('name');
           final username = userRecord.get<String>('username');
 
-          if (name != null && name.isNotEmpty) {
+          if (name.isNotEmpty) {
             userName = name;
-          } else if (username != null && username.isNotEmpty) {
+          } else if (username.isNotEmpty) {
             userName = username;
           }
         } else {

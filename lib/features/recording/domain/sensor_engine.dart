@@ -22,23 +22,17 @@ class SensorEngine {
   // 校准矩阵 (Identity matrix by default)
   Matrix3 _rotationMatrix = Matrix3.identity();
   bool _isCalibrated = false;
-  double _gravityMagnitude = 9.80665; // 标准重力加速度
+
+  // 核心：原始坐标系下的静态重力向量 (用于消除 0.3G 偏移)
+  Vector3 _staticGravityRaw = Vector3.zero();
 
   // 滤波器系数
   static const double _lpfCoeff = 0.1;
-  static const double _rampFilterCoeff = 0.02;
   Vector3 _filteredAccel = Vector3.zero();
-  Vector3 _gravityEstimate = Vector3.zero();
 
   // --- 顶级滤波矩阵成员 ---
   final ListQueue<Vector3> _medianBuffer = ListQueue<Vector3>();
   static const int _medianWindowSize = 3;
-
-  // 卡尔曼滤波器状态 (简单版用于重力追踪)
-  Vector3 _kalmanGravity = Vector3.zero();
-  Vector3 _kalmanP = Vector3.all(0.1); // 误差协方差
-  static const double _kalmanQ = 0.001; // 过程噪声
-  static const double _kalmanR = 0.1; // 测量噪声
 
   // 动态航向修正相关
   double _dynamicYawOffset = 0.0;
@@ -103,42 +97,29 @@ class SensorEngine {
     // Stage 1: 中值滤波 (Median Filter) - 消除硬件毛刺
     _medianBuffer.addLast(_latestAccel.clone());
     if (_medianBuffer.length > _medianWindowSize) _medianBuffer.removeFirst();
-
     final Vector3 smoothedAccel = _calculateMedian(_medianBuffer.toList());
 
-    // Stage 2: 卡尔曼滤波 (Kalman Filter) - 动态追踪重力姿态
-    if (!_isCalibrated) {
-      _kalmanGravity = smoothedAccel.clone();
-      _isCalibrated = true; // 初始状态下直接采信
-    } else {
-      // 简单卡尔曼更新：预测
-      // Gravity doesn't change much, so prediction is same as last state
-      // 修正：计算卡尔曼增益
-      for (int i = 0; i < 3; i++) {
-        _kalmanP[i] = _kalmanP[i] + _kalmanQ;
-        double kGain = _kalmanP[i] / (_kalmanP[i] + _kalmanR);
-        _kalmanGravity[i] =
-            _kalmanGravity[i] + kGain * (smoothedAccel[i] - _kalmanGravity[i]);
-        _kalmanP[i] = (1 - kGain) * _kalmanP[i];
-      }
-    }
+    // Stage 2: 扣除静态重力 (原始坐标系)
+    // 第一性原理：先减去重力向量，再进行坐标旋转。这能彻底消除因旋转矩阵不准导致的重力泄露 (0.3G 偏移)
+    final Vector3 pureMotionRaw =
+        _isCalibrated ? smoothedAccel - _staticGravityRaw : Vector3.zero();
 
-    // Stage 3: 应用旋转矩阵 (包含动态航向修正)
-    // 基础旋转（由静态校准确定）
-    Vector3 rotatedAccel = _rotationMatrix.transformed(smoothedAccel);
+    // Stage 3: 姿态应用 (将纯净的运动向量转到车辆坐标系)
+    Vector3 processedAccel = _rotationMatrix.transformed(pureMotionRaw);
     Vector3 rotatedGyro = _rotationMatrix.transformed(_latestGyro);
 
-    // 应用动态航向修正 (Yaw)
-    if (_dynamicYawOffset != 0) {
+    // 应用动态航向修正 (Yaw) - 如果已对齐
+    if (_isHeadingAligned && _dynamicYawOffset != 0) {
       final yawMatrix = Matrix3.rotationZ(_dynamicYawOffset);
-      rotatedAccel = yawMatrix.transformed(rotatedAccel);
+      processedAccel = yawMatrix.transformed(processedAccel);
       rotatedGyro = yawMatrix.transformed(rotatedGyro);
     }
 
-    // Stage 4: 扣除动态重力
-    final Vector3 currentGravityInRef =
-        _rotationMatrix.transformed(_kalmanGravity);
-    final processedAccel = rotatedAccel - currentGravityInRef;
+    // Stage 4: “点头”保护 (Pitch Guard)
+    // 物理补偿：如果正在急刹车 (Y < -2.0) 且陀螺仪检测到明显的俯仰 (Gyro.x)
+    if (processedAccel.y < -2.0 && rotatedGyro.x.abs() > 0.05) {
+      processedAccel.y += (rotatedGyro.x * 0.3).clamp(-0.8, 0.8);
+    }
 
     // 低通滤波用于平滑显示
     _filteredAccel =
@@ -208,60 +189,100 @@ class SensorEngine {
     }
   }
 
-  /// 顶级校准逻辑：增加方差校验，确保校准时手机是静止的
+  /// 顶级校准逻辑：增加状态重置、方差校验和陀螺仪守卫，确保校准是绝对干净的
   Future<void> calibrate() async {
-    List<Vector3> samples = [];
-    const int sampleCount = 20;
+    // 1. 彻底清空旧的校准状态，确保二次校准不受干扰
+    _isCalibrated = false;
+    _rotationMatrix = Matrix3.identity();
+    _staticGravityRaw = Vector3.zero();
+    _dynamicYawOffset = 0.0;
+    _isHeadingAligned = false;
+    _headingLearningBuffer.clear();
+
+    List<Vector3> accelSamples = [];
+    List<Vector3> magSamples = [];
+    List<double> gyroMagnitudes = [];
+    const int sampleCount = 60; // 约 3.0 秒，修复校准时间过短问题
 
     for (int i = 0; i < sampleCount; i++) {
-      samples.add(_latestAccel.clone());
+      accelSamples.add(_latestAccel.clone());
+      magSamples.add(_latestMag.clone());
+      gyroMagnitudes.add(_latestGyro.length);
       await Future.delayed(const Duration(milliseconds: 50));
     }
 
-    // 计算均值
-    Vector3 gMean = Vector3.zero();
-    for (var s in samples) {
-      gMean += s;
+    // 2. 陀螺仪守卫：检测校准期间是否有任何晃动
+    final maxGyro = gyroMagnitudes.reduce(math.max);
+    if (maxGyro > 0.1) {
+      // 稍微放宽到 0.1，适配 Android 硬件基底噪声
+      throw Exception("校准失败：请确保手机完全静止（检测到晃动: ${maxGyro.toStringAsFixed(3)}）");
     }
-    gMean /= samples.length.toDouble();
 
-    // 顶级校验：计算方差 (Variance)
+    // 3. 计算均值和方差
+    Vector3 gMean = Vector3.zero();
+    Vector3 mMean = Vector3.zero();
+    for (int i = 0; i < sampleCount; i++) {
+      gMean += accelSamples[i];
+      mMean += magSamples[i];
+    }
+    gMean /= sampleCount.toDouble();
+    mMean /= sampleCount.toDouble();
+
     double variance = 0;
-    for (var s in samples) {
+    for (var s in accelSamples) {
       variance += (s - gMean).length2;
     }
-    variance /= samples.length;
+    variance /= accelSamples.length;
 
-    // 如果方差 > 0.05 (约 0.22m/s² 的波动)，说明手机在动，拒绝校准
     if (variance > 0.05) {
-      throw Exception("校准失败：请确保手机完全静止（检测到波动: ${variance.toStringAsFixed(3)}）");
+      throw Exception("校准失败：请确保手机完全静止（检测到震动: ${variance.toStringAsFixed(3)}）");
     }
 
-    _gravityMagnitude = gMean.length;
-    // 强制校验：如果重力模长不在合理范围内 (8.0 ~ 12.0)，说明传感器还在假死或读数异常
-    if (_gravityMagnitude < 8.0 || _gravityMagnitude > 12.0) {
-      throw Exception(
-          "校准失败：传感器读数异常 (G: ${_gravityMagnitude.toStringAsFixed(2)})，请检查权限或重启 App");
+    final gravityMag = gMean.length;
+    if (gravityMag < 8.0 || gravityMag > 12.0) {
+      throw Exception("校准失败：传感器读数异常 (G: ${gravityMag.toStringAsFixed(2)})");
     }
 
+    // 4. 构建 3D 姿态矩阵 (支持水平倾斜/Yaw 对齐)
+    // 第一性原理：利用重力确定垂直面，利用磁力计锁定水平参考
     final unitZ = gMean.normalized();
-    Vector3 reference = Vector3(0, 1, 0);
-    if (unitZ.dot(reference).abs() > 0.9) {
-      reference = Vector3(1, 0, 0);
+
+    // 计算 X 轴：磁场与重力的叉乘得到“水平东向”
+    Vector3 unitX = mMean.cross(unitZ).normalized();
+    // 鲁棒性：如果磁力计失效或与重力共线，退回到默认参考
+    if (unitX.length < 0.1) {
+      Vector3 reference =
+          unitZ.y.abs() > 0.9 ? Vector3(1, 0, 0) : Vector3(0, 1, 0);
+      unitX = reference.cross(unitZ).normalized();
     }
 
-    final unitX = reference.cross(unitZ).normalized();
+    // 计算 Y 轴：Z 和 X 叉乘得到“水平北向”
     final unitY = unitZ.cross(unitX).normalized();
 
     final rot = Matrix3.columns(unitX, unitY, unitZ);
     _rotationMatrix = rot.isIdentity() ? rot : Matrix3.copy(rot)
       ..invert();
-    _gravityEstimate = _rotationMatrix.transformed(gMean);
-    _isCalibrated = true;
-    _isHeadingAligned = false; // 重置航向对齐标志
-    _dynamicYawOffset = 0.0; // 重置航向偏角
+    _staticGravityRaw = gMean.clone();
 
+    // 5. 计算物理角度用于输出验证
+    // Pitch (俯仰角): 手机头部抬起/低下的角度
+    final pitch = math.asin(-unitZ.y.clamp(-1.0, 1.0)) * 180 / math.pi;
+    // Roll (横滚角): 手机向左/右倾斜的角度
+    final roll = math.atan2(unitZ.x, unitZ.z) * 180 / math.pi;
+
+    debugPrint("=== Calibration Confirmed ===");
+    debugPrint(
+        "Orientation: Pitch ${pitch.toStringAsFixed(1)}°, Roll ${roll.toStringAsFixed(1)}°");
+    debugPrint(
+        "Static Gravity Vector: ${gMean.x.toStringAsFixed(3)}, ${gMean.y.toStringAsFixed(3)}, ${gMean.z.toStringAsFixed(3)}");
+
+    _isCalibrated = true;
     _processTick();
+
+    final firstPoint = _rotationMatrix.transformed(gMean - _staticGravityRaw);
+    debugPrint(
+        "Initial Processed (Should be 0): ${firstPoint.x.toStringAsFixed(3)}, ${firstPoint.y.toStringAsFixed(3)}, ${firstPoint.z.toStringAsFixed(3)}");
+    debugPrint("==============================");
   }
 
   /// 获取回溯数据片段 (过去 N 秒)，并进行下采样 (Downsampling to ~20Hz)

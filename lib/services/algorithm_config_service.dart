@@ -34,6 +34,7 @@ class AlgorithmConfigService extends StateNotifier<AlgorithmConfig> {
 
   Future<void> fetchAndSync() async {
     try {
+      debugPrint('🔍 [ConfigSync] 正在尝试从 PocketBase 获取最新配置 (Collection: $_collectionName)...');
       // 获取最新的一条配置记录 (按版本号或更新时间排序)
       final records = await _pb.collection(_collectionName).getList(
             page: 1,
@@ -41,22 +42,52 @@ class AlgorithmConfigService extends StateNotifier<AlgorithmConfig> {
             sort: '-version',
           );
 
+      debugPrint('🔍 [ConfigSync] PocketBase 响应记录数: ${records.items.length}');
+
       if (records.items.isNotEmpty) {
         final record = records.items.first;
-        final cloudConfig = AlgorithmConfig.fromJson(record.data);
+        debugPrint('🔍 [ConfigSync] 收到云端原始 JSON: ${record.data}');
+        final cloudConfig = AlgorithmConfig.fromJson(record.data, recordId: record.id);
+        debugPrint('🔍 [ConfigSync] 解析后版本: ${cloudConfig.version}, 当前本地版本: ${state.version}');
 
-        if (cloudConfig.version > state.version) {
+        if (cloudConfig.version > state.version || state.id == null) {
           debugPrint(
-              'New algorithm version found: ${cloudConfig.version}. Updating...');
+              '🚀 [ConfigSync] 检测到新版本或补全ID! 升级: ${state.version} -> ${cloudConfig.version}');
           state = cloudConfig;
           await _prefs.setString(_storageKey, jsonEncode(cloudConfig.toJson()));
+          debugPrint('✅ [ConfigSync] 新配置已成功持久化到本地缓存');
         } else {
-          debugPrint('AlgorithmConfig is up to date (v${state.version})');
+          debugPrint(
+              'ℹ️ [ConfigSync] 无需更新 (云端: ${cloudConfig.version}, 本地: ${state.version})');
         }
       }
+    } catch (e, stack) {
+      debugPrint('❌ [ConfigSync] 获取云端配置失败: $e');
+      if (e.toString().contains('403')) {
+        debugPrint('💡 [ConfigSync] 提示: 请检查 PocketBase 的 API Rules 是否允许公开 List/View');
+      }
+      debugPrint(stack.toString());
+    }
+  }
+
+  Future<void> updateConfig(AlgorithmConfig newConfig) async {
+    try {
+      if (newConfig.id == null) throw Exception('Cannot update config without ID');
+
+      // 更新到 PocketBase
+      final record = await _pb.collection(_collectionName).update(
+            newConfig.id!,
+            body: newConfig.toJson(),
+          );
+
+      // 更新本地状态
+      final updatedConfig = AlgorithmConfig.fromJson(record.data, recordId: record.id);
+      state = updatedConfig;
+      await _prefs.setString(_storageKey, jsonEncode(updatedConfig.toJson()));
+      debugPrint('✅ [ConfigUpdate] 配置已成功更新到云端并同步本地');
     } catch (e) {
-      debugPrint('Failed to fetch AlgorithmConfig from cloud: $e');
-      // 网络失败时保持当前(缓存或默认)状态
+      debugPrint('❌ [ConfigUpdate] 更新失败: $e');
+      rethrow;
     }
   }
 }

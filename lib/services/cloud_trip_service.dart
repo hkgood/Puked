@@ -110,6 +110,122 @@ class CloudTripService {
     }
   }
 
+  /// 获取当前用户云端所有的行程记录（包含元数据）
+  Future<List<RecordModel>> fetchUserCloudTrips() async {
+    final userId = _pbService.currentUserId;
+    if (!_pbService.isAuthenticated || userId == null) return [];
+    try {
+      return await _pbService.pb.collection('trips').getFullList(
+            filter: 'user = "$userId"', // 关键：只拉取当前用户的行程
+            sort: '-created',
+          );
+    } catch (e) {
+      debugPrint('Error fetching user cloud trips: $e');
+      return [];
+    }
+  }
+
+  /// 执行双向同步：
+  /// 1. 发现本地缺失的云端行程，创建占位符
+  /// 2. 更新本地行程的上传状态
+  Future<int> syncCloudToLocal(dynamic storage) async {
+    if (!_pbService.isAuthenticated) return 0;
+
+    try {
+      final cloudRecords = await fetchUserCloudTrips();
+      int newPlaceholders = 0;
+
+      for (final record in cloudRecords) {
+        final uuid = record.getStringValue('local_uuid');
+        if (uuid.isEmpty) continue;
+
+        final localTrip = await storage.getTripByUuid(uuid);
+        if (localTrip == null) {
+          // 本地完全没有，创建占位
+          final metrics = record.get<Map<String, dynamic>>('metrics');
+          final distanceKm =
+              double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
+          final eventCount = metrics['event_count'] as int? ?? 0;
+
+          final placeholder = Trip()
+            ..uuid = uuid
+            ..cloudId = record.id
+            ..startTime = DateTime.parse(record.get<String>('created'))
+            ..brand = record.getStringValue('brand')
+            ..carModel = record.getStringValue('car_model')
+            ..softwareVersion = record.getStringValue('software_version')
+            ..distance = distanceKm * 1000
+            ..eventCount = eventCount
+            ..isUploaded = true
+            ..notes = '[CLOUD_ONLY]'; // 使用 notes 作为持久化标记位
+
+          await storage.savePlaceholderTrip(placeholder);
+          newPlaceholders++;
+        } else {
+          // 本地有，更新 cloudId 和 isUploaded
+          if (!localTrip.isUploaded || localTrip.cloudId != record.id) {
+            await storage.updateTripCloudId(localTrip.id, record.id);
+          }
+        }
+      }
+      return newPlaceholders;
+    } catch (e) {
+      debugPrint('Sync cloud to local failed: $e');
+      return 0;
+    }
+  }
+
+  /// 下载行程的原始日志文件并解析
+  Future<Map<String, dynamic>?> downloadTripData(
+      String recordId, String fileName) async {
+    if (!_pbService.isAuthenticated) return null;
+
+    try {
+      final url = _pbService.pb.files.getUrl(
+        RecordModel({
+          'id': recordId,
+          'collectionId': 'trips',
+          'collectionName': 'trips'
+        }),
+        fileName,
+      );
+
+      // 关键修复：PocketBase 文件访问如果不是 Public，必须在 Header 中带上 Token
+      debugPrint('[PukedSync] Starting download from URL: $url');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': _pbService.pb.authStore.token,
+        },
+      ).timeout(const Duration(seconds: 60)); // 延长至60秒，确保大文件传完
+
+      if (response.statusCode == 200) {
+        debugPrint(
+            '[PukedSync] Download success. Size: ${response.bodyBytes.length} bytes');
+
+        // 核心修复：恢复后台线程解析，确保大数据量下 UI 流畅
+        final data = await compute(_parseJson, response.bodyBytes);
+
+        debugPrint(
+            '[PukedSync] JSON parse complete. Root keys: ${data.keys.toList()}');
+        return data;
+      } else {
+        debugPrint(
+            '[PukedSync] Download failed. HTTP Status: ${response.statusCode}');
+        debugPrint('[PukedSync] Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('[PukedSync] Error downloading trip data: $e');
+      return null;
+    }
+  }
+
+  // 辅助方法：在后台线程解析 JSON
+  static Map<String, dynamic> _parseJson(Uint8List bytes) {
+    return jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+  }
+
   /// 从云端抓取所有公开的行程数据，用于 Arena 展示
   Future<List<Trip>> fetchPublicTrips() async {
     try {

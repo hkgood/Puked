@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 class AlgorithmConfig {
   final double thresholdAccel;
   final double thresholdDecel;
@@ -17,8 +19,15 @@ class AlgorithmConfig {
   final double speedLowFactor;
   final double speedHighFactor;
 
+  // --- 物理合理性上限 (Sanity Check) ---
+  final double maxJerkAllowed; // 最大允许 Jerk (m/s³)，超过则认为是手机掉落/晃动
+  final double maxAccelAllowed; // 最大允许加速度 (m/s²)，约 2G
+  final double maxWobbleSpanAllowed; // 最大允许横摆跨度 (m/s²)
+  final double maxBumpAllowed; // 最大允许垂直冲击 (m/s²)，约 4G
+
   final int version;
   final String updatedAt;
+  final String? id; // PocketBase Record ID
 
   AlgorithmConfig({
     required this.thresholdAccel,
@@ -35,29 +44,40 @@ class AlgorithmConfig {
     required this.pitchValidationEnabled,
     required this.speedLowFactor,
     required this.speedHighFactor,
+    required this.maxJerkAllowed,
+    required this.maxAccelAllowed,
+    required this.maxWobbleSpanAllowed,
+    required this.maxBumpAllowed,
     required this.version,
     required this.updatedAt,
+    this.id,
   });
 
-  factory AlgorithmConfig.fromJson(Map<String, dynamic> json) {
+  factory AlgorithmConfig.fromJson(Map<String, dynamic> json, {String? recordId}) {
     return AlgorithmConfig(
       thresholdAccel: (json['threshold_accel'] ?? 2.2).toDouble(),
       thresholdDecel: (json['threshold_decel'] ?? -2.0).toDouble(),
-      thresholdWobbleSpan: (json['threshold_wobble_span'] ?? 2.0).toDouble(),
+      thresholdWobbleSpan: (json['threshold_wobble_span'] ?? 2.5).toDouble(),
       thresholdBump: (json['threshold_bump'] ?? 5.5).toDouble(),
-      thresholdJerk: (json['threshold_jerk'] ?? 5.5).toDouble(),
+      thresholdJerk: (json['threshold_jerk'] ?? 6.0).toDouble(),
       thresholdPitch: (json['threshold_pitch'] ?? 1.5).toDouble(),
-      jerkWindowMs: json['jerk_window_ms'] ?? 250,
-      accelDecelWindowMs: json['accel_decel_window_ms'] ?? 600,
-      wobbleWindowMs: json['wobble_window_ms'] ?? 1000,
-      fusionWindowMs: json['fusion_window_ms'] ?? 3000,
+      jerkWindowMs: (json['jerk_window_ms'] ?? 250).toInt(),
+      accelDecelWindowMs: (json['accel_decel_window_ms'] ?? 600).toInt(),
+      wobbleWindowMs: (json['wobble_window_ms'] ?? 1000).toInt(),
+      fusionWindowMs: (json['fusion_window_ms'] ?? 3000).toInt(),
       zyInterferenceThreshold:
           (json['zy_interference_threshold'] ?? 3.0).toDouble(),
       pitchValidationEnabled: json['pitch_validation_enabled'] ?? true,
       speedLowFactor: (json['speed_low_factor'] ?? 1.1).toDouble(),
       speedHighFactor: (json['speed_high_factor'] ?? 0.9).toDouble(),
-      version: json['version'] ?? 1,
-      updatedAt: json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      // 物理上限解析
+      maxJerkAllowed: (json['max_jerk_allowed'] ?? 50.0).toDouble(),
+      maxAccelAllowed: (json['max_accel_allowed'] ?? 20.0).toDouble(),
+      maxWobbleSpanAllowed: (json['max_wobble_span_allowed'] ?? 20.0).toDouble(),
+      maxBumpAllowed: (json['max_bump_allowed'] ?? 40.0).toDouble(),
+      version: (json['version'] ?? 0).toInt(),
+      updatedAt: (json['updated'] ?? json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      id: recordId ?? json['id'],
     );
   }
 
@@ -77,19 +97,74 @@ class AlgorithmConfig {
       'pitch_validation_enabled': pitchValidationEnabled,
       'speed_low_factor': speedLowFactor,
       'speed_high_factor': speedHighFactor,
+      'max_jerk_allowed': maxJerkAllowed,
+      'max_accel_allowed': maxAccelAllowed,
+      'max_wobble_span_allowed': maxWobbleSpanAllowed,
+      'max_bump_allowed': maxBumpAllowed,
       'version': version,
       'updatedAt': updatedAt,
+      'id': id,
     };
   }
 
-  /// 默认配置 (2.1.3 基础版本)
+  AlgorithmConfig copyWith({
+    double? thresholdAccel,
+    double? thresholdDecel,
+    double? thresholdWobbleSpan,
+    double? thresholdBump,
+    double? thresholdJerk,
+    double? thresholdPitch,
+    int? jerkWindowMs,
+    int? accelDecelWindowMs,
+    int? wobbleWindowMs,
+    int? fusionWindowMs,
+    double? zyInterferenceThreshold,
+    bool? pitchValidationEnabled,
+    double? speedLowFactor,
+    double? speedHighFactor,
+    double? maxJerkAllowed,
+    double? maxAccelAllowed,
+    double? maxWobbleSpanAllowed,
+    double? maxBumpAllowed,
+    int? version,
+    String? updatedAt,
+    String? id,
+  }) {
+    return AlgorithmConfig(
+      thresholdAccel: thresholdAccel ?? this.thresholdAccel,
+      thresholdDecel: thresholdDecel ?? this.thresholdDecel,
+      thresholdWobbleSpan: thresholdWobbleSpan ?? this.thresholdWobbleSpan,
+      thresholdBump: thresholdBump ?? this.thresholdBump,
+      thresholdJerk: thresholdJerk ?? this.thresholdJerk,
+      thresholdPitch: thresholdPitch ?? this.thresholdPitch,
+      jerkWindowMs: jerkWindowMs ?? this.jerkWindowMs,
+      accelDecelWindowMs: accelDecelWindowMs ?? this.accelDecelWindowMs,
+      wobbleWindowMs: wobbleWindowMs ?? this.wobbleWindowMs,
+      fusionWindowMs: fusionWindowMs ?? this.fusionWindowMs,
+      zyInterferenceThreshold:
+          zyInterferenceThreshold ?? this.zyInterferenceThreshold,
+      pitchValidationEnabled:
+          pitchValidationEnabled ?? this.pitchValidationEnabled,
+      speedLowFactor: speedLowFactor ?? this.speedLowFactor,
+      speedHighFactor: speedHighFactor ?? this.speedHighFactor,
+      maxJerkAllowed: maxJerkAllowed ?? this.maxJerkAllowed,
+      maxAccelAllowed: maxAccelAllowed ?? this.maxAccelAllowed,
+      maxWobbleSpanAllowed: maxWobbleSpanAllowed ?? this.maxWobbleSpanAllowed,
+      maxBumpAllowed: maxBumpAllowed ?? this.maxBumpAllowed,
+      version: version ?? this.version,
+      updatedAt: updatedAt ?? this.updatedAt,
+      id: id ?? this.id,
+    );
+  }
+
+  /// 默认配置 (2.1.5 物理边界版)
   factory AlgorithmConfig.defaultConfig() {
     return AlgorithmConfig(
       thresholdAccel: 2.2,
       thresholdDecel: -2.0,
-      thresholdWobbleSpan: 2.0,
+      thresholdWobbleSpan: 2.5,
       thresholdBump: 5.5,
-      thresholdJerk: 5.5,
+      thresholdJerk: 6.0,
       thresholdPitch: 1.5,
       jerkWindowMs: 250,
       accelDecelWindowMs: 600,
@@ -99,8 +174,12 @@ class AlgorithmConfig {
       pitchValidationEnabled: true,
       speedLowFactor: 1.1,
       speedHighFactor: 0.9,
+      maxJerkAllowed: 50.0,
+      maxAccelAllowed: 20.0,
+      maxWobbleSpanAllowed: 20.0,
+      maxBumpAllowed: 40.0,
       version: 0,
-      updatedAt: '2026-01-07T00:00:00Z',
+      updatedAt: '2026-01-08T00:00:00Z',
     );
   }
 }

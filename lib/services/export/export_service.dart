@@ -55,7 +55,11 @@ class ExportService {
                   "timestamp": e.timestamp.millisecondsSinceEpoch / 1000.0,
                   "type": e.type,
                   "source": e.source,
-                  "location": {"lat": e.lat, "lng": e.lng},
+                  "location": {
+                    "lat": e.lat,
+                    "lng": e.lng,
+                    "speed": e.speed, // 导出事件发生时的融合速度
+                  },
                   "sensor_fragment": {
                     "sampling_rate": "30Hz",
                     "data": e.sensorData

@@ -366,4 +366,90 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get algorithm_update_failed => '参数同步失败，请检查网络';
+
+  @override
+  String get algorithm_settings_title => '在线算法参数';
+
+  @override
+  String get algorithm_updated_at => '最后更新';
+
+  @override
+  String get threshold_accel_label => '加速阈值';
+
+  @override
+  String get threshold_decel_label => '减速阈值';
+
+  @override
+  String get threshold_wobble_span_label => '摆动幅度阈值';
+
+  @override
+  String get threshold_bump_label => '颠簸阈值';
+
+  @override
+  String get threshold_jerk_label => '顿挫/冲击阈值';
+
+  @override
+  String get threshold_pitch_label => '俯仰角阈值';
+
+  @override
+  String get jerk_window_ms_label => '顿挫检测窗口';
+
+  @override
+  String get accel_decel_window_ms_label => '加减速持续窗口';
+
+  @override
+  String get wobble_window_ms_label => '摆动检测窗口';
+
+  @override
+  String get fusion_window_ms_label => '事件聚合窗口';
+
+  @override
+  String get zy_interference_threshold_label => '垂直轴干扰抑制';
+
+  @override
+  String get pitch_validation_enabled_label => '俯仰保护开关';
+
+  @override
+  String get speed_low_factor_label => '低速灵敏度系数';
+
+  @override
+  String get speed_high_factor_label => '高速灵敏度系数';
+
+  @override
+  String get max_jerk_allowed_label => '最大允许冲击';
+
+  @override
+  String get max_accel_allowed_label => '最大允许加速度';
+
+  @override
+  String get max_wobble_span_allowed_label => '最大允许摆动';
+
+  @override
+  String get max_bump_allowed_label => '最大允许颠簸';
+
+  @override
+  String get sync_now => '立即同步';
+
+  @override
+  String get download => '下载';
+
+  @override
+  String get downloading => '正在同步下载...';
+
+  @override
+  String get download_success => '同步下载成功';
+
+  @override
+  String get download_failed => '同步下载失败';
+
+  @override
+  String get cloud_trip => '云端行程';
+
+  @override
+  String get pulling_cloud_trips => '正在拉取云端记录...';
+
+  @override
+  String cloud_sync_result(Object count) {
+    return '同步完成，发现 $count 条新行程';
+  }
 }

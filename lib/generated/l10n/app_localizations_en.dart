@@ -378,4 +378,90 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get algorithm_update_failed => 'Failed to sync parameters';
+
+  @override
+  String get algorithm_settings_title => 'Online Algorithm Settings';
+
+  @override
+  String get algorithm_updated_at => 'Last Updated';
+
+  @override
+  String get threshold_accel_label => 'Accel Threshold';
+
+  @override
+  String get threshold_decel_label => 'Decel Threshold';
+
+  @override
+  String get threshold_wobble_span_label => 'Wobble Span';
+
+  @override
+  String get threshold_bump_label => 'Bump Threshold';
+
+  @override
+  String get threshold_jerk_label => 'Jerk Threshold';
+
+  @override
+  String get threshold_pitch_label => 'Pitch Threshold';
+
+  @override
+  String get jerk_window_ms_label => 'Jerk Window';
+
+  @override
+  String get accel_decel_window_ms_label => 'Accel/Decel Window';
+
+  @override
+  String get wobble_window_ms_label => 'Wobble Window';
+
+  @override
+  String get fusion_window_ms_label => 'Fusion Window';
+
+  @override
+  String get zy_interference_threshold_label => 'Z-Y Interference';
+
+  @override
+  String get pitch_validation_enabled_label => 'Pitch Protection';
+
+  @override
+  String get speed_low_factor_label => 'Low Speed Factor';
+
+  @override
+  String get speed_high_factor_label => 'High Speed Factor';
+
+  @override
+  String get max_jerk_allowed_label => 'Max Jerk Limit';
+
+  @override
+  String get max_accel_allowed_label => 'Max Accel Limit';
+
+  @override
+  String get max_wobble_span_allowed_label => 'Max Wobble Limit';
+
+  @override
+  String get max_bump_allowed_label => 'Max Bump Limit';
+
+  @override
+  String get sync_now => 'Sync Now';
+
+  @override
+  String get download => 'Download';
+
+  @override
+  String get downloading => 'Syncing & Downloading...';
+
+  @override
+  String get download_success => 'Sync download successful';
+
+  @override
+  String get download_failed => 'Sync download failed';
+
+  @override
+  String get cloud_trip => 'Cloud Trip';
+
+  @override
+  String get pulling_cloud_trips => 'Fetching cloud records...';
+
+  @override
+  String cloud_sync_result(Object count) {
+    return 'Sync complete, found $count new trips';
+  }
 }

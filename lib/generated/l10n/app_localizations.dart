@@ -787,6 +787,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to sync parameters'**
   String get algorithm_update_failed;
+
+  /// No description provided for @algorithm_settings_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Online Algorithm Settings'**
+  String get algorithm_settings_title;
+
+  /// No description provided for @algorithm_updated_at.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Updated'**
+  String get algorithm_updated_at;
+
+  /// No description provided for @threshold_accel_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Accel Threshold'**
+  String get threshold_accel_label;
+
+  /// No description provided for @threshold_decel_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Decel Threshold'**
+  String get threshold_decel_label;
+
+  /// No description provided for @threshold_wobble_span_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Wobble Span'**
+  String get threshold_wobble_span_label;
+
+  /// No description provided for @threshold_bump_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Bump Threshold'**
+  String get threshold_bump_label;
+
+  /// No description provided for @threshold_jerk_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Jerk Threshold'**
+  String get threshold_jerk_label;
+
+  /// No description provided for @threshold_pitch_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch Threshold'**
+  String get threshold_pitch_label;
+
+  /// No description provided for @jerk_window_ms_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Jerk Window'**
+  String get jerk_window_ms_label;
+
+  /// No description provided for @accel_decel_window_ms_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Accel/Decel Window'**
+  String get accel_decel_window_ms_label;
+
+  /// No description provided for @wobble_window_ms_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Wobble Window'**
+  String get wobble_window_ms_label;
+
+  /// No description provided for @fusion_window_ms_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Fusion Window'**
+  String get fusion_window_ms_label;
+
+  /// No description provided for @zy_interference_threshold_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Z-Y Interference'**
+  String get zy_interference_threshold_label;
+
+  /// No description provided for @pitch_validation_enabled_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch Protection'**
+  String get pitch_validation_enabled_label;
+
+  /// No description provided for @speed_low_factor_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Speed Factor'**
+  String get speed_low_factor_label;
+
+  /// No description provided for @speed_high_factor_label.
+  ///
+  /// In en, this message translates to:
+  /// **'High Speed Factor'**
+  String get speed_high_factor_label;
+
+  /// No description provided for @max_jerk_allowed_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Jerk Limit'**
+  String get max_jerk_allowed_label;
+
+  /// No description provided for @max_accel_allowed_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Accel Limit'**
+  String get max_accel_allowed_label;
+
+  /// No description provided for @max_wobble_span_allowed_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Wobble Limit'**
+  String get max_wobble_span_allowed_label;
+
+  /// No description provided for @max_bump_allowed_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Bump Limit'**
+  String get max_bump_allowed_label;
+
+  /// No description provided for @sync_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Now'**
+  String get sync_now;
+
+  /// No description provided for @download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get download;
+
+  /// No description provided for @downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing & Downloading...'**
+  String get downloading;
+
+  /// No description provided for @download_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync download successful'**
+  String get download_success;
+
+  /// No description provided for @download_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync download failed'**
+  String get download_failed;
+
+  /// No description provided for @cloud_trip.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Trip'**
+  String get cloud_trip;
+
+  /// No description provided for @pulling_cloud_trips.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching cloud records...'**
+  String get pulling_cloud_trips;
+
+  /// No description provided for @cloud_sync_result.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete, found {count} new trips'**
+  String cloud_sync_result(Object count);
 }
 
 class _AppLocalizationsDelegate

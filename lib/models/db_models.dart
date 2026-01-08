@@ -32,6 +32,9 @@ class Trip {
   // 是否已上传
   bool isUploaded = false;
 
+  // 是否仅存在于云端（本地数据缺失）
+  bool isLocalMissing = false;
+
   // 轨迹点列表
   final trajectory = IsarLinks<TrajectoryPoint>();
 
@@ -124,6 +127,7 @@ class RecordedEvent {
 
   double? lat;
   double? lng;
+  double? speed; // 新增：记录触发时的融合车速 (m/s)
 
   // 存储传感器波形片段，由于 Isar 不直接支持自定义对象列表的嵌套存储，
   // 我们将传感器数据序列化为 JSON 字符串存储，或者使用嵌入式类。

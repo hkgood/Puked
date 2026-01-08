@@ -14,8 +14,8 @@ class SensorEngine {
       ? const Duration(milliseconds: 16)
       : const Duration(milliseconds: 33);
 
-  // 15秒缓冲区长度 (15s * 60Hz = 900 points for iOS)
-  static final int bufferLimit = Platform.isIOS ? 900 : 450;
+  // 15秒缓冲区长度 (15s * 60Hz = 900 points for iOS, 增加余量至 1000)
+  static final int bufferLimit = Platform.isIOS ? 1000 : 450;
 
   final ListQueue<SensorData> _buffer = ListQueue<SensorData>(bufferLimit);
 
@@ -71,11 +71,12 @@ class SensorEngine {
     // 监听原始传感器流
     _accelSub =
         accelerometerEventStream(samplingPeriod: sensorInterval).listen((e) {
+      final now = DateTime.now();
       _latestAccel.setValues(e.x, e.y, e.z);
-      _lastSensorEventTime = DateTime.now();
+      _lastSensorEventTime = now;
       _sensorEventCount++;
       // iOS 采用“同步驱动”：传感器一更新，立刻触发 tick，消除真空期
-      if (Platform.isIOS) _processTick();
+      if (Platform.isIOS) _processTick(now);
     });
 
     _gyroSub = gyroscopeEventStream(samplingPeriod: sensorInterval)
@@ -86,13 +87,13 @@ class SensorEngine {
     // Android 依然使用定时器，因为 Android 定位服务需要稳定的心跳
     if (!Platform.isIOS) {
       _samplingTimer = Timer.periodic(samplingPeriod, (timer) {
-        _processTick();
+        _processTick(DateTime.now());
       });
     }
   }
 
-  void _processTick() {
-    final now = DateTime.now();
+  void _processTick(DateTime timestamp) {
+    final now = timestamp;
 
     // Stage 1: 中值滤波 (Median Filter) - 消除硬件毛刺
     _medianBuffer.addLast(_latestAccel.clone());
@@ -190,7 +191,12 @@ class SensorEngine {
   }
 
   /// 顶级校准逻辑：增加状态重置、方差校验和陀螺仪守卫，确保校准是绝对干净的
-  Future<void> calibrate() async {
+  Future<void> calibrate({double currentSpeedMs = 0.0}) async {
+    // 0. 车辆静止守卫：通过 GPS 速度判定
+    if (currentSpeedMs > 0.1) {
+      throw Exception("校准失败：请在车辆完全停稳后进行 (当前车速: ${(currentSpeedMs * 3.6).toStringAsFixed(1)} km/h)");
+    }
+
     // 1. 彻底清空旧的校准状态，确保二次校准不受干扰
     _isCalibrated = false;
     _rotationMatrix = Matrix3.identity();
@@ -203,11 +209,14 @@ class SensorEngine {
     List<Vector3> magSamples = [];
     List<double> gyroMagnitudes = [];
     const int sampleCount = 60; // 约 3.0 秒，修复校准时间过短问题
+    const int skipSamples = 10; // 前 0.5 秒数据丢弃，避开点击按钮导致的晃动
 
-    for (int i = 0; i < sampleCount; i++) {
-      accelSamples.add(_latestAccel.clone());
-      magSamples.add(_latestMag.clone());
-      gyroMagnitudes.add(_latestGyro.length);
+    for (int i = 0; i < sampleCount + skipSamples; i++) {
+      if (i >= skipSamples) {
+        accelSamples.add(_latestAccel.clone());
+        magSamples.add(_latestMag.clone());
+        gyroMagnitudes.add(_latestGyro.length);
+      }
       await Future.delayed(const Duration(milliseconds: 50));
     }
 
@@ -277,7 +286,7 @@ class SensorEngine {
         "Static Gravity Vector: ${gMean.x.toStringAsFixed(3)}, ${gMean.y.toStringAsFixed(3)}, ${gMean.z.toStringAsFixed(3)}");
 
     _isCalibrated = true;
-    _processTick();
+    _processTick(DateTime.now());
 
     final firstPoint = _rotationMatrix.transformed(gMean - _staticGravityRaw);
     debugPrint(

@@ -41,6 +41,10 @@ post_install do |installer|
 
       # 解决版本过低报错
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # 核心修复：禁用 Xcode 16 的模块验证器（解决 could not build module 问题）
+      config.build_settings['CLANG_ENABLE_MODULE_VERIFIER'] = 'NO'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 end

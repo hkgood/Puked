@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-01-07
+### Added
+- **Cross-device Synchronization**: Support for pulling latest trips from cloud by refreshing history list.
+- **Parameter Hot Update**: Algorithm parameters now support cloud-based updates, with manual check in settings.
+- **Web-side Management**: Web portal now supports event management and batch operations.
+- **Web-side Calibration**: Automatic event filtering and calibration using latest unified algorithms on web.
+
+### Changed
+- **Unified Sensitivity**: Removed sensitivity level settings to maintain consistency across App and Web.
+- **Optimized Performance**: Improved history list loading and sync performance.
+
 ## [2.1.4] - 2026-01-07
 
 ### Added

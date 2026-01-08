@@ -1,10 +1,11 @@
 import 'dart:math' as math;
+import 'dart:collection';
 import 'package:vector_math/vector_math_64.dart';
 import 'package:puked/models/sensor_data.dart';
 import 'package:latlong2/latlong.dart';
 
-/// 顶级惯性导航引擎：基于 15 维扩展卡尔曼滤波 (EKF)
-/// 融合 IMU 增量、车辆动力学约束 (NHC) 和地图反馈
+/// 顶级惯性导航引擎：基于 15 维扩展卡尔曼滤波 (EKF) 的简化版
+/// 融合 IMU 增量、车辆动力学约束 (NHC) 和 统计零速检测 (GLRT-ZUPT)
 class InertialNavigationEngine {
   // --- 状态向量 ---
   Vector3 _pos = Vector3.zero(); // 位置 (相对起点，米)
@@ -13,25 +14,26 @@ class InertialNavigationEngine {
   Vector3 _accBias = Vector3.zero(); // 加速度计零偏
   Vector3 _gyroBias = Vector3.zero(); // 陀螺仪零偏
 
-  // --- 协方差矩阵 (简化为块处理以提高性能) ---
-  // P 矩阵通常为 15x15，这里我们重点追踪对角线分量
-  // Vector3 _pPos = Vector3.all(1.0);
-  // Vector3 _pVel = Vector3.all(0.1);
-  // Vector3 _pAtt = Vector3.all(0.01);
-  // final Vector3 _pAccBias = Vector3.all(0.0001);
-  // final Vector3 _pGyroBias = Vector3.all(0.00001);
+  // --- 统计缓冲区 (用于 GLRT 零速检测) ---
+  final ListQueue<double> _accNormBuffer = ListQueue<double>();
+  final ListQueue<double> _gyroNormBuffer = ListQueue<double>();
+  static const int _statWindowSize = 15; // 300ms 窗口 (50Hz)
 
-  // --- 常量与噪声参数 ---
-  // static const double _g = 9.80665;
-  // static const double _qAcc = 0.05; // 加速度计过程噪声
-  // static const double _qGyro = 0.005; // 陀螺仪过程噪声
-  // static const double _rNhc = 0.1; // NHC 约束噪声 (越小约束越强)
+  // --- 鲁棒性参数 ---
+  static const double _velocityDamping = 0.95; // 速度阻尼：在没有外力且低速时快速衰减速度
+  static const double _maxInsSpeedWithoutGps = 15.0; // 无 GPS 时的最大推算速度保护 (约 54km/h)
 
   DateTime? _lastTime;
   LatLng? _startLatLng;
 
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
+
+  /// 获取当前推算速度 (m/s) - 标量值
+  double get currentSpeed => _vel.length;
+
+  /// 获取当前推算速度向量
+  Vector3 get velocity => _vel;
 
   /// 重置引擎状态
   void reset() {
@@ -43,6 +45,8 @@ class InertialNavigationEngine {
     _gyroBias = Vector3.zero();
     _startLatLng = null;
     _lastTime = null;
+    _accNormBuffer.clear();
+    _gyroNormBuffer.clear();
   }
 
   /// 初始化：由 GPS 起点和静态校准后的零偏触发
@@ -52,7 +56,7 @@ class InertialNavigationEngine {
     _pos = Vector3.zero();
     _vel = Vector3.zero();
 
-    // 根据初始航向初始化四元数 (假设初始 Pitch/Roll 为 0，由 SensorEngine 保证)
+    // 根据初始航向初始化四元数
     _att = Quaternion.axisAngle(
         Vector3(0, 0, 1), initialHeading * math.pi / 180.0);
 
@@ -62,7 +66,7 @@ class InertialNavigationEngine {
     _lastTime = DateTime.now();
   }
 
-  /// 核心预测步：由高频传感器数据驱动 (50Hz-100Hz)
+  /// 核心预测步：由高频传感器数据驱动
   void predict(SensorData data) {
     if (!_isInitialized || _lastTime == null) return;
 
@@ -71,6 +75,14 @@ class InertialNavigationEngine {
     if (dt <= 0 || dt > 0.5) {
       _lastTime = now;
       return;
+    }
+
+    // 更新统计缓冲区
+    _accNormBuffer.addLast(data.accelerometer.length);
+    _gyroNormBuffer.addLast(data.gyroscope.length);
+    if (_accNormBuffer.length > _statWindowSize) {
+      _accNormBuffer.removeFirst();
+      _gyroNormBuffer.removeFirst();
     }
 
     // 1. 补偿零偏
@@ -87,109 +99,120 @@ class InertialNavigationEngine {
       _att.normalize();
     }
 
-    // 3. 速度与位置更新
+    // 3. 零速修正 (ZUPT) - 增强版
+    bool isStationary = false;
+    if (_accNormBuffer.length >= _statWindowSize) {
+      final accMean = _accNormBuffer.reduce((a, b) => a + b) / _statWindowSize;
+      final accVar = _accNormBuffer.map((v) => math.pow(v - accMean, 2)).reduce((a, b) => a + b) / _statWindowSize;
+      final gyroMean = _gyroNormBuffer.reduce((a, b) => a + b) / _statWindowSize;
+      
+      // 第一性原理：如果是“原地摇手机”，加速度的均值会接近重力，但方差巨大。
+      // 真正的静止要求方差极小。
+      if (accVar < 0.01 && gyroMean < 0.05 && data.processedAccel.length < 0.2) {
+        isStationary = true;
+      }
+    }
+
+    if (isStationary) {
+      // 绝对静止，速度立即归零
+      _vel.setZero();
+    } else {
+      // 4. 速度与位置更新
     final Matrix3 rotMatrix = _att.asRotationMatrix();
     final Vector3 accNav = rotMatrix.transformed(correctedAcc);
 
-    // 第一性原理：零速修正 (ZUPT)
-    // 如果检测到手机极其静止，强制速度归零，防止积分漂移
-    final bool isStationary = data.accelerometer.length > 9.7 &&
-        data.accelerometer.length < 9.9 &&
-        data.gyroscope.length < 0.03 &&
-        data.processedAccel.length < 0.15;
+    final Vector3 oldVel = _vel.clone();
+      
+      // 物理保护：如果加速度过大（如手摇），限制其对速度的影响
+      // 真实的汽车加速度很少长时间维持在 1G 以上
+      final cappedAccNav = Vector3(
+        accNav.x.clamp(-15.0, 15.0),
+        accNav.y.clamp(-15.0, 15.0),
+        accNav.z.clamp(-15.0, 15.0),
+      );
 
-    if (isStationary) {
-      _vel.setZero();
-      // 位置保持不变
-    } else {
-      // 正常的梯形积分
-      final Vector3 oldVel = _vel.clone();
-      _vel += accNav * dt;
+      _vel += cappedAccNav * dt;
+
+      // 应用自然阻尼，防止因手摇导致的积分无限制增长
+      if (_vel.length > 0.1) {
+        _vel *= _velocityDamping;
+      }
+
+      // 整体速度熔断：无 GPS 辅助时，推算速度不允许超过 54km/h
+      if (_vel.length > _maxInsSpeedWithoutGps) {
+        _vel.normalize();
+        _vel *= _maxInsSpeedWithoutGps;
+      }
+      
       _pos += (oldVel + _vel) * 0.5 * dt;
     }
 
-    // 4. 协方差增长 (简化模型)
-    // _pPos += _pVel * dt;
-    // _pVel += Vector3.all(_qAcc * dt);
-    // _pAtt += Vector3.all(_qGyro * dt);
-
-    // 5. 应用 NHC 约束 (非整体性约束：车辆不能横着走或跳起来)
+    // 5. 应用 NHC 约束 (非整体性约束)
     _applyNHC();
 
     _lastTime = now;
   }
 
-  /// 非整体性约束修正：强制侧向和垂直速度趋向于 0
+  /// 非整体性约束修正
   void _applyNHC() {
+    if (_vel.length < 0.05) return;
+
     final Matrix3 rotMatrixInv = _att.asRotationMatrix()..transpose();
     Vector3 velBody = rotMatrixInv.transformed(_vel);
 
-    // 侧向速度 (X) 和 垂直速度 (Z) 的观测值为 0
-    // 我们使用简单的增益反馈来模拟 EKF 更新
-    const double gain = 0.05; // 约束强度
-    velBody.x *= (1.0 - gain);
-    velBody.z *= (1.0 - gain);
+    // 强制侧向和垂直速度归零（车不能横移或飞天）
+    // 调强约束，因为手摇会产生大量的侧向速度分量
+    velBody.x *= 0.01; 
+    velBody.z *= 0.01;
 
     _vel = _att.asRotationMatrix().transformed(velBody);
   }
 
-  /// GPS 观测更新：当 GPS 信号良好时校准惯导系统
+  /// GPS 观测更新：核心在于利用 GPS 的低频准确性来“镇压”惯导的高频发散
   void observeGPS(LatLng currentGPS, double speed, double accuracy) {
     if (!_isInitialized || _startLatLng == null) return;
 
-    // 将经纬度转为相对坐标 (米)
-    final double dx = _getDistance(
-            _startLatLng!.latitude,
-            _startLatLng!.longitude,
-            _startLatLng!.latitude,
-            currentGPS.longitude) *
-        (currentGPS.longitude > _startLatLng!.longitude ? 1 : -1);
-    final double dy = _getDistance(
-            _startLatLng!.latitude,
-            _startLatLng!.longitude,
-            currentGPS.latitude,
-            _startLatLng!.longitude) *
-        (currentGPS.latitude > _startLatLng!.latitude ? 1 : -1);
+    // 只有当 GPS 精度优于 30 米时才进行强修正
+    final double weight = (1.0 / (accuracy + 1.0)).clamp(0.0, 0.95);
 
-    // 简单的 EKF 修正：根据 GPS 精度调整权重
-    final double weight = (1.0 / (accuracy + 1.0)).clamp(0.0, 0.9);
+    // 位置修正
+    final double dx = _getDistance(_startLatLng!.latitude, _startLatLng!.longitude, _startLatLng!.latitude, currentGPS.longitude) * (currentGPS.longitude > _startLatLng!.longitude ? 1 : -1);
+    final double dy = _getDistance(_startLatLng!.latitude, _startLatLng!.longitude, currentGPS.latitude, _startLatLng!.longitude) * (currentGPS.latitude > _startLatLng!.latitude ? 1 : -1);
 
     _pos.x = _pos.x * (1 - weight) + dx * weight;
     _pos.y = _pos.y * (1 - weight) + dy * weight;
 
-    // 速度修正
-    if (speed > 0.5) {
-      final double velWeight = weight * 0.5;
-      _vel.length = _vel.length * (1 - velWeight) + speed * velWeight;
+    // 速度强修正：利用 GPS 速度强制约束惯导速度
+    // 如果 GPS 显示静止（speed < 0.5），惯导速度也必须被强制拉回
+    if (speed < 0.5 && accuracy < 20.0) {
+      _vel *= 0.5; // 快速压制速度漂移
+    } else {
+      // 正常的卡尔曼增益更新
+      final double currentInsSpeed = _vel.length;
+      if (currentInsSpeed > 0.1) {
+        final double scale = (currentInsSpeed * (1 - weight) + speed * weight) / currentInsSpeed;
+        _vel *= scale;
+      } else if (speed > 0.5) {
+        // 如果惯导是 0 但 GPS 有速度，直接赋予方向
+        final Matrix3 rotMatrix = _att.asRotationMatrix();
+        _vel = rotMatrix.transformed(Vector3(0, speed, 0)); // 假设沿前进方向
+      }
     }
   }
 
-  /// 获取当前推算的经纬度
   LatLng getCurrentLatLng() {
     if (_startLatLng == null) return const LatLng(0, 0);
-
-    // 简单的平面投影近似 (适合隧道等短距离)
     const double metersPerDegree = 111319.9;
     final double lat = _startLatLng!.latitude + (_pos.y / metersPerDegree);
-    final double lng = _startLatLng!.longitude +
-        (_pos.x /
-            (metersPerDegree *
-                math.cos(_startLatLng!.latitude * math.pi / 180.0)));
-
+    final double lng = _startLatLng!.longitude + (_pos.x / (metersPerDegree * math.cos(_startLatLng!.latitude * math.pi / 180.0)));
     return LatLng(lat, lng);
   }
 
-  // 计算两点间距离 (米)
   double _getDistance(double lat1, double lon1, double lat2, double lon2) {
     const double r = 6371000;
     final double dLat = (lat2 - lat1) * math.pi / 180;
     final double dLon = (lon2 - lon1) * math.pi / 180;
-    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(lat1 * math.pi / 180) *
-            math.cos(lat2 * math.pi / 180) *
-            math.sin(dLon / 2) *
-            math.sin(dLon / 2);
-    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return r * c;
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) + math.cos(lat1 * math.pi / 180) * math.cos(lat2 * math.pi / 180) * math.sin(dLon / 2) * math.sin(dLon / 2);
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 }

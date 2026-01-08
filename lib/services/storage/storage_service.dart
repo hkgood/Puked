@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -349,6 +350,128 @@ class StorageService {
       await trip.events.load();
     }
     return trip;
+  }
+
+  Future<Trip?> getTripByUuid(String uuid) async {
+    await init();
+    final trip = await _isar!.trips.filter().uuidEqualTo(uuid).findFirst();
+    if (trip != null) {
+      await trip.trajectory.load();
+      await trip.events.load();
+    }
+    return trip;
+  }
+
+  /// 保存一个占位行程（仅元数据）
+  Future<void> savePlaceholderTrip(Trip trip) async {
+    await init();
+    await _isar!.writeTxn(() async {
+      await _isar!.trips.put(trip);
+    });
+  }
+
+  /// 将占位行程补充完整数据
+  Future<void> completePlaceholderTrip(
+      int tripId, Map<String, dynamic> data) async {
+    debugPrint('[PukedSync] Starting to complete placeholder trip: $tripId');
+    await init();
+    final isar = _isar!;
+
+    try {
+      await isar.writeTxn(() async {
+        final trip = await isar.trips.get(tripId);
+        if (trip == null) {
+          debugPrint('[PukedSync] Error: Trip not found in DB: $tripId');
+          return;
+        }
+
+        final metadata = data['metadata'] as Map<String, dynamic>?;
+        if (metadata != null) {
+          trip.endTime = metadata['end_time'] != null
+              ? DateTime.parse(metadata['end_time'])
+              : null;
+          trip.appVersion = metadata['app_version'] as String?;
+          trip.platform = metadata['platform'] as String?;
+          trip.algorithm = metadata['algorithm'] as String?;
+          trip.notes = metadata['notes'] as String?;
+        }
+
+        // 1. 轨迹点解析 (增加 num 转换 double 的安全性)
+        final trajectoryData = data['trajectory'] as List<dynamic>?;
+        if (trajectoryData != null) {
+          final List<TrajectoryPoint> points = [];
+          for (final p in trajectoryData) {
+            final point = TrajectoryPoint()
+              ..timestamp =
+                  DateTime.fromMillisecondsSinceEpoch((p['ts'] * 1000).toInt())
+              ..lat = (p['lat'] as num).toDouble()
+              ..lng = (p['lng'] as num).toDouble()
+              ..altitude = (p['alt'] as num? ?? 0.0).toDouble() // 修复：必须赋初值，否则 late 变量会崩溃
+              ..speed = (p['speed'] as num? ?? 0.0).toDouble() // 增加：防御性处理
+              ..isLowConfidence = p['low_conf'] as bool?;
+            points.add(point);
+          }
+          await isar.trajectoryPoints.putAll(points);
+          trip.trajectory.addAll(points);
+          debugPrint('[PukedSync] Restored ${points.length} trajectory points');
+        }
+
+        // 2. 事件解析
+        final eventsData = data['events'] as List<dynamic>?;
+        if (eventsData != null) {
+          final List<RecordedEvent> events = [];
+          for (final e in eventsData) {
+            final location = e['location'] as Map<String, dynamic>?;
+            final sensorFragment = e['sensor_fragment'] as Map<String, dynamic>?;
+            final sensorData = sensorFragment?['data'] as List<dynamic>?;
+
+            final event = RecordedEvent()
+              ..uuid = e['event_id'] as String
+              ..timestamp = DateTime.fromMillisecondsSinceEpoch(
+                  (e['timestamp'] * 1000).toInt())
+              ..type = e['type'] as String
+              ..source = e['source'] as String
+              ..lat = (location?['lat'] as num?)?.toDouble()
+              ..lng = (location?['lng'] as num?)?.toDouble()
+              ..sensorData = sensorData?.map((s) {
+                    final accel = s['accel'] as Map<String, dynamic>?;
+                    final gyro = s['gyro'] as Map<String, dynamic>?;
+                    final mag = s['mag'] as Map<String, dynamic>?;
+                    return SensorPointEmbedded()
+                      ..offsetMs = s['offset_ms'] as int?
+                      ..ax = (accel?['x'] as num?)?.toDouble()
+                      ..ay = (accel?['y'] as num?)?.toDouble()
+                      ..az = (accel?['z'] as num?)?.toDouble()
+                      ..gx = (gyro?['x'] as num?)?.toDouble()
+                      ..gy = (gyro?['y'] as num?)?.toDouble()
+                      ..gz = (gyro?['z'] as num?)?.toDouble()
+                      ..mx = (mag?['x'] as num?)?.toDouble()
+                      ..my = (mag?['y'] as num?)?.toDouble()
+                      ..mz = (mag?['z'] as num?)?.toDouble();
+                  }).toList() ??
+                  [];
+            events.add(event);
+          }
+          await isar.recordedEvents.putAll(events);
+          trip.events.addAll(events);
+          debugPrint('[PukedSync] Restored ${events.length} events');
+        }
+
+        // 3. 状态翻转 (核心：清除 [CLOUD_ONLY] 标记)
+        trip.isLocalMissing = false;
+        trip.isUploaded = true;
+        // 如果云端没有备注，则设为空字符串，确保不再是 [CLOUD_ONLY]
+        trip.notes = (metadata?['notes'] as String?) ?? "";
+        
+        await isar.trips.put(trip);
+        await trip.trajectory.save();
+        await trip.events.save();
+        debugPrint('[PukedSync] Placeholder trip completed and persisted.');
+      });
+    } catch (e) {
+      debugPrint('[PukedSync] Critical error in completePlaceholderTrip: $e');
+      rethrow;
+    }
   }
 
   Future<void> deleteEvent(int tripId, int eventId) async {

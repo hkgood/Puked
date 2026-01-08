@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/features/recording/domain/sensor_engine.dart';
 import 'package:puked/models/db_models.dart';
@@ -186,6 +187,15 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         )) {
     // 注册生命周期监听
     WidgetsBinding.instance.addObserver(this);
+
+    // 【调试】监听算法配置更新
+    _ref.listen<AlgorithmConfig>(algorithmConfigProvider, (previous, next) {
+      debugPrint('🔔 [RecordingNotifier] 算法配置已动态更新: v${next.version}');
+      debugPrint('   - 加速阈值: ${next.thresholdAccel}');
+      debugPrint('   - 减速阈值: ${next.thresholdDecel}');
+      debugPrint('   - 颠簸阈值: ${next.thresholdBump}');
+    });
+
     // 延迟启动定位初始化，避免 Android 12+ 启动时的前台服务限制
     Future.microtask(() => _startLocationUpdates());
     // 确保引擎启动，以便缓冲区开始填充数据
@@ -200,8 +210,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       // 无论是否在录制，回到前台都要开启定位，以便 UI 显示
       _startLocationUpdates();
       if (this.state.isRecording) {
-        debugPrint('App resumed, re-enabling Wakelock');
-        WakelockPlus.enable();
+      debugPrint('App resumed, re-enabling Wakelock');
+      WakelockPlus.enable();
       }
     }
     // 当 App 进入后台（暂停或失去焦点）时
@@ -261,7 +271,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           );
         } else {
           locationSettings = AppleSettings(
-            accuracy: LocationAccuracy.high,
+            accuracy: LocationAccuracy.bestForNavigation,
+            activityType: ActivityType.automotiveNavigation,
             distanceFilter: 0,
             pauseLocationUpdatesAutomatically: false,
             showBackgroundLocationIndicator: true,
@@ -282,13 +293,13 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
         // 异步尝试获取更高精度的起始点 (仅在 stream 还没稳定时)
         if (state.locationUpdateCount == 0) {
-          Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-            ),
-          ).timeout(const Duration(seconds: 5)).then((pos) {
-            if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
-          }).catchError((_) {});
+        Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+          ),
+        ).timeout(const Duration(seconds: 5)).then((pos) {
+          if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
+        }).catchError((_) {});
         }
       }
     } catch (e) {
@@ -483,15 +494,19 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (!state.isRecording || state.currentTrip == null) return;
 
     final now = DateTime.now();
-    // iOS 使用下采样存储 (20Hz)，Android 维持原样
+    // iOS 使用全频采样存储 (60Hz)，Android 维持 30Hz
     final fragment =
-        _engine.getLookbackBuffer(10, targetHz: Platform.isIOS ? 20 : 30);
+        _engine.getLookbackBuffer(10, targetHz: Platform.isIOS ? 60 : 30);
+
+    // 获取当前的融合车速 (m/s)
+    final currentFusedSpeed = _insEngine.currentSpeed;
 
     final event = RecordedEvent()
       ..uuid = const Uuid().v4()
       ..timestamp = now
       ..type = type.name
       ..source = source
+      ..speed = currentFusedSpeed // 存入融合车速
       ..notes = notes ?? "" // 使用传入的备注
       ..sensorData = fragment
           .map((d) => SensorPointEmbedded()
@@ -534,7 +549,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           state.copyWith(isCalibrating: true, debugMessage: 'Calibrating...');
       await WakelockPlus.enable();
 
-      await _engine.calibrate();
+      // 传入当前速度进行静止守卫校验
+      await _engine.calibrate(
+          currentSpeedMs: state.currentPosition?.speed ?? 0.0);
 
       state = state.copyWith(debugMessage: 'Initing Storage...');
       await _storage.init();
@@ -653,7 +670,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               );
 
               // 统一使用专家级物理引擎，内部已针对跨平台和速度做了鲁棒性适配
-              _detectAutoEventsExpert(sensorData);
+                  _detectAutoEventsExpert(sensorData);
             }
           });
         },
@@ -716,9 +733,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
   // --- 跨平台核心逻辑：自适应物理倍率 ---
   // 用于平衡高速与低速、以及不同平台的硬件差异
-  double _getPlatformAdaptabilityFactor() {
+  double _getPlatformAdaptabilityFactor(double currentSpeedKmh) {
     double speedMultiplier = 1.0;
-    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
 
     if (currentSpeedKmh < 10.0) {
       // 低速场景：稍微提高门槛，压制手机操作误报
@@ -731,19 +747,41 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     return speedMultiplier;
   }
 
-  // --- 统一物理检测引擎 (2.1.4 敏感乘客云控版) ---
-  // 该引擎基于第一性原理，统一了 iOS 和 Android 的物理判定逻辑，并支持云端参数下发
+  // --- 统一物理检测引擎 (2.1.5 ES-KF 增强版) ---
+  // 该引擎融合了 ES-KF 惯导系统的速度反馈，实现了全局车速熔断和轴间干扰抑制
   void _detectAutoEventsExpert(SensorData data) {
     final now = DateTime.now();
     if (state.isCalibrating) return;
 
-    final currentSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+    // --- 第一性原理：多源车速联合熔断 ---
+    // 1. 获取惯导推算速度 (高频、实时)
+    final insSpeedKmh = _insEngine.currentSpeed * 3.6;
+    // 2. 获取 GPS 原始速度 (低频、准确)
+    final gpsSpeedKmh = (state.currentPosition?.speed ?? 0) * 3.6;
+    final gpsAccuracy = state.currentPosition?.accuracy ?? 999.0;
 
-    // 1. 启动保护期 (5秒内，除非车明显在动)
+    // 逻辑决策：
+    // - 如果 GPS 信号好 (accuracy < 20) 且 GPS 显示车速极低 (< 2.0 km/h)
+    //   此时即使惯导因为手机晃动产生了漂移速度，也应强制以 GPS 为准（判定为静止）。
+    // - 如果 GPS 信号差，则完全信任惯导。
+    double currentSpeedKmh = insSpeedKmh;
+    if (gpsAccuracy < 20.0 && gpsSpeedKmh < 2.0) {
+      currentSpeedKmh = gpsSpeedKmh;
+    }
+
+    // 静止/极低速物理隔离：将 5.0 km/h 降低至 3.0 km/h 以捕捉起步/停车瞬间
+    if (currentSpeedKmh < 3.0) {
+      // 即使不打标，也要更新历史记录，保持滤波器的连续性
+      _xHistory.addLast(MapEntry(now, data.processedAccel.x));
+      _yHistory.addLast(MapEntry(now, data.processedAccel.y));
+      return;
+    }
+
+    // 2. 启动保护期 (5秒内，除非车速已稳定)
     if (_recordingStartTime != null) {
       final elapsed = now.difference(_recordingStartTime!);
-      if (elapsed < _startProtectionDuration) {
-        if (currentSpeedKmh < 5.0 && data.processedAccel.length < 1.5) return;
+      if (elapsed < _startProtectionDuration && currentSpeedKmh < 10.0) {
+        return;
       }
     }
 
@@ -756,7 +794,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     _yHistory.addLast(MapEntry(now, accel.y));
     _yawRateHistory.addLast(MapEntry(now, gyro.z));
 
-    // 清理历史窗 (根据配置动态调整)
+    // 清理历史窗
     while (_xHistory.isNotEmpty &&
         now.difference(_xHistory.first.key).inMilliseconds >
             config.wobbleWindowMs) {
@@ -768,19 +806,25 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       _yHistory.removeFirst();
     }
 
-    final factor = _getPlatformAdaptabilityFactor();
+    final factor = _getPlatformAdaptabilityFactor(currentSpeedKmh);
 
     bool isDebounced(String type) {
       final last = _lastTriggered[type];
       return last != null && now.difference(last) < _debounceDuration;
     }
 
-    // --- 核心逻辑 0: Z-Y 能量互斥 (轴间抑制) ---
-    // 第一性原理：如果 Z 轴正在剧烈跳动，说明是在过坎，此时 Y 轴的波动大概率是伴生干扰
-    bool isZActive = accel.z.abs() > config.zyInterferenceThreshold;
+    // --- 核心逻辑 0: Z-Axis 动态阈值抑制 (耦合防御) ---
+    // 第一性原理：垂直方向的剧烈运动（过坎）会向 X/Y 轴泄露能量。
+    // 改进：使用非线性抑制，避免在大冲击下完全“吃掉”水平事件
+    double couplingSuppression = 1.0;
+    final double az = accel.z.abs();
+    if (az > config.zyInterferenceThreshold) {
+      // 使用 log 增长代替线性增长，并设置 2.5x 的上限
+      couplingSuppression = 1.0 + math.log(1.0 + (az - config.zyInterferenceThreshold)) * 0.8;
+      couplingSuppression = couplingSuppression.clamp(1.0, 2.5);
+    }
 
     // --- 逻辑 1: 持续性检测 (急加速/急刹车) ---
-    // 窗口长度由配置决定，通常在 500ms - 800ms
     final recentLongitudinal = _yHistory
         .where((e) =>
             now.difference(e.key).inMilliseconds < config.accelDecelWindowMs)
@@ -788,69 +832,116 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     if (recentLongitudinal.length >= (Platform.isIOS ? 10 : 5)) {
       int decelCount = recentLongitudinal
-          .where((e) => e.value < (config.thresholdDecel * factor))
+          .where((e) =>
+              e.value < (config.thresholdDecel * factor * couplingSuppression))
           .length;
       int accelCount = recentLongitudinal
-          .where((e) => e.value > (config.thresholdAccel * factor))
+          .where((e) =>
+              e.value > (config.thresholdAccel * factor * couplingSuppression))
           .length;
 
-      // 俯仰角校验：急刹车必然伴随“点头” (Pitch Rate 变化)
-      bool isPitching = gyro.x.abs() > (config.thresholdPitch / 10.0); // 粗略判定
+      bool isPitching = gyro.x.abs() > (config.thresholdPitch / 10.0);
 
-      // 持续性要求：75% 以上的时间片达标
       if (decelCount >= (recentLongitudinal.length * 0.75).floor() &&
           !isDebounced('rapidDeceleration')) {
-        // 如果开启了俯仰校验，则需要满足点头特征
-        if (!config.pitchValidationEnabled || isPitching) {
-          _lastTriggered['rapidDeceleration'] = now;
-          _enqueueEvent(EventType.rapidDeceleration, now);
+        // 物理上限过滤
+        final avgDecel = recentLongitudinal
+                .map((e) => e.value)
+                .reduce((a, b) => a + b) /
+            recentLongitudinal.length;
+        if (avgDecel.abs() < config.maxAccelAllowed) {
+          if (!config.pitchValidationEnabled || isPitching) {
+        _lastTriggered['rapidDeceleration'] = now;
+        _enqueueEvent(EventType.rapidDeceleration, now);
+          }
         }
       } else if (accelCount >= (recentLongitudinal.length * 0.75).floor() &&
           !isDebounced('rapidAcceleration')) {
-        if (!config.pitchValidationEnabled || isPitching) {
-          _lastTriggered['rapidAcceleration'] = now;
-          _enqueueEvent(EventType.rapidAcceleration, now);
-        }
+        // 物理上限过滤
+        final avgAccel = recentLongitudinal
+                .map((e) => e.value)
+                .reduce((a, b) => a + b) /
+            recentLongitudinal.length;
+        if (avgAccel.abs() < config.maxAccelAllowed) {
+          if (!config.pitchValidationEnabled || isPitching) {
+        _lastTriggered['rapidAcceleration'] = now;
+        _enqueueEvent(EventType.rapidAcceleration, now);
+      }
+    }
       }
     }
 
     // --- 逻辑 2: 瞬时冲击检测 (顿挫) ---
-    // 只有在 Z 轴相对安静时，才允许检测顿挫
-    if (!isZActive && !isDebounced('jerk')) {
-      final recentJerk = _yHistory
+    if (!isDebounced('jerk')) {
+      final recentJerkPoints = _yHistory
           .where(
               (e) => now.difference(e.key).inMilliseconds < config.jerkWindowMs)
           .toList();
 
-      if (recentJerk.length >= 2) {
-        final deltaA = recentJerk.last.value - recentJerk.first.value;
-        final deltaT = recentJerk.last.key
-                .difference(recentJerk.first.key)
-                .inMilliseconds /
-            1000.0;
-        if (deltaT > 0) {
-          final jerk = deltaA / deltaT;
-          if (jerk.abs() > (config.thresholdJerk * factor)) {
-            _lastTriggered['jerk'] = now;
-            _enqueueEvent(EventType.jerk, now);
+      if (recentJerkPoints.length >= 3) {
+        // 改进：计算窗口内相邻点之间的最大变化率，捕捉瞬时冲击
+        double maxJerk = 0;
+        for (int i = 1; i < recentJerkPoints.length; i++) {
+          final dt = recentJerkPoints[i]
+                  .key
+                  .difference(recentJerkPoints[i - 1].key)
+                  .inMicroseconds /
+              1000000.0;
+          if (dt > 0) {
+            final currentJerk =
+                (recentJerkPoints[i].value - recentJerkPoints[i - 1].value) /
+                    dt;
+            if (currentJerk.abs() > maxJerk.abs()) {
+              maxJerk = currentJerk;
+            }
           }
+        }
+
+        // 物理合理性过滤
+        if (maxJerk.abs() >
+                (config.thresholdJerk * factor * couplingSuppression) &&
+            maxJerk.abs() < config.maxJerkAllowed) {
+          _lastTriggered['jerk'] = now;
+          _enqueueEvent(EventType.jerk, now);
         }
       }
     }
 
     // --- 逻辑 3: 摆动检测 (横摆) ---
-    if (!isDebounced('wobble') && _xHistory.length > 8) {
+    if (!isDebounced('wobble') &&
+        currentSpeedKmh > 10.0 &&
+        _xHistory.length > 10) {
       final recentX = _xHistory
           .where((e) =>
               now.difference(e.key).inMilliseconds < config.wobbleWindowMs)
           .toList();
-      if (recentX.length >= 4) {
+      final recentYaw = _yawRateHistory
+          .where((e) =>
+              now.difference(e.key).inMilliseconds < config.wobbleWindowMs)
+          .toList();
+
+      final minPoints = Platform.isIOS ? 8 : 4;
+      if (recentX.length >= minPoints) {
         double minX = 0, maxX = 0;
         for (var e in recentX) {
           if (e.value < minX) minX = e.value;
           if (e.value > maxX) maxX = e.value;
         }
-        if ((maxX - minX) > (config.thresholdWobbleSpan * factor)) {
+        final span = maxX - minX;
+
+        // 改进：增加航向角速度（Yaw Rate）切换检测，区分平滑变道与左右晃动
+        int yawSignSwitches = 0;
+        for (int i = 1; i < recentYaw.length; i++) {
+          if (recentYaw[i].value.sign != recentYaw[i - 1].value.sign &&
+              recentYaw[i].value.abs() > 0.05) {
+            yawSignSwitches++;
+          }
+        }
+
+        // 只有当加速度跨度够大，且存在航向切换（摆动特征）时才触发
+        if (span > (config.thresholdWobbleSpan * factor * couplingSuppression) &&
+            span < config.maxWobbleSpanAllowed &&
+            yawSignSwitches >= 1) {
           _lastTriggered['wobble'] = now;
           _enqueueEvent(EventType.wobble, now);
         }
@@ -858,8 +949,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     }
 
     // --- 逻辑 4: 颠簸检测 (垂直冲击) ---
-    // 颠簸不再受 factor 影响，使用云端下发的固定高阈值，只留减速带级别的冲击
-    if (accel.z.abs() > config.thresholdBump && !isDebounced('bump')) {
+    final azAbs = accel.z.abs();
+    if (azAbs > config.thresholdBump &&
+        azAbs < config.maxBumpAllowed && // 物理上限过滤
+        !isDebounced('bump')) {
       _lastTriggered['bump'] = now;
       _enqueueEvent(EventType.bump, now);
     }
@@ -908,7 +1001,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     final speedKmh = mainEvent.speed * 3.6;
     var finalType = mainEvent.type;
 
-    if (finalType == EventType.rapidDeceleration && speedKmh < 5.0) {
+    if (finalType == EventType.rapidDeceleration && speedKmh < 3.0) {
       // 场景：极低速下的剧烈减速信号，通常是停稳瞬间的“点头”或过坎
       // 决策：将其修正为“顿挫 (Jerk)”，因为此时不具备“危险驾驶”的急刹性质
       finalType = EventType.jerk;

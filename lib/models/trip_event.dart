@@ -16,6 +16,7 @@ class TripEvent {
   final String source; // "AUTO" or "MANUAL"
   final double? latitude;
   final double? longitude;
+  final double? speed; // 新增：记录触发时的融合车速 (m/s)
 
   // 核心回溯数据片段 (30Hz)
   final List<SensorData> sensorFragment;
@@ -27,6 +28,7 @@ class TripEvent {
     required this.source,
     this.latitude,
     this.longitude,
+    this.speed,
     required this.sensorFragment,
   });
 
@@ -38,6 +40,7 @@ class TripEvent {
         'location': {
           'lat': latitude,
           'lng': longitude,
+          'speed': speed, // 确保导出的 JSON 包含速度
         },
         'sensor_fragment': {
           'sampling_rate': '30Hz',

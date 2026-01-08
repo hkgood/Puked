@@ -10,6 +10,7 @@ import 'package:puked/services/pocketbase_service.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/services/algorithm_config_service.dart';
+import 'package:puked/features/settings/presentation/algorithm_config_screen.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -337,43 +338,23 @@ class SettingsScreen extends ConsumerWidget {
                   i18n.t('algorithm_version'),
                   style: const TextStyle(),
                 ),
-                trailing: Text(
-                  'v${algoConfig.version}',
-                  style: const TextStyle(color: Colors.grey),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'v${algoConfig.version}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const Icon(Icons.chevron_right, color: Colors.grey),
+                  ],
                 ),
                 onTap: () async {
-                  // 显示加载提示
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(i18n.t('syncing'))),
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AlgorithmConfigScreen(),
+                    ),
                   );
-
-                  try {
-                    await ref
-                        .read(algorithmConfigProvider.notifier)
-                        .fetchAndSync();
-                    final newConfig = ref.read(algorithmConfigProvider);
-
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(i18n.t('algorithm_update_success',
-                              args: ['${newConfig.version}'])),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(i18n.t('algorithm_update_failed')),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
                 },
               ),
               if (Theme.of(context).platform == TargetPlatform.android)

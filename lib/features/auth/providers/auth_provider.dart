@@ -22,9 +22,7 @@ class AuthState {
   bool get isPro => user?.getStringValue('audit_status') == 'approved';
 
   // 超级用户判定
-  bool get isSuperUser =>
-      user?.getStringValue('email') == 'rocky.hk@gmail.com' ||
-      user?.getStringValue('email') == 'rocky2@example.com'; // 方便你测试，也可以只留一个
+  bool get isSuperUser => user?.getBoolValue('is_superuser') == true;
 
   AuthState copyWith({
     bool? isLoading,

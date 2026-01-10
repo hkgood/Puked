@@ -194,7 +194,8 @@ class SensorEngine {
   Future<void> calibrate({double currentSpeedMs = 0.0}) async {
     // 0. 车辆静止守卫：通过 GPS 速度判定
     if (currentSpeedMs > 0.1) {
-      throw Exception("校准失败：请在车辆完全停稳后进行 (当前车速: ${(currentSpeedMs * 3.6).toStringAsFixed(1)} km/h)");
+      throw Exception(
+          "校准失败：请在车辆完全停稳后进行 (当前车速: ${(currentSpeedMs * 3.6).toStringAsFixed(1)} km/h)");
     }
 
     // 1. 彻底清空旧的校准状态，确保二次校准不受干扰

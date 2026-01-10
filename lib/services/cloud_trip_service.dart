@@ -157,7 +157,8 @@ class CloudTripService {
             ..brand_ref = record.getStringValue('brand_ref')
             ..carModel = record.getStringValue('car_model')
             ..softwareVersion = record.getStringValue('software_version')
-            ..software_version_ref = record.getStringValue('software_version_ref')
+            ..software_version_ref =
+                record.getStringValue('software_version_ref')
             ..distance = distanceKm * 1000
             ..eventCount = eventCount
             ..isUploaded = true
@@ -283,7 +284,8 @@ class CloudTripService {
           }
 
           if (avatar.isNotEmpty) {
-            userAvatar = _pbService.pb.files.getUrl(userRecord, avatar).toString();
+            userAvatar =
+                _pbService.pb.files.getUrl(userRecord, avatar).toString();
           }
         } else {
           // 备用方案：如果 expand['user'] 为空，递归扫描所有 expand 入口
@@ -298,7 +300,8 @@ class CloudTripService {
                   userId = record.id;
                   userName = n.isNotEmpty ? n : un;
                   if (av.isNotEmpty) {
-                    userAvatar = _pbService.pb.files.getUrl(record, av).toString();
+                    userAvatar =
+                        _pbService.pb.files.getUrl(record, av).toString();
                   }
                   break;
                 }
@@ -388,13 +391,26 @@ class CloudTripService {
                 "source": e.source,
                 "location": {"lat": e.lat, "lng": e.lng},
                 "sensor_fragment": {
-                  "sampling_rate": "30Hz",
+                  "sampling_rate": "25Hz", // 配合 recording_provider 的抽稀
                   "data": e.sensorData
                       .map((s) => {
                             "offset_ms": s.offsetMs,
-                            "accel": {"x": s.ax, "y": s.ay, "z": s.az},
-                            "gyro": {"x": s.gx, "y": s.gy, "z": s.gz},
-                            "mag": {"x": s.mx, "y": s.my, "z": s.mz},
+                            // 采用扁平化结构并限制小数位数，大幅减小 JSON 体积
+                            "accel": [
+                              double.parse(s.ax?.toStringAsFixed(3) ?? "0"),
+                              double.parse(s.ay?.toStringAsFixed(3) ?? "0"),
+                              double.parse(s.az?.toStringAsFixed(3) ?? "0")
+                            ],
+                            "gyro": [
+                              double.parse(s.gx?.toStringAsFixed(3) ?? "0"),
+                              double.parse(s.gy?.toStringAsFixed(3) ?? "0"),
+                              double.parse(s.gz?.toStringAsFixed(3) ?? "0")
+                            ],
+                            "mag": [
+                              double.parse(s.mx?.toStringAsFixed(1) ?? "0"),
+                              double.parse(s.my?.toStringAsFixed(1) ?? "0"),
+                              double.parse(s.mz?.toStringAsFixed(1) ?? "0")
+                            ],
                           })
                       .toList(),
                 }

@@ -236,7 +236,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 ElevatedButton(
                                   onPressed: () => Navigator.pop(context),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary,
                                     foregroundColor: Colors.white,
                                   ),
                                   child: Text(i18n.t('confirm')),
@@ -261,7 +262,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             ElevatedButton(
                               onPressed: () => Navigator.pop(context, true),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary,
                                 foregroundColor: Colors.white,
                               ),
                               child: Text(i18n.t('upload')),
@@ -665,7 +667,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                             ElevatedButton(
                                               style: ElevatedButton.styleFrom(
                                                   backgroundColor: Colors.red,
-                                                  foregroundColor: Colors.white),
+                                                  foregroundColor:
+                                                      Colors.white),
                                               onPressed: () =>
                                                   Navigator.pop(context, true),
                                               child: Text(i18n.t('delete')),

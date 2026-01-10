@@ -60,7 +60,8 @@ class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
     dialogTheme: const DialogThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(24))),
       actionsPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
       alignment: Alignment.center,
       elevation: 0,
@@ -137,7 +138,8 @@ class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
     dialogTheme: const DialogThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(24))),
       actionsPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
       alignment: Alignment.center,
       elevation: 0,

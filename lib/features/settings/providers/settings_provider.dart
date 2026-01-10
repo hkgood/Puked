@@ -130,7 +130,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       String? cloudBrandRef = auth.user?.getStringValue('brand_ref');
       String? cloudCarModel = auth.user?.getStringValue('car_model');
       String? cloudVersion = auth.user?.getStringValue('software_version');
-      String? cloudVersionRef = auth.user?.getStringValue('software_version_ref');
+      String? cloudVersionRef =
+          auth.user?.getStringValue('software_version_ref');
 
       // 核心防御逻辑：如果 Cloud 传回来的 string 字段里存的是 15 位 ID
       // 则将其“拨乱反正”到 ref 字段，避免 UI 直接显示 ID

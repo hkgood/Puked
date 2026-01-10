@@ -148,8 +148,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(i18n.t('cloud_sync_result',
-                        args: [newCount.toString()])),
+                    content: Text(i18n
+                        .t('cloud_sync_result', args: [newCount.toString()])),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -492,7 +492,8 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                 color: isCloudOnly
                                     ? (isDarkMode
                                         ? Colors.white.withAlpha(128)
-                                        : Colors.black.withAlpha(128)) // 适配黑白天的灰色
+                                        : Colors.black
+                                            .withAlpha(128)) // 适配黑白天的灰色
                                     : (isDarkMode
                                         ? Colors.white.withAlpha(242)
                                         : Theme.of(context)
@@ -500,8 +501,9 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                             .onSurface),
                               ),
                             ),
-                            if (trip.software_version_ref != null || (trip.softwareVersion != null &&
-                                trip.softwareVersion!.isNotEmpty))
+                            if (trip.software_version_ref != null ||
+                                (trip.softwareVersion != null &&
+                                    trip.softwareVersion!.isNotEmpty))
                               Container(
                                 margin: const EdgeInsets.only(left: 8),
                                 padding: const EdgeInsets.symmetric(
@@ -528,9 +530,7 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                         ? (isDarkMode
                                             ? Colors.white.withAlpha(102)
                                             : Colors.black.withAlpha(102))
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .primary,
+                                        : Theme.of(context).colorScheme.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -658,8 +658,10 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                           'No log file found on cloud');
                                     }
 
-                                    final data = await cloudService.downloadTripData(
-                                        record.id, fileName); // 传入 record.id 保证一致性
+                                    final data =
+                                        await cloudService.downloadTripData(
+                                            record.id,
+                                            fileName); // 传入 record.id 保证一致性
                                     if (data != null) {
                                       await storage.completePlaceholderTrip(
                                           trip.id, data);
@@ -678,26 +680,26 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                     } else {
                                       throw Exception('Download failed');
                                     }
-                                    } catch (e) {
-                                      debugPrint('[PukedSync] UI Layer Error: $e'); // 关键：增加错误日志输出
-                                      if (mounted) {
-                                        setState(() => _isDownloading = false);
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content:
-                                                Text(i18n.t('download_failed')),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
+                                  } catch (e) {
+                                    debugPrint(
+                                        '[PukedSync] UI Layer Error: $e'); // 关键：增加错误日志输出
+                                    if (mounted) {
+                                      setState(() => _isDownloading = false);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text(i18n.t('download_failed')),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
                                     }
+                                  }
                                 },
                                 icon: const Icon(Icons.file_download_outlined,
                                     color: Colors.blue),
                                 style: IconButton.styleFrom(
-                                  backgroundColor:
-                                      Colors.blue.withAlpha(25),
+                                  backgroundColor: Colors.blue.withAlpha(25),
                                 ),
                               ),
                       )
@@ -733,8 +735,8 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                           builder: (context) => AlertDialog(
                                             title: Text(i18n
                                                 .t('insufficient_data_title')),
-                                            content: Text(i18n
-                                                .t('insufficient_data_message')),
+                                            content: Text(i18n.t(
+                                                'insufficient_data_message')),
                                             actions: [
                                               TextButton(
                                                 onPressed: () =>
@@ -771,7 +773,8 @@ class _TripCardState extends ConsumerState<_TripCard> {
 
                                     if (confirmed == true) {
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(
                                             content: Text(i18n.t('uploading'))),
                                       );
@@ -781,7 +784,8 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                             .uploadTrip(trip);
                                         await ref
                                             .read(storageServiceProvider)
-                                            .updateTripCloudId(trip.id, cloudId);
+                                            .updateTripCloudId(
+                                                trip.id, cloudId);
 
                                         onRefresh?.call();
 

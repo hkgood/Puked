@@ -168,9 +168,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       await _pbService.pb.collection('users').update(
-            userId,
-            files: [multipartFile],
-          );
+        userId,
+        files: [multipartFile],
+      );
 
       // 刷新用户信息以获取新的头像 URL
       await refreshUserFromServer();

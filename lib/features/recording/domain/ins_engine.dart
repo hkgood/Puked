@@ -21,7 +21,8 @@ class InertialNavigationEngine {
 
   // --- 鲁棒性参数 ---
   static const double _velocityDamping = 0.95; // 速度阻尼：在没有外力且低速时快速衰减速度
-  static const double _maxInsSpeedWithoutGps = 15.0; // 无 GPS 时的最大推算速度保护 (约 54km/h)
+  static const double _maxInsSpeedWithoutGps =
+      15.0; // 无 GPS 时的最大推算速度保护 (约 54km/h)
 
   DateTime? _lastTime;
   LatLng? _startLatLng;
@@ -103,12 +104,18 @@ class InertialNavigationEngine {
     bool isStationary = false;
     if (_accNormBuffer.length >= _statWindowSize) {
       final accMean = _accNormBuffer.reduce((a, b) => a + b) / _statWindowSize;
-      final accVar = _accNormBuffer.map((v) => math.pow(v - accMean, 2)).reduce((a, b) => a + b) / _statWindowSize;
-      final gyroMean = _gyroNormBuffer.reduce((a, b) => a + b) / _statWindowSize;
-      
+      final accVar = _accNormBuffer
+              .map((v) => math.pow(v - accMean, 2))
+              .reduce((a, b) => a + b) /
+          _statWindowSize;
+      final gyroMean =
+          _gyroNormBuffer.reduce((a, b) => a + b) / _statWindowSize;
+
       // 第一性原理：如果是“原地摇手机”，加速度的均值会接近重力，但方差巨大。
       // 真正的静止要求方差极小。
-      if (accVar < 0.01 && gyroMean < 0.05 && data.processedAccel.length < 0.2) {
+      if (accVar < 0.01 &&
+          gyroMean < 0.05 &&
+          data.processedAccel.length < 0.2) {
         isStationary = true;
       }
     }
@@ -118,11 +125,11 @@ class InertialNavigationEngine {
       _vel.setZero();
     } else {
       // 4. 速度与位置更新
-    final Matrix3 rotMatrix = _att.asRotationMatrix();
-    final Vector3 accNav = rotMatrix.transformed(correctedAcc);
+      final Matrix3 rotMatrix = _att.asRotationMatrix();
+      final Vector3 accNav = rotMatrix.transformed(correctedAcc);
 
-    final Vector3 oldVel = _vel.clone();
-      
+      final Vector3 oldVel = _vel.clone();
+
       // 物理保护：如果加速度过大（如手摇），限制其对速度的影响
       // 真实的汽车加速度很少长时间维持在 1G 以上
       final cappedAccNav = Vector3(
@@ -143,7 +150,7 @@ class InertialNavigationEngine {
         _vel.normalize();
         _vel *= _maxInsSpeedWithoutGps;
       }
-      
+
       _pos += (oldVel + _vel) * 0.5 * dt;
     }
 
@@ -162,7 +169,7 @@ class InertialNavigationEngine {
 
     // 强制侧向和垂直速度归零（车不能横移或飞天）
     // 调强约束，因为手摇会产生大量的侧向速度分量
-    velBody.x *= 0.01; 
+    velBody.x *= 0.01;
     velBody.z *= 0.01;
 
     _vel = _att.asRotationMatrix().transformed(velBody);
@@ -176,8 +183,18 @@ class InertialNavigationEngine {
     final double weight = (1.0 / (accuracy + 1.0)).clamp(0.0, 0.95);
 
     // 位置修正
-    final double dx = _getDistance(_startLatLng!.latitude, _startLatLng!.longitude, _startLatLng!.latitude, currentGPS.longitude) * (currentGPS.longitude > _startLatLng!.longitude ? 1 : -1);
-    final double dy = _getDistance(_startLatLng!.latitude, _startLatLng!.longitude, currentGPS.latitude, _startLatLng!.longitude) * (currentGPS.latitude > _startLatLng!.latitude ? 1 : -1);
+    final double dx = _getDistance(
+            _startLatLng!.latitude,
+            _startLatLng!.longitude,
+            _startLatLng!.latitude,
+            currentGPS.longitude) *
+        (currentGPS.longitude > _startLatLng!.longitude ? 1 : -1);
+    final double dy = _getDistance(
+            _startLatLng!.latitude,
+            _startLatLng!.longitude,
+            currentGPS.latitude,
+            _startLatLng!.longitude) *
+        (currentGPS.latitude > _startLatLng!.latitude ? 1 : -1);
 
     _pos.x = _pos.x * (1 - weight) + dx * weight;
     _pos.y = _pos.y * (1 - weight) + dy * weight;
@@ -190,7 +207,8 @@ class InertialNavigationEngine {
       // 正常的卡尔曼增益更新
       final double currentInsSpeed = _vel.length;
       if (currentInsSpeed > 0.1) {
-        final double scale = (currentInsSpeed * (1 - weight) + speed * weight) / currentInsSpeed;
+        final double scale =
+            (currentInsSpeed * (1 - weight) + speed * weight) / currentInsSpeed;
         _vel *= scale;
       } else if (speed > 0.5) {
         // 如果惯导是 0 但 GPS 有速度，直接赋予方向
@@ -204,7 +222,10 @@ class InertialNavigationEngine {
     if (_startLatLng == null) return const LatLng(0, 0);
     const double metersPerDegree = 111319.9;
     final double lat = _startLatLng!.latitude + (_pos.y / metersPerDegree);
-    final double lng = _startLatLng!.longitude + (_pos.x / (metersPerDegree * math.cos(_startLatLng!.latitude * math.pi / 180.0)));
+    final double lng = _startLatLng!.longitude +
+        (_pos.x /
+            (metersPerDegree *
+                math.cos(_startLatLng!.latitude * math.pi / 180.0)));
     return LatLng(lat, lng);
   }
 
@@ -212,7 +233,11 @@ class InertialNavigationEngine {
     const double r = 6371000;
     final double dLat = (lat2 - lat1) * math.pi / 180;
     final double dLon = (lon2 - lon1) * math.pi / 180;
-    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) + math.cos(lat1 * math.pi / 180) * math.cos(lat2 * math.pi / 180) * math.sin(dLon / 2) * math.sin(dLon / 2);
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
     return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 }

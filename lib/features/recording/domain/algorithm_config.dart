@@ -14,6 +14,7 @@ class AlgorithmConfig {
   final int fusionWindowMs;
 
   final double zyInterferenceThreshold; // Z轴活动抑制Y轴检测的阈值
+  final double zxInterferenceThreshold; // Z轴活动抑制X轴检测的阈值
   final bool pitchValidationEnabled;
 
   final double speedLowFactor;
@@ -42,6 +43,7 @@ class AlgorithmConfig {
     required this.wobbleWindowMs,
     required this.fusionWindowMs,
     required this.zyInterferenceThreshold,
+    required this.zxInterferenceThreshold,
     required this.pitchValidationEnabled,
     required this.speedLowFactor,
     required this.speedHighFactor,
@@ -55,7 +57,8 @@ class AlgorithmConfig {
     this.id,
   });
 
-  factory AlgorithmConfig.fromJson(Map<String, dynamic> json, {String? recordId}) {
+  factory AlgorithmConfig.fromJson(Map<String, dynamic> json,
+      {String? recordId}) {
     return AlgorithmConfig(
       thresholdAccel: (json['threshold_accel'] ?? 2.2).toDouble(),
       thresholdDecel: (json['threshold_decel'] ?? -2.0).toDouble(),
@@ -69,17 +72,23 @@ class AlgorithmConfig {
       fusionWindowMs: (json['fusion_window_ms'] ?? 3000).toInt(),
       zyInterferenceThreshold:
           (json['zy_interference_threshold'] ?? 1.5).toDouble(),
+      zxInterferenceThreshold:
+          (json['zx_interference_threshold'] ?? 2.0).toDouble(),
       pitchValidationEnabled: json['pitch_validation_enabled'] ?? true,
       speedLowFactor: (json['speed_low_factor'] ?? 1.1).toDouble(),
       speedHighFactor: (json['speed_high_factor'] ?? 0.9).toDouble(),
       // 物理上限解析
       maxJerkAllowed: (json['max_jerk_allowed'] ?? 50.0).toDouble(),
       maxAccelAllowed: (json['max_accel_allowed'] ?? 20.0).toDouble(),
-      maxWobbleSpanAllowed: (json['max_wobble_span_allowed'] ?? 20.0).toDouble(),
+      maxWobbleSpanAllowed:
+          (json['max_wobble_span_allowed'] ?? 20.0).toDouble(),
       maxBumpAllowed: (json['max_bump_allowed'] ?? 40.0).toDouble(),
-      minAccelForJerk: (json['min_accel_for_jerk'] ?? 2.5).toDouble(), // 约 0.25G
+      minAccelForJerk:
+          (json['min_accel_for_jerk'] ?? 2.5).toDouble(), // 约 0.25G
       version: (json['version'] ?? 0).toInt(),
-      updatedAt: (json['updated'] ?? json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      updatedAt: (json['updated'] ??
+          json['updatedAt'] ??
+          DateTime.now().toIso8601String()),
       id: recordId ?? json['id'],
     );
   }
@@ -97,6 +106,7 @@ class AlgorithmConfig {
       'wobble_window_ms': wobbleWindowMs,
       'fusion_window_ms': fusionWindowMs,
       'zy_interference_threshold': zyInterferenceThreshold,
+      'zx_interference_threshold': zxInterferenceThreshold,
       'pitch_validation_enabled': pitchValidationEnabled,
       'speed_low_factor': speedLowFactor,
       'speed_high_factor': speedHighFactor,
@@ -123,6 +133,7 @@ class AlgorithmConfig {
     int? wobbleWindowMs,
     int? fusionWindowMs,
     double? zyInterferenceThreshold,
+    double? zxInterferenceThreshold,
     bool? pitchValidationEnabled,
     double? speedLowFactor,
     double? speedHighFactor,
@@ -148,6 +159,8 @@ class AlgorithmConfig {
       fusionWindowMs: fusionWindowMs ?? this.fusionWindowMs,
       zyInterferenceThreshold:
           zyInterferenceThreshold ?? this.zyInterferenceThreshold,
+      zxInterferenceThreshold:
+          zxInterferenceThreshold ?? this.zxInterferenceThreshold,
       pitchValidationEnabled:
           pitchValidationEnabled ?? this.pitchValidationEnabled,
       speedLowFactor: speedLowFactor ?? this.speedLowFactor,
@@ -177,6 +190,7 @@ class AlgorithmConfig {
       wobbleWindowMs: 1000,
       fusionWindowMs: 3000,
       zyInterferenceThreshold: 1.5,
+      zxInterferenceThreshold: 2.0,
       pitchValidationEnabled: true,
       speedLowFactor: 1.1,
       speedHighFactor: 0.9,

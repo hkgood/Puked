@@ -6,6 +6,7 @@ import 'package:puked/models/db_models.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:puked/common/utils/coordinate_converter.dart';
 
@@ -109,7 +110,8 @@ class TripMapView extends StatefulWidget {
   final List<RecordedEvent> events;
   final bool isLive;
   final Position? currentPosition;
-  final LatLng? focusPoint; // 新增：聚焦坐标
+  final LatLng? focusPoint;
+  final Offset centerOffset; // 新增：地图中心偏移量 (像素)
 
   const TripMapView({
     super.key,
@@ -118,6 +120,7 @@ class TripMapView extends StatefulWidget {
     this.isLive = true,
     this.currentPosition,
     this.focusPoint,
+    this.centerOffset = Offset.zero,
   });
 
   @override
@@ -281,14 +284,37 @@ class _TripMapViewState extends State<TripMapView>
   }
 
   void _recenterToCurrentLocation() {
+    LatLng? target;
     if (widget.currentPosition != null) {
-      final displayLatLng = _toDisplay(
+      target = _toDisplay(
           widget.currentPosition!.latitude, widget.currentPosition!.longitude);
-      _safeMove(displayLatLng, _mapController.camera.zoom);
     } else if (widget.trajectory.isNotEmpty) {
       final last = widget.trajectory.last;
-      final displayLatLng = _toDisplay(last.lat, last.lng);
-      _safeMove(displayLatLng, _mapController.camera.zoom);
+      target = _toDisplay(last.lat, last.lng);
+    }
+
+    if (target != null) {
+      final camera = _mapController.camera;
+      if (widget.centerOffset == Offset.zero) {
+        _safeMove(target, camera.zoom);
+      } else {
+        // --- 核心算法优化：单次移动消除闪烁 ---
+        // 1. 获取当前缩放级别下，目标点的投影像素坐标
+        // flutter_map 7.x 中 project 返回的是 math.Point<double>
+        final math.Point<double> targetProjected = camera.project(target);
+
+        // 2. 计算新的中心点投影坐标：
+        // 如果我们希望 target 出现在屏幕中心 + offset 的位置，
+        // 那么新的地图中心 center 应该满足：center = target - offset
+        final newCenterProjected = math.Point<double>(
+          targetProjected.x - widget.centerOffset.dx,
+          targetProjected.y - widget.centerOffset.dy,
+        );
+
+        // 3. 将投影坐标转回经纬度，并执行单次 move
+        final newCenter = camera.unproject(newCenterProjected);
+        _safeMove(newCenter, camera.zoom);
+      }
     }
   }
 

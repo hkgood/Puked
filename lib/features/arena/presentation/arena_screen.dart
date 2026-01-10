@@ -123,37 +123,38 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
               ],
             ),
           ),
-          error: (err, stack) => cloudTripsAsync.hasValue 
-            ? _buildArenaContent(arena, i18n, cloudTripsAsync.value!)
-            : ListView(
-            children: [
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.7,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Error: $err'),
-                      TextButton(
-                        onPressed: _onRefresh,
-                        child: const Text('Retry'),
+          error: (err, stack) => cloudTripsAsync.hasValue
+              ? _buildArenaContent(arena, i18n, cloudTripsAsync.value!)
+              : ListView(
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.7,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                size: 64, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text('Error: $err'),
+                            TextButton(
+                              onPressed: _onRefresh,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
           data: (trips) => _buildArenaContent(arena, i18n, trips),
         ),
       ),
     );
   }
 
-  Widget _buildArenaContent(ArenaService arena, dynamic i18n, List<dynamic> trips) {
+  Widget _buildArenaContent(
+      ArenaService arena, dynamic i18n, List<dynamic> trips) {
     return trips.isEmpty
         ? ListView(
             // 使用 ListView 确保在空状态下也能响应布局
@@ -171,9 +172,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                       const SizedBox(height: 16),
                       Text(i18n.t('no_trips_yet'),
                           style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outline)),
+                              color: Theme.of(context).colorScheme.outline)),
                     ],
                   ),
                 ),
@@ -183,24 +182,24 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
         : RefreshIndicator(
             onRefresh: _onRefresh,
             child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                child: Column(
-                  children: [
-                    _buildCard1(arena, i18n),
-                    const SizedBox(height: 16),
-                    _buildScenarioRankingCard(arena, i18n),
-                    const SizedBox(height: 16),
-                    _buildUserLeaderboardCard(arena, i18n),
-                    const SizedBox(height: 16),
-                    _buildTotalMileageCard(arena, i18n),
-                    const SizedBox(height: 16),
-                    _buildCard2(arena, i18n),
-                    const SizedBox(height: 16),
-                    _buildCard3(arena, i18n),
-                  ],
-                ),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              child: Column(
+                children: [
+                  _buildCard1(arena, i18n),
+                  const SizedBox(height: 16),
+                  _buildScenarioRankingCard(arena, i18n),
+                  const SizedBox(height: 16),
+                  _buildUserLeaderboardCard(arena, i18n),
+                  const SizedBox(height: 16),
+                  _buildTotalMileageCard(arena, i18n),
+                  const SizedBox(height: 16),
+                  _buildCard2(arena, i18n),
+                  const SizedBox(height: 16),
+                  _buildCard3(arena, i18n),
+                ],
               ),
+            ),
           );
   }
 
@@ -344,9 +343,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                         ),
                         child: item.avatarUrl == null
                             ? Icon(
-                          Icons.person_outline,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 24,
+                                Icons.person_outline,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 24,
                               )
                             : null,
                       ),
@@ -1086,8 +1085,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     InkWell(
-                      onTap: () =>
-                          _showBrandPicker(context, arena, brandKey, (selected) {
+                      onTap: () => _showBrandPicker(context, arena, brandKey,
+                          (selected) {
                         setState(() => _card2Brand = selected);
                       }),
                       borderRadius: BorderRadius.circular(8),
@@ -1262,8 +1261,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                   children: [
                     _buildFilterChip(
                         brandName,
-                        () =>
-                            _showBrandPicker(context, arena, brandKey, (selected) {
+                        () => _showBrandPicker(context, arena, brandKey,
+                                (selected) {
                               setState(() {
                                 _card3Brand = selected;
                                 _card3Version = null;
@@ -1271,7 +1270,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                             })),
                     const SizedBox(width: 8),
                     _buildFilterChip(
-                        _card3Version == null ? i18n.t('all_versions') : arena.getVersionName(_card3Version!),
+                        _card3Version == null
+                            ? i18n.t('all_versions')
+                            : arena.getVersionName(_card3Version!),
                         () => _showVersionPicker(context, i18n, brandKey,
                                 (selected) {
                               setState(() => _card3Version = selected);
@@ -1387,7 +1388,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
             itemBuilder: (context, index) {
               final v = options[index];
               return ListTile(
-                title: Text(v == null ? i18n.t('all_versions') : displayNames[v]!),
+                title:
+                    Text(v == null ? i18n.t('all_versions') : displayNames[v]!),
                 onTap: () {
                   onSelected(v);
                   Navigator.pop(context);

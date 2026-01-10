@@ -407,6 +407,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get zy_interference_threshold_label => '垂直轴干扰抑制';
 
   @override
+  String get zx_interference_threshold_label => '颠簸干扰抑制';
+
+  @override
   String get pitch_validation_enabled_label => '俯仰保护开关';
 
   @override
@@ -471,6 +474,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get zy_interference_threshold_hint => '垂直活跃到何种程度时开始压制纵向顿挫检测';
+
+  @override
+  String get zx_interference_threshold_hint =>
+      '路面垂直颠簸活跃到何种程度时开始压制纵向(X轴)顿挫检测，防止误报';
 
   @override
   String get pitch_validation_enabled_hint => '配合陀螺仪校验车辆真实的抬头/点头动作';

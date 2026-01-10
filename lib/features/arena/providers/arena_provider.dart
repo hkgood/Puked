@@ -48,7 +48,7 @@ class ArenaCloudTripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
         if (currentCount != -1 && currentCount == lastCount && state.hasValue) {
           return;
         }
-        
+
         // 更新记录的总数
         if (currentCount != -1) {
           await prefs.setInt('last_arena_total_trips', currentCount);
@@ -78,7 +78,9 @@ final arenaProvider = Provider((ref) {
   // 监听版本列表
   final versionsAsync = ref.watch(allVersionsProvider);
   final versions = versionsAsync.when(
-      data: (d) => d, loading: () => <SoftwareVersion>[], error: (_, __) => <SoftwareVersion>[]);
+      data: (d) => d,
+      loading: () => <SoftwareVersion>[],
+      error: (_, __) => <SoftwareVersion>[]);
 
   // 监听云端公开行程 (Arena 只统计云端公开数据)
   final cloudTripsAsync = ref.watch(arenaCloudTripsProvider);
@@ -103,7 +105,8 @@ class ArenaService {
     // 优先匹配 cloudId，然后匹配 name (忽略大小写)
     final brand = brands.firstWhere(
       (b) =>
-          b.cloudId == idOrName || b.name.toLowerCase() == idOrName.toLowerCase(),
+          b.cloudId == idOrName ||
+          b.name.toLowerCase() == idOrName.toLowerCase(),
       orElse: () => Brand()..name = idOrName,
     );
     return brand.displayName ?? brand.name;
@@ -194,7 +197,8 @@ class ArenaService {
       final String? versionKey = groupByBrand ? null : key.split('|')[1];
 
       final bNameForDisplay = getBrandName(brandKey);
-      final vNameForDisplay = versionKey != null ? getVersionName(versionKey) : null;
+      final vNameForDisplay =
+          versionKey != null ? getVersionName(versionKey) : null;
 
       result.add(BrandData(
         brand: brandKey,
@@ -606,17 +610,15 @@ class ArenaService {
       }
     }
 
-    final List<BrandData> result = mileageMap.values
-        .map((e) {
-          final bNameForDisplay = getBrandName(e.brand);
-          return BrandData(
-            brand: e.brand,
-            brandName: bNameForDisplay,
-            totalKm: e.totalKm,
-            breakdown: e.breakdown,
-          );
-        })
-        .toList();
+    final List<BrandData> result = mileageMap.values.map((e) {
+      final bNameForDisplay = getBrandName(e.brand);
+      return BrandData(
+        brand: e.brand,
+        brandName: bNameForDisplay,
+        totalKm: e.totalKm,
+        breakdown: e.breakdown,
+      );
+    }).toList();
 
     result.sort((a, b) => (b.totalKm ?? 0.0).compareTo(a.totalKm ?? 0.0));
     return result;

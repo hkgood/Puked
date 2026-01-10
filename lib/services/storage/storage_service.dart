@@ -149,7 +149,8 @@ class StorageService {
       // 1. 查找并删除版本名称字段中存入 ID 的脏记录
       // 修复：Isar 3 不支持直接 Length 过滤，改为内存过滤
       final allVersions = await isar.softwareVersions.where().findAll();
-      final dirtyVersions = allVersions.where((v) => v.versionString.length == 15).toList();
+      final dirtyVersions =
+          allVersions.where((v) => v.versionString.length == 15).toList();
 
       final actualDirtyVersionIds = dirtyVersions
           .where((v) =>
@@ -171,8 +172,7 @@ class StorageService {
 
       final actualDirtyBrandIds = dirtyBrands
           .where((b) =>
-              !b.name.contains(' ') &&
-              RegExp(r'^[a-z0-9]+$').hasMatch(b.name))
+              !b.name.contains(' ') && RegExp(r'^[a-z0-9]+$').hasMatch(b.name))
           .map((b) => b.id)
           .toList();
 
@@ -478,7 +478,8 @@ class StorageService {
                   DateTime.fromMillisecondsSinceEpoch((p['ts'] * 1000).toInt())
               ..lat = (p['lat'] as num).toDouble()
               ..lng = (p['lng'] as num).toDouble()
-              ..altitude = (p['alt'] as num? ?? 0.0).toDouble() // 修复：必须赋初值，否则 late 变量会崩溃
+              ..altitude =
+                  (p['alt'] as num? ?? 0.0).toDouble() // 修复：必须赋初值，否则 late 变量会崩溃
               ..speed = (p['speed'] as num? ?? 0.0).toDouble() // 增加：防御性处理
               ..isLowConfidence = p['low_conf'] as bool?;
             points.add(point);
@@ -494,7 +495,8 @@ class StorageService {
           final List<RecordedEvent> events = [];
           for (final e in eventsData) {
             final location = e['location'] as Map<String, dynamic>?;
-            final sensorFragment = e['sensor_fragment'] as Map<String, dynamic>?;
+            final sensorFragment =
+                e['sensor_fragment'] as Map<String, dynamic>?;
             final sensorData = sensorFragment?['data'] as List<dynamic>?;
 
             final event = RecordedEvent()
@@ -506,20 +508,38 @@ class StorageService {
               ..lat = (location?['lat'] as num?)?.toDouble()
               ..lng = (location?['lng'] as num?)?.toDouble()
               ..sensorData = sensorData?.map((s) {
-                    final accel = s['accel'] as Map<String, dynamic>?;
-                    final gyro = s['gyro'] as Map<String, dynamic>?;
-                    final mag = s['mag'] as Map<String, dynamic>?;
+                    final accel = s['accel'] as List<dynamic>?;
+                    final gyro = s['gyro'] as List<dynamic>?;
+                    final mag = s['mag'] as List<dynamic>?;
                     return SensorPointEmbedded()
                       ..offsetMs = s['offset_ms'] as int?
-                      ..ax = (accel?['x'] as num?)?.toDouble()
-                      ..ay = (accel?['y'] as num?)?.toDouble()
-                      ..az = (accel?['z'] as num?)?.toDouble()
-                      ..gx = (gyro?['x'] as num?)?.toDouble()
-                      ..gy = (gyro?['y'] as num?)?.toDouble()
-                      ..gz = (gyro?['z'] as num?)?.toDouble()
-                      ..mx = (mag?['x'] as num?)?.toDouble()
-                      ..my = (mag?['y'] as num?)?.toDouble()
-                      ..mz = (mag?['z'] as num?)?.toDouble();
+                      ..ax = accel != null && accel.length >= 3
+                          ? (accel[0] as num).toDouble()
+                          : null
+                      ..ay = accel != null && accel.length >= 3
+                          ? (accel[1] as num).toDouble()
+                          : null
+                      ..az = accel != null && accel.length >= 3
+                          ? (accel[2] as num).toDouble()
+                          : null
+                      ..gx = gyro != null && gyro.length >= 3
+                          ? (gyro[0] as num).toDouble()
+                          : null
+                      ..gy = gyro != null && gyro.length >= 3
+                          ? (gyro[1] as num).toDouble()
+                          : null
+                      ..gz = gyro != null && gyro.length >= 3
+                          ? (gyro[2] as num).toDouble()
+                          : null
+                      ..mx = mag != null && mag.length >= 3
+                          ? (mag[0] as num).toDouble()
+                          : null
+                      ..my = mag != null && mag.length >= 3
+                          ? (mag[1] as num).toDouble()
+                          : null
+                      ..mz = mag != null && mag.length >= 3
+                          ? (mag[2] as num).toDouble()
+                          : null;
                   }).toList() ??
                   [];
             events.add(event);
@@ -534,7 +554,7 @@ class StorageService {
         trip.isUploaded = true;
         // 如果云端没有备注，则设为空字符串，确保不再是 [CLOUD_ONLY]
         trip.notes = (metadata?['notes'] as String?) ?? "";
-        
+
         await isar.trips.put(trip);
         await trip.trajectory.save();
         await trip.events.save();

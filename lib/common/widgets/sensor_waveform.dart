@@ -113,17 +113,18 @@ class WaveformPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = showAxes ? 3.0 : 2.5
+      ..strokeWidth = showAxes ? 2.5 : 2.0 // 线条稍微调细一点，更精致
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
     final shadowPaint = Paint()
       ..color = color.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = showAxes ? 5.0 : 4.5
+      ..strokeWidth = showAxes ? 4.5 : 4.0
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
     final path = Path();
+    final fillPath = Path(); // 用于渐变填充的路径
     final stepX = size.width / 100;
 
     for (int i = 0; i < data.length; i++) {
@@ -132,11 +133,34 @@ class WaveformPainter extends CustomPainter {
 
       if (i == 0) {
         path.moveTo(x, y);
+        fillPath.moveTo(x, centerY); // 填充路径从中心线开始
+        fillPath.lineTo(x, y);
       } else {
         path.lineTo(x, y);
+        fillPath.lineTo(x, y);
+      }
+
+      if (i == data.length - 1) {
+        fillPath.lineTo(x, centerY); // 闭合填充路径到中心线
+        fillPath.close();
       }
     }
 
+    // 绘制填充渐变 (Apple Stocks 风格)
+    final gradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        color.withValues(alpha: 0.2),
+        color.withValues(alpha: 0.0),
+      ],
+    );
+    final fillPaint = Paint()
+      ..shader =
+          gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(fillPath, fillPaint);
     canvas.drawPath(path, shadowPaint);
     canvas.drawPath(path, paint);
   }

@@ -36,7 +36,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
         foregroundColor: colorScheme.onSurface,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh_rounded, color: colorScheme.primary, size: 22),
+            icon: Icon(Icons.refresh_rounded,
+                color: colorScheme.primary, size: 22),
             onPressed: () => _handleSync(context, ref, i18n, config),
           ),
           const SizedBox(width: 8),
@@ -61,42 +62,60 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       config.thresholdAccel,
                       'm/s²',
                       subtitle: i18n.t('threshold_accel_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'thresholdAccel', config.thresholdAccel) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'thresholdAccel', config.thresholdAccel)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('threshold_decel_label'),
                       config.thresholdDecel,
                       'm/s²',
                       subtitle: i18n.t('threshold_decel_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'thresholdDecel', config.thresholdDecel) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'thresholdDecel', config.thresholdDecel)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('threshold_wobble_span_label'),
                       config.thresholdWobbleSpan,
                       'm/s²',
                       subtitle: i18n.t('threshold_wobble_span_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'thresholdWobbleSpan', config.thresholdWobbleSpan) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'thresholdWobbleSpan', config.thresholdWobbleSpan)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('threshold_bump_label'),
                       config.thresholdBump,
                       'm/s²',
                       subtitle: i18n.t('threshold_bump_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'thresholdBump', config.thresholdBump) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'thresholdBump', config.thresholdBump)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('threshold_jerk_label'),
                       config.thresholdJerk,
                       'm/s³',
                       subtitle: i18n.t('threshold_jerk_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'thresholdJerk', config.thresholdJerk) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'thresholdJerk', config.thresholdJerk)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('min_accel_for_jerk_label'),
                       config.minAccelForJerk,
                       'm/s²',
                       subtitle: i18n.t('min_accel_for_jerk_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'minAccelForJerk', config.minAccelForJerk) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'minAccelForJerk', config.minAccelForJerk)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('threshold_pitch_label'),
@@ -104,7 +123,10 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       '°/s',
                       subtitle: i18n.t('threshold_pitch_hint'),
                       isLast: true,
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'thresholdPitch', config.thresholdPitch) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'thresholdPitch', config.thresholdPitch)
+                          : null,
                     ),
                   ],
                 ),
@@ -117,21 +139,30 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       config.jerkWindowMs,
                       'ms',
                       subtitle: i18n.t('jerk_window_ms_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'jerkWindowMs', config.jerkWindowMs) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'jerkWindowMs', config.jerkWindowMs)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('accel_decel_window_ms_label'),
                       config.accelDecelWindowMs,
                       'ms',
                       subtitle: i18n.t('accel_decel_window_ms_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'accelDecelWindowMs', config.accelDecelWindowMs) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'accelDecelWindowMs', config.accelDecelWindowMs)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('wobble_window_ms_label'),
                       config.wobbleWindowMs,
                       'ms',
                       subtitle: i18n.t('wobble_window_ms_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'wobbleWindowMs', config.wobbleWindowMs) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'wobbleWindowMs', config.wobbleWindowMs)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('fusion_window_ms_label'),
@@ -139,7 +170,10 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       'ms',
                       subtitle: i18n.t('fusion_window_ms_hint'),
                       isLast: true,
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'fusionWindowMs', config.fusionWindowMs) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'fusionWindowMs', config.fusionWindowMs)
+                          : null,
                     ),
                   ],
                 ),
@@ -152,21 +186,34 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       config.maxJerkAllowed,
                       'm/s³',
                       subtitle: i18n.t('max_jerk_allowed_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'maxJerkAllowed', config.maxJerkAllowed) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'maxJerkAllowed', config.maxJerkAllowed)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('max_accel_allowed_label'),
                       config.maxAccelAllowed,
                       'm/s²',
                       subtitle: i18n.t('max_accel_allowed_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'maxAccelAllowed', config.maxAccelAllowed) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'maxAccelAllowed', config.maxAccelAllowed)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('max_wobble_span_allowed_label'),
                       config.maxWobbleSpanAllowed,
                       'm/s²',
                       subtitle: i18n.t('max_wobble_span_allowed_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'maxWobbleSpanAllowed', config.maxWobbleSpanAllowed) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(
+                              context,
+                              ref,
+                              i18n,
+                              'maxWobbleSpanAllowed',
+                              config.maxWobbleSpanAllowed)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('max_bump_allowed_label'),
@@ -174,7 +221,10 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       'm/s²',
                       subtitle: i18n.t('max_bump_allowed_hint'),
                       isLast: true,
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'maxBumpAllowed', config.maxBumpAllowed) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'maxBumpAllowed', config.maxBumpAllowed)
+                          : null,
                     ),
                   ],
                 ),
@@ -187,24 +237,54 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       config.zyInterferenceThreshold,
                       'G',
                       subtitle: i18n.t('zy_interference_threshold_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'zyInterferenceThreshold', config.zyInterferenceThreshold) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(
+                              context,
+                              ref,
+                              i18n,
+                              'zyInterferenceThreshold',
+                              config.zyInterferenceThreshold)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('zx_interference_threshold_label'),
+                      config.zxInterferenceThreshold,
+                      'G',
+                      subtitle: i18n.t('zx_interference_threshold_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(
+                              context,
+                              ref,
+                              i18n,
+                              'zxInterferenceThreshold',
+                              config.zxInterferenceThreshold)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('pitch_validation_enabled_label'),
                       config.pitchValidationEnabled ? 'ON' : 'OFF',
                       '',
                       subtitle: i18n.t('pitch_validation_enabled_hint'),
-                      onTap: isSuperUser ? () {
-                        final newConfig = config.copyWith(pitchValidationEnabled: !config.pitchValidationEnabled);
-                        ref.read(algorithmConfigProvider.notifier).updateConfig(newConfig);
-                      } : null,
+                      onTap: isSuperUser
+                          ? () {
+                              final newConfig = config.copyWith(
+                                  pitchValidationEnabled:
+                                      !config.pitchValidationEnabled);
+                              ref
+                                  .read(algorithmConfigProvider.notifier)
+                                  .updateConfig(newConfig);
+                            }
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('speed_low_factor_label'),
                       config.speedLowFactor,
                       'x',
                       subtitle: i18n.t('speed_low_factor_hint'),
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'speedLowFactor', config.speedLowFactor) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'speedLowFactor', config.speedLowFactor)
+                          : null,
                     ),
                     _buildItem(
                       i18n.t('speed_high_factor_label'),
@@ -212,7 +292,10 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                       'x',
                       subtitle: i18n.t('speed_high_factor_hint'),
                       isLast: true,
-                      onTap: isSuperUser ? () => _showEditDialog(context, ref, i18n, 'speedHighFactor', config.speedHighFactor) : null,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'speedHighFactor', config.speedHighFactor)
+                          : null,
                     ),
                   ],
                 ),
@@ -224,7 +307,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showEditDialog(BuildContext context, WidgetRef ref, I18n i18n, String field, dynamic currentValue) async {
+  Future<void> _showEditDialog(BuildContext context, WidgetRef ref, I18n i18n,
+      String field, dynamic currentValue) async {
     final controller = TextEditingController(text: currentValue.toString());
     final result = await showDialog<bool>(
       context: context,
@@ -240,7 +324,9 @@ class AlgorithmConfigScreen extends ConsumerWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(i18n.t('cancel'))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(i18n.t('cancel'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
@@ -305,6 +391,9 @@ class AlgorithmConfigScreen extends ConsumerWidget {
             case 'zyInterferenceThreshold':
               newConfig = config.copyWith(zyInterferenceThreshold: newValue);
               break;
+            case 'zxInterferenceThreshold':
+              newConfig = config.copyWith(zxInterferenceThreshold: newValue);
+              break;
             case 'speedLowFactor':
               newConfig = config.copyWith(speedLowFactor: newValue);
               break;
@@ -317,16 +406,22 @@ class AlgorithmConfigScreen extends ConsumerWidget {
             default:
               return;
           }
-          await ref.read(algorithmConfigProvider.notifier).updateConfig(newConfig);
+          await ref
+              .read(algorithmConfigProvider.notifier)
+              .updateConfig(newConfig);
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(i18n.t('save_success')), backgroundColor: Colors.green),
+              SnackBar(
+                  content: Text(i18n.t('save_success')),
+                  backgroundColor: Colors.green),
             );
           }
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(i18n.t('algorithm_update_failed')), backgroundColor: Colors.red),
+              SnackBar(
+                  content: Text(i18n.t('algorithm_update_failed')),
+                  backgroundColor: Colors.red),
             );
           }
         }
@@ -334,9 +429,12 @@ class AlgorithmConfigScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _handleSync(BuildContext context, WidgetRef ref, I18n i18n, AlgorithmConfig config) async {
+  Future<void> _handleSync(BuildContext context, WidgetRef ref, I18n i18n,
+      AlgorithmConfig config) async {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(i18n.t('syncing')), behavior: SnackBarBehavior.floating),
+      SnackBar(
+          content: Text(i18n.t('syncing')),
+          behavior: SnackBarBehavior.floating),
     );
     try {
       await ref.read(algorithmConfigProvider.notifier).fetchAndSync();
@@ -344,7 +442,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(i18n.t('algorithm_update_success', args: ['${config.version}'])),
+            content: Text(i18n
+                .t('algorithm_update_success', args: ['${config.version}'])),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
@@ -364,7 +463,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildVersionStatus(BuildContext context, AlgorithmConfig config, I18n i18n) {
+  Widget _buildVersionStatus(
+      BuildContext context, AlgorithmConfig config, I18n i18n) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -379,7 +479,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.cloud_done_rounded, size: 16, color: colorScheme.primary),
+                Icon(Icons.cloud_done_rounded,
+                    size: 16, color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   "Version ${config.version}",
@@ -426,7 +527,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             color: colorScheme.surfaceVariant.withOpacity(0.25),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.4)),
+            border:
+                Border.all(color: colorScheme.outlineVariant.withOpacity(0.4)),
           ),
           child: Column(children: items),
         ),
@@ -435,7 +537,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildItem(String label, dynamic value, String unit, {String? subtitle, bool isLast = false, VoidCallback? onTap}) {
+  Widget _buildItem(String label, dynamic value, String unit,
+      {String? subtitle, bool isLast = false, VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -449,7 +552,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                 ),
                 Row(
@@ -477,7 +581,8 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                     ],
                     if (onTap != null) ...[
                       const SizedBox(width: 4),
-                      Icon(Icons.edit_rounded, size: 14, color: Colors.grey.withOpacity(0.5)),
+                      Icon(Icons.edit_rounded,
+                          size: 14, color: Colors.grey.withOpacity(0.5)),
                     ],
                   ],
                 ),

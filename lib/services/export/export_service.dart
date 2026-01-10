@@ -61,13 +61,26 @@ class ExportService {
                     "speed": e.speed, // 导出事件发生时的融合速度
                   },
                   "sensor_fragment": {
-                    "sampling_rate": "30Hz",
+                    "sampling_rate": "25Hz", // 配合 recording_provider 的抽稀
                     "data": e.sensorData
                         .map((s) => {
                               "offset_ms": s.offsetMs,
-                              "accel": {"x": s.ax, "y": s.ay, "z": s.az},
-                              "gyro": {"x": s.gx, "y": s.gy, "z": s.gz},
-                              "mag": {"x": s.mx, "y": s.my, "z": s.mz},
+                              // 采用扁平化结构并限制小数位数，大幅减小 JSON 体积
+                              "accel": [
+                                double.parse(s.ax?.toStringAsFixed(3) ?? "0"),
+                                double.parse(s.ay?.toStringAsFixed(3) ?? "0"),
+                                double.parse(s.az?.toStringAsFixed(3) ?? "0")
+                              ],
+                              "gyro": [
+                                double.parse(s.gx?.toStringAsFixed(3) ?? "0"),
+                                double.parse(s.gy?.toStringAsFixed(3) ?? "0"),
+                                double.parse(s.gz?.toStringAsFixed(3) ?? "0")
+                              ],
+                              "mag": [
+                                double.parse(s.mx?.toStringAsFixed(1) ?? "0"),
+                                double.parse(s.my?.toStringAsFixed(1) ?? "0"),
+                                double.parse(s.mz?.toStringAsFixed(1) ?? "0")
+                              ],
                             })
                         .toList(),
                   }

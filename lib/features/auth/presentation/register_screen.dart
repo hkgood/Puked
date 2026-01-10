@@ -45,11 +45,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
-    final toolbarColor = isDark ? const Color(0xFF1A1A1A) : Theme.of(context).colorScheme.primary;
+    final toolbarColor = isDark
+        ? const Color(0xFF1A1A1A)
+        : Theme.of(context).colorScheme.primary;
 
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: image.path,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      // 核心优化：限制最大尺寸和压缩质量
+      maxWidth: 512,
+      maxHeight: 512,
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 85,
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop Avatar',
@@ -197,8 +204,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         CircleAvatar(
                           radius: 50,
                           backgroundColor: Colors.grey[200],
-                          backgroundImage:
-                              _avatarFile != null ? FileImage(_avatarFile!) : null,
+                          backgroundImage: _avatarFile != null
+                              ? FileImage(_avatarFile!)
+                              : null,
                           child: _avatarFile == null
                               ? const Icon(Icons.person_add_outlined,
                                   size: 50, color: Colors.grey)

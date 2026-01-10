@@ -82,7 +82,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
           trip.softwareVersion ?? settings.softwareVersion ?? '';
       _selectedBrand = trip.brand ?? settings.brand;
       _selectedBrandRef = trip.brand_ref ?? settings.brandRef;
-      _selectedVersionRef = trip.software_version_ref ?? settings.softwareVersionRef;
+      _selectedVersionRef =
+          trip.software_version_ref ?? settings.softwareVersionRef;
     }
 
     setState(() {
@@ -322,7 +323,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
         return TextField(
           controller: _versionController,
           readOnly: true,
-                onTap: _selectedBrand == null
+          onTap: _selectedBrand == null
               ? null
               : () async {
                   final result = await showDialog<dynamic>(

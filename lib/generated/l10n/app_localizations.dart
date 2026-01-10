@@ -866,6 +866,12 @@ abstract class AppLocalizations {
   /// **'Z-Y Interference'**
   String get zy_interference_threshold_label;
 
+  /// No description provided for @zx_interference_threshold_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Z-X Interference'**
+  String get zx_interference_threshold_label;
+
   /// No description provided for @pitch_validation_enabled_label.
   ///
   /// In en, this message translates to:
@@ -997,6 +1003,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Z-axis activity level to suppress Y-axis'**
   String get zy_interference_threshold_hint;
+
+  /// No description provided for @zx_interference_threshold_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Z-axis activity level to suppress X-axis (Jerk) detection'**
+  String get zx_interference_threshold_hint;
 
   /// No description provided for @pitch_validation_enabled_hint.
   ///

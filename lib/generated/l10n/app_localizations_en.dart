@@ -419,6 +419,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get zy_interference_threshold_label => 'Z-Y Interference';
 
   @override
+  String get zx_interference_threshold_label => 'Z-X Interference';
+
+  @override
   String get pitch_validation_enabled_label => 'Pitch Protection';
 
   @override
@@ -494,6 +497,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get zy_interference_threshold_hint =>
       'Z-axis activity level to suppress Y-axis';
+
+  @override
+  String get zx_interference_threshold_hint =>
+      'Z-axis activity level to suppress X-axis (Jerk) detection';
 
   @override
   String get pitch_validation_enabled_hint =>

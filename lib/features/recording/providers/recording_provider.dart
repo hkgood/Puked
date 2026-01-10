@@ -210,10 +210,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       // 无论是否在录制，回到前台都要开启定位，以便 UI 显示
       _startLocationUpdates();
       if (this.state.isRecording) {
-      debugPrint('App resumed, re-enabling Wakelock');
-      WakelockPlus.enable();
+        debugPrint('App resumed, re-enabling Wakelock');
+        WakelockPlus.enable();
+      }
     }
-  }
     // 当 App 进入后台（暂停或失去焦点）时
     else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -293,13 +293,13 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
         // 异步尝试获取更高精度的起始点 (仅在 stream 还没稳定时)
         if (state.locationUpdateCount == 0) {
-        Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-          ),
-        ).timeout(const Duration(seconds: 5)).then((pos) {
-          if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
-        }).catchError((_) {});
+          Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+            ),
+          ).timeout(const Duration(seconds: 5)).then((pos) {
+            if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
+          }).catchError((_) {});
         }
       }
     } catch (e) {
@@ -404,7 +404,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           LatLng(position.latitude, position.longitude),
           position.speed,
           position.accuracy,
-    );
+        );
       }
     }
 
@@ -462,7 +462,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       lastInsLocation: insLatLng,
       debugMessage: 'INS ACTIVE (Display Only)',
     );
-    }
+  }
 
   // ignore: unused_element
   // ignore: unused_element
@@ -494,9 +494,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (!state.isRecording || state.currentTrip == null) return;
 
     final now = DateTime.now();
-    // iOS 使用全频采样存储 (60Hz)，Android 维持 30Hz
-    final fragment =
-        _engine.getLookbackBuffer(10, targetHz: Platform.isIOS ? 60 : 30);
+    // 缩短回溯时间为 3 秒，并进行抽稀 (25Hz)，大幅减小存储体积
+    final fragment = _engine.getLookbackBuffer(3, targetHz: 25);
 
     // 获取当前的融合车速 (m/s)
     final currentFusedSpeed = _insEngine.currentSpeed;
@@ -507,6 +506,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       ..type = type.name
       ..source = source
       ..speed = currentFusedSpeed // 存入融合车速
+      ..gForce = state.currentGForce // 存入实时 G 值
       ..notes = notes ?? "" // 使用传入的备注
       ..sensorData = fragment
           .map((d) => SensorPointEmbedded()
@@ -534,8 +534,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (type != EventType.manual &&
         _ref.read(settingsProvider).isEventSoundEnabled) {
       _audioPlayer.play(AssetSource('sound/events.mp3'));
-            }
-          }
+    }
+  }
 
   void setAlgorithmMode(AlgorithmMode mode) {
     state = state.copyWith(algorithmMode: mode);
@@ -670,7 +670,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               );
 
               // 统一使用专家级物理引擎，内部已针对跨平台和速度做了鲁棒性适配
-                  _detectAutoEventsExpert(sensorData);
+              _detectAutoEventsExpert(sensorData);
             }
           });
         },
@@ -775,7 +775,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       _xHistory.addLast(MapEntry(now, data.processedAccel.x));
       _yHistory.addLast(MapEntry(now, data.processedAccel.y));
       return;
-  }
+    }
 
     // 2. 启动保护期 (5秒内，除非车速已稳定)
     if (_recordingStartTime != null) {
@@ -816,13 +816,33 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     // --- 核心逻辑 0: Z-Axis 动态阈值抑制 (耦合防御) ---
     // 第一性原理：垂直方向的剧烈运动（过坎）会向 X/Y 轴泄露能量。
     // 改进：使用更强的非线性抑制，确保在大冲击下顿挫检测被严格压制
-    double couplingSuppression = 1.0;
+    double couplingSuppressionY = 1.0;
+    double couplingSuppressionX = 1.0;
     final double az = accel.z.abs();
+
     if (az > config.zyInterferenceThreshold) {
-      // 增强型互斥抑制：使用幂函数增长，并提高上限到 3.5x
-      // 这样当 Z 轴冲击达到一定程度时，Y 轴需要极大的加速度跳变才能触发
-      couplingSuppression = 1.0 + math.pow(az - config.zyInterferenceThreshold, 1.2) * 0.5;
-      couplingSuppression = couplingSuppression.clamp(1.0, 3.5);
+      // Y轴抑制（针对急加减速/摆动）
+      couplingSuppressionY =
+          1.0 + math.pow(az - config.zyInterferenceThreshold, 1.2) * 0.5;
+      couplingSuppressionY = couplingSuppressionY.clamp(1.0, 3.5);
+    }
+
+    if (az > config.zxInterferenceThreshold) {
+      // X轴抑制（专门针对纵向顿挫/Jerk）
+      couplingSuppressionX =
+          1.0 + math.pow(az - config.zxInterferenceThreshold, 1.2) * 0.8;
+      couplingSuppressionX =
+          couplingSuppressionX.clamp(1.0, 5.0); // 纵向顿挫对颠簸更敏感，给更高抑制上限
+    }
+
+    // --- 核心逻辑 0.1: 转向动态补偿 (Turning Context Awareness) ---
+    // 第一性原理：转向时离心力会导致 X 轴读数偏移，且弯道减速是合理动作。
+    double turnCompensation = 1.0;
+    final double yawRate = gyro.z.abs();
+    if (yawRate > 0.1) {
+      // 当角速度超过 0.1 rad/s 时开始补偿
+      turnCompensation = 1.0 + (yawRate * 1.5); // 线性增加减速阈值，最高约 2-3 倍
+      turnCompensation = turnCompensation.clamp(1.0, 2.5);
     }
 
     // --- 逻辑 1: 持续性检测 (急加速/急刹车) ---
@@ -834,11 +854,15 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (recentLongitudinal.length >= (Platform.isIOS ? 10 : 5)) {
       int decelCount = recentLongitudinal
           .where((e) =>
-              e.value < (config.thresholdDecel * factor * couplingSuppression))
+              e.value <
+              (config.thresholdDecel *
+                  factor *
+                  couplingSuppressionY *
+                  turnCompensation))
           .length;
       int accelCount = recentLongitudinal
           .where((e) =>
-              e.value > (config.thresholdAccel * factor * couplingSuppression))
+              e.value > (config.thresholdAccel * factor * couplingSuppressionY))
           .length;
 
       bool isPitching = gyro.x.abs() > (config.thresholdPitch / 10.0);
@@ -846,29 +870,27 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       if (decelCount >= (recentLongitudinal.length * 0.75).floor() &&
           !isDebounced('rapidDeceleration')) {
         // 物理上限过滤
-        final avgDecel = recentLongitudinal
-                .map((e) => e.value)
-                .reduce((a, b) => a + b) /
-            recentLongitudinal.length;
+        final avgDecel =
+            recentLongitudinal.map((e) => e.value).reduce((a, b) => a + b) /
+                recentLongitudinal.length;
         if (avgDecel.abs() < config.maxAccelAllowed) {
           if (!config.pitchValidationEnabled || isPitching) {
-        _lastTriggered['rapidDeceleration'] = now;
-        _enqueueEvent(EventType.rapidDeceleration, now);
+            _lastTriggered['rapidDeceleration'] = now;
+            _enqueueEvent(EventType.rapidDeceleration, now);
           }
         }
       } else if (accelCount >= (recentLongitudinal.length * 0.75).floor() &&
           !isDebounced('rapidAcceleration')) {
         // 物理上限过滤
-        final avgAccel = recentLongitudinal
-                .map((e) => e.value)
-                .reduce((a, b) => a + b) /
-            recentLongitudinal.length;
+        final avgAccel =
+            recentLongitudinal.map((e) => e.value).reduce((a, b) => a + b) /
+                recentLongitudinal.length;
         if (avgAccel.abs() < config.maxAccelAllowed) {
           if (!config.pitchValidationEnabled || isPitching) {
-        _lastTriggered['rapidAcceleration'] = now;
-        _enqueueEvent(EventType.rapidAcceleration, now);
-      }
-    }
+            _lastTriggered['rapidAcceleration'] = now;
+            _enqueueEvent(EventType.rapidAcceleration, now);
+          }
+        }
       }
     }
 
@@ -887,8 +909,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         for (int i = 0; i < recentJerkPoints.length; i++) {
           final currentPoint = recentJerkPoints[i];
           // 寻找约 100ms 前的点
-          final targetTime = currentPoint.key.subtract(const Duration(milliseconds: integrationMs));
-          
+          final targetTime = currentPoint.key
+              .subtract(const Duration(milliseconds: integrationMs));
+
           // 在窗口内找最接近 100ms 前的点
           MapEntry<DateTime, double>? prevPoint;
           for (int j = i - 1; j >= 0; j--) {
@@ -899,8 +922,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           }
 
           if (prevPoint != null) {
-            final dt = currentPoint.key.difference(prevPoint.key).inMicroseconds / 1000000.0;
-            if (dt > 0.05) { // 至少确保有 50ms 的跨度才计算，防止 dt 过小
+            final dt =
+                currentPoint.key.difference(prevPoint.key).inMicroseconds /
+                    1000000.0;
+            if (dt > 0.05) {
+              // 至少确保有 50ms 的跨度才计算，防止 dt 过小
               final windowedJerk = (currentPoint.value - prevPoint.value) / dt;
               if (windowedJerk.abs() > maxWindowedJerk.abs()) {
                 maxWindowedJerk = windowedJerk;
@@ -910,10 +936,12 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         }
 
         // 物理合理性过滤
-        if (maxWindowedJerk.abs() > (config.thresholdJerk * factor * couplingSuppression) &&
+        if (maxWindowedJerk.abs() >
+                (config.thresholdJerk * factor * couplingSuppressionX) &&
             maxWindowedJerk.abs() < config.maxJerkAllowed) {
           // 绝对加速度门槛校验：窗口内必须有显著的加速度幅值
-          final peakAy = recentJerkPoints.map((e) => e.value.abs()).reduce(math.max);
+          final peakAy =
+              recentJerkPoints.map((e) => e.value.abs()).reduce(math.max);
           if (peakAy > config.minAccelForJerk) {
             _lastTriggered['jerk'] = now;
             _enqueueEvent(EventType.jerk, now);
@@ -954,7 +982,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         }
 
         // 只有当加速度跨度够大，且存在航向切换（摆动特征）时才触发
-        if (span > (config.thresholdWobbleSpan * factor * couplingSuppression) &&
+        if (span >
+                (config.thresholdWobbleSpan * factor * couplingSuppressionY) &&
             span < config.maxWobbleSpanAllowed &&
             yawSignSwitches >= 1) {
           _lastTriggered['wobble'] = now;

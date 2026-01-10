@@ -189,6 +189,7 @@ class I18n {
       'wobble_window_ms_label': 'Wobble Duration',
       'fusion_window_ms_label': 'Fusion Duration',
       'zy_interference_threshold_label': 'Z-Y Interference',
+      'zx_interference_threshold_label': 'Z-X Interference',
       'pitch_validation_enabled_label': 'Pitch Protection',
       'speed_low_factor_label': 'Low Speed Factor',
       'speed_high_factor_label': 'High Speed Factor',
@@ -197,8 +198,10 @@ class I18n {
       'max_wobble_span_allowed_label': 'Max Wobble Limit',
       'max_bump_allowed_label': 'Max Bump Limit',
       'min_accel_for_jerk_label': 'Jerk Min Accel',
-      'threshold_accel_hint': 'Min acceleration to trigger \'Rapid Acceleration\'',
-      'threshold_decel_hint': 'Min deceleration to trigger \'Rapid Deceleration\'',
+      'threshold_accel_hint':
+          'Min acceleration to trigger \'Rapid Acceleration\'',
+      'threshold_decel_hint':
+          'Min deceleration to trigger \'Rapid Deceleration\'',
       'threshold_wobble_span_hint': 'Min lateral span to trigger \'Wobble\'',
       'threshold_bump_hint': 'Min vertical G to trigger \'Bump\'',
       'threshold_jerk_hint': 'Min change rate to trigger \'Jerk\'',
@@ -208,12 +211,19 @@ class I18n {
       'wobble_window_ms_hint': 'Time window for detecting lateral swings',
       'fusion_window_ms_hint': 'Wait time for merging multiple features',
       'max_jerk_allowed_hint': 'Max jerk limit to filter out device drops',
-      'max_accel_allowed_hint': 'Max accel limit to filter out non-driving noise',
-      'max_wobble_span_allowed_hint': 'Max wobble limit to filter out device handling',
+      'max_accel_allowed_hint':
+          'Max accel limit to filter out non-driving noise',
+      'max_wobble_span_allowed_hint':
+          'Max wobble limit to filter out device handling',
       'max_bump_allowed_hint': 'Max bump limit to filter out non-road impacts',
-      'min_accel_for_jerk_hint': 'Only calculate jerk if acceleration exceeds this to avoid road noise',
-      'zy_interference_threshold_hint': 'Z-axis activity level to suppress Y-axis',
-      'pitch_validation_enabled_hint': 'Use gyroscope to verify car\'s pitching',
+      'min_accel_for_jerk_hint':
+          'Only calculate jerk if acceleration exceeds this to avoid road noise',
+      'zy_interference_threshold_hint':
+          'Z-axis activity level to suppress Y-axis',
+      'zx_interference_threshold_hint':
+          'Z-axis activity level to suppress X-axis',
+      'pitch_validation_enabled_hint':
+          'Use gyroscope to verify car\'s pitching',
       'speed_low_factor_hint': 'Sensitivity factor at low speeds (<10km/h)',
       'speed_high_factor_hint': 'Sensitivity factor at high speeds (>80km/h)',
       'sync_now': 'Sync Now',
@@ -400,6 +410,7 @@ class I18n {
       'wobble_window_ms_label': '摆动检测时长',
       'fusion_window_ms_label': '事件聚合时长',
       'zy_interference_threshold_label': '垂直轴干扰抑制',
+      'zx_interference_threshold_label': '颠簸干扰抑制',
       'pitch_validation_enabled_label': '俯仰保护开关',
       'speed_low_factor_label': '低速灵敏度系数',
       'speed_high_factor_label': '高速灵敏度系数',
@@ -424,6 +435,7 @@ class I18n {
       'max_bump_allowed_hint': '过滤手机跌落等非路面引起的极端垂直冲击',
       'min_accel_for_jerk_hint': '只有加速度超过此值时才计算顿挫，防止路面细微震动误报',
       'zy_interference_threshold_hint': '垂直活跃到何种程度时开始压制纵向顿挫检测',
+      'zx_interference_threshold_hint': '路面垂直颠簸活跃到何种程度时开始压制纵向(X轴)顿挫检测',
       'pitch_validation_enabled_hint': '配合陀螺仪校验车辆真实的抬头/点头动作',
       'speed_low_factor_hint': '低速（<10km/h）场景下的灵敏度修正系数',
       'speed_high_factor_hint': '高速（>80km/h）场景下的灵敏度修正系数',

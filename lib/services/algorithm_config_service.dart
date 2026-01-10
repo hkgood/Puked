@@ -34,7 +34,8 @@ class AlgorithmConfigService extends StateNotifier<AlgorithmConfig> {
 
   Future<void> fetchAndSync() async {
     try {
-      debugPrint('🔍 [ConfigSync] 正在尝试从 PocketBase 获取最新配置 (Collection: $_collectionName)...');
+      debugPrint(
+          '🔍 [ConfigSync] 正在尝试从 PocketBase 获取最新配置 (Collection: $_collectionName)...');
       // 获取最新的一条配置记录 (按版本号或更新时间排序)
       final records = await _pb.collection(_collectionName).getList(
             page: 1,
@@ -47,8 +48,10 @@ class AlgorithmConfigService extends StateNotifier<AlgorithmConfig> {
       if (records.items.isNotEmpty) {
         final record = records.items.first;
         debugPrint('🔍 [ConfigSync] 收到云端原始 JSON: ${record.data}');
-        final cloudConfig = AlgorithmConfig.fromJson(record.data, recordId: record.id);
-        debugPrint('🔍 [ConfigSync] 解析后版本: ${cloudConfig.version}, 当前本地版本: ${state.version}');
+        final cloudConfig =
+            AlgorithmConfig.fromJson(record.data, recordId: record.id);
+        debugPrint(
+            '🔍 [ConfigSync] 解析后版本: ${cloudConfig.version}, 当前本地版本: ${state.version}');
 
         if (cloudConfig.version > state.version || state.id == null) {
           debugPrint(
@@ -64,7 +67,8 @@ class AlgorithmConfigService extends StateNotifier<AlgorithmConfig> {
     } catch (e, stack) {
       debugPrint('❌ [ConfigSync] 获取云端配置失败: $e');
       if (e.toString().contains('403')) {
-        debugPrint('💡 [ConfigSync] 提示: 请检查 PocketBase 的 API Rules 是否允许公开 List/View');
+        debugPrint(
+            '💡 [ConfigSync] 提示: 请检查 PocketBase 的 API Rules 是否允许公开 List/View');
       }
       debugPrint(stack.toString());
     }
@@ -72,7 +76,8 @@ class AlgorithmConfigService extends StateNotifier<AlgorithmConfig> {
 
   Future<void> updateConfig(AlgorithmConfig newConfig) async {
     try {
-      if (newConfig.id == null) throw Exception('Cannot update config without ID');
+      if (newConfig.id == null)
+        throw Exception('Cannot update config without ID');
 
       // 更新到 PocketBase
       final record = await _pb.collection(_collectionName).update(
@@ -81,7 +86,8 @@ class AlgorithmConfigService extends StateNotifier<AlgorithmConfig> {
           );
 
       // 更新本地状态
-      final updatedConfig = AlgorithmConfig.fromJson(record.data, recordId: record.id);
+      final updatedConfig =
+          AlgorithmConfig.fromJson(record.data, recordId: record.id);
       state = updatedConfig;
       await _prefs.setString(_storageKey, jsonEncode(updatedConfig.toJson()));
       debugPrint('✅ [ConfigUpdate] 配置已成功更新到云端并同步本地');

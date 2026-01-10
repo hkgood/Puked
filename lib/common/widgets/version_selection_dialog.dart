@@ -59,7 +59,8 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
 
         return Dialog(
           backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Column(
@@ -75,11 +76,13 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // iOS 风格自定义输入框
                 Container(
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFF2F2F7),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : const Color(0xFFF2F2F7),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TextField(
@@ -94,12 +97,12 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                         fontSize: 14,
                         color: isDark ? Colors.white38 : Colors.black38,
                       ),
-                      prefixIcon: Icon(Icons.edit_outlined, 
-                        size: 20, 
-                        color: isDark ? Colors.white54 : Colors.black54
-                      ),
+                      prefixIcon: Icon(Icons.edit_outlined,
+                          size: 20,
+                          color: isDark ? Colors.white54 : Colors.black54),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                     ),
                     onChanged: (value) {
                       setState(() {
@@ -125,16 +128,19 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                       shrinkWrap: true,
                       itemCount: widget.presetVersions.length,
                       separatorBuilder: (context, index) => Divider(
-                        height: 1, 
-                        color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)
-                      ),
+                          height: 1,
+                          color: isDark
+                              ? Colors.white10
+                              : Colors.black.withValues(alpha: 0.05)),
                       itemBuilder: (context, index) {
                         final versionObj = widget.presetVersions[index];
                         final versionStr = versionObj.versionString;
-                        final isSelected = !_isCustomInput && 
-                            (_selectedResult is SoftwareVersion && 
-                             (_selectedResult as SoftwareVersion).versionString == versionStr);
-                        
+                        final isSelected = !_isCustomInput &&
+                            (_selectedResult is SoftwareVersion &&
+                                (_selectedResult as SoftwareVersion)
+                                        .versionString ==
+                                    versionStr);
+
                         return InkWell(
                           onTap: () {
                             setState(() {
@@ -146,11 +152,13 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                           borderRadius: BorderRadius.circular(8),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 14),
                             decoration: BoxDecoration(
-                              color: isSelected 
-                                ? theme.colorScheme.primary.withValues(alpha: 0.1) 
-                                : Colors.transparent,
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                      .withValues(alpha: 0.1)
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -160,15 +168,22 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                                     versionStr,
                                     style: TextStyle(
                                       fontSize: 16,
-                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                      color: isSelected 
-                                        ? theme.colorScheme.primary 
-                                        : (isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black87),
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? theme.colorScheme.primary
+                                          : (isDark
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.9)
+                                              : Colors.black87),
                                     ),
                                   ),
                                 ),
                                 if (isSelected)
-                                  Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20),
+                                  Icon(Icons.check_circle,
+                                      color: theme.colorScheme.primary,
+                                      size: 20),
                               ],
                             ),
                           ),
@@ -177,7 +192,7 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
 
                 // 底部操作按钮
@@ -187,7 +202,9 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                       child: TextButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: TextButton.styleFrom(
-                          backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF2F2F7),
+                          backgroundColor: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : const Color(0xFFF2F2F7),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         child: Text(
@@ -203,7 +220,8 @@ class _VersionSelectionDialogState extends State<VersionSelectionDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(_selectedResult),
+                        onPressed: () =>
+                            Navigator.of(context).pop(_selectedResult),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: Colors.white,

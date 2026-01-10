@@ -23,7 +23,8 @@ final brandNameProvider = Provider.family<String, String>((ref, idOrNameRaw) {
 
       final brand = brands.firstWhere(
         (b) =>
-            b.cloudId == idOrName || b.name.toLowerCase() == idOrName.toLowerCase(),
+            b.cloudId == idOrName ||
+            b.name.toLowerCase() == idOrName.toLowerCase(),
         orElse: () => Brand()..name = isPbId ? '' : idOrName,
       );
 
@@ -31,7 +32,8 @@ final brandNameProvider = Provider.family<String, String>((ref, idOrNameRaw) {
       return brand.displayName ?? brand.name;
     },
     orElse: () {
-      final isPbId = idOrNameRaw.trim().length == 15 && !idOrNameRaw.contains(' ');
+      final isPbId =
+          idOrNameRaw.trim().length == 15 && !idOrNameRaw.contains(' ');
       return isPbId ? '...' : idOrNameRaw;
     },
   );
@@ -45,7 +47,8 @@ final allVersionsProvider = StreamProvider<List<SoftwareVersion>>((ref) {
 });
 
 /// 根据版本 ID 或字符串获取显示名称的 Provider
-final versionNameProvider = Provider.family<String, String>((ref, idOrStringRaw) {
+final versionNameProvider =
+    Provider.family<String, String>((ref, idOrStringRaw) {
   final idOrString = idOrStringRaw.trim();
   final versionsAsync = ref.watch(allVersionsProvider);
   return versionsAsync.maybeWhen(
@@ -76,7 +79,8 @@ final versionNameProvider = Provider.family<String, String>((ref, idOrStringRaw)
     },
     // 加载或错误时，如果是 ID 则显示占位
     orElse: () {
-      final isPbId = idOrStringRaw.trim().length == 15 && !idOrStringRaw.contains('.');
+      final isPbId =
+          idOrStringRaw.trim().length == 15 && !idOrStringRaw.contains('.');
       return isPbId ? '...' : idOrStringRaw;
     },
   );

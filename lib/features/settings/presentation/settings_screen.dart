@@ -74,19 +74,21 @@ class SettingsScreen extends ConsumerWidget {
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundImage: ref
+                          backgroundImage:
+                              ref.watch(pbServiceProvider).currentAvatarUrl !=
+                                      null
+                                  ? NetworkImage(ref
                                       .watch(pbServiceProvider)
-                                      .currentAvatarUrl !=
-                                  null
-                            ? NetworkImage(
-                                ref.watch(pbServiceProvider).currentAvatarUrl!)
-                            : null,
-                          child: ref.watch(pbServiceProvider).currentAvatarUrl ==
-                                  null
-                              ? const Icon(Icons.person, size: 28)
-                        : null,
+                                      .currentAvatarUrl!)
+                                  : null,
+                          child:
+                              ref.watch(pbServiceProvider).currentAvatarUrl ==
+                                      null
+                                  ? const Icon(Icons.person, size: 28)
+                                  : null,
                         ),
-                        if (ref.watch(pbServiceProvider).currentAvatarUrl == null)
+                        if (ref.watch(pbServiceProvider).currentAvatarUrl ==
+                            null)
                           Positioned(
                             right: 0,
                             bottom: 0,
@@ -95,7 +97,8 @@ class SettingsScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.primary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
                               ),
                               child: const Icon(
                                 Icons.add_a_photo,
@@ -247,14 +250,15 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   subtitle: Text(
                     [
-                      if (settings.carModel != null &&
-                          settings.carModel!.isNotEmpty)
-                        settings.carModel,
-                      // 严格切换到 Ref 优先逻辑，屏蔽 ID 泄露
-                      ref.watch(versionNameProvider(settings.softwareVersionRef ??
-                          settings.softwareVersion ??
-                          '')),
-                    ].join(' • ').isEmpty ||
+                              if (settings.carModel != null &&
+                                  settings.carModel!.isNotEmpty)
+                                settings.carModel,
+                              // 严格切换到 Ref 优先逻辑，屏蔽 ID 泄露
+                              ref.watch(versionNameProvider(
+                                  settings.softwareVersionRef ??
+                                      settings.softwareVersion ??
+                                      '')),
+                            ].join(' • ').isEmpty ||
                             [
                               if (settings.carModel != null &&
                                   settings.carModel!.isNotEmpty)
@@ -350,16 +354,18 @@ class SettingsScreen extends ConsumerWidget {
               const Divider(),
               // 负体验音效
               _buildSectionHeader(context, i18n.t('event_sound')),
-              SwitchListTile(
+              ListTile(
                 title: Text(i18n.t('event_sound')),
                 subtitle: Text(
                   i18n.t('event_sound_desc'),
                   style: const TextStyle(fontSize: 12),
                 ),
-                value: settings.isEventSoundEnabled,
-                onChanged: (value) => ref
-                    .read(settingsProvider.notifier)
-                    .setEventSoundEnabled(value),
+                trailing: _SquareSwitch(
+                  value: settings.isEventSoundEnabled,
+                  onChanged: (value) => ref
+                      .read(settingsProvider.notifier)
+                      .setEventSoundEnabled(value),
+                ),
               ),
 
               const Divider(),
@@ -458,11 +464,18 @@ class SettingsScreen extends ConsumerWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
-    final toolbarColor = isDark ? const Color(0xFF1A1A1A) : Theme.of(context).colorScheme.primary;
+    final toolbarColor = isDark
+        ? const Color(0xFF1A1A1A)
+        : Theme.of(context).colorScheme.primary;
 
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: image.path,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      // 核心优化：限制最大尺寸和压缩质量
+      maxWidth: 512,
+      maxHeight: 512,
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 85,
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop Avatar',
@@ -564,6 +577,47 @@ class SettingsScreen extends ConsumerWidget {
           color: Colors.white,
           fontSize: 10,
           fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _SquareSwitch extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SquareSwitch({
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 44,
+        height: 24,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: value
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 200),
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
         ),
       ),
     );

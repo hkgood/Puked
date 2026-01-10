@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.1] - 2026-01-10
+### Added
+- **头像系统**：支持 1:1 裁剪与上传。
+- **跨端同步**：支持行程双向云同步。
+- **云控算法**：参数动态下发，App/Web 逻辑统一。
+- **轴间抑制**：非线性 Z-Y 互斥，精准过滤过坎误报。
+
+### Changed
+- **精度优化**：协同解决了顽固的误触发与漏触发问题。
+- **数据迁移**：完成 Ref 架构迁移，屏蔽 ID 泄露。
+- **交互重构**：优化版本号选择界面，提升操作流畅度。
+
+### Fixed
+- **数据一致性修复**：修复了部分设备上 brand_ref 与 software_version_ref 字段未能正确同步导致 ID 泄露的问题。
+- **UI 渲染优化**：解决了车辆信息选择界面在极少数情况下出现的空指针导致的白屏问题。
+
 ## [2.3.0] - 2026-01-10
 ### Added
 - **支持头像设定**：引入头像裁剪（1:1）与上传功能，支持个性化个人主页。
@@ -70,7 +86,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **滤波算法升级**：强化滤波算法，进一步降低路面杂波引起的事件误报率。
-- **算法平台移植**：将 iOS 端的专家算法完整移植至安卓版本，显著提升事件感知精度。
+- **算法 platform移植**：将 iOS 端的专家算法完整移植至安卓版本，显著提升事件感知精度。
 - **传感器校准优化**：增强传感器校准逻辑，对手机摆放角度和姿态的检测更加准确，降低非车辆因素干扰。
 - **UI 舒适度优化**：修复版本舒适度标尺过密问题，提升视觉清晰度。
 
@@ -116,4 +132,3 @@ All notable changes to this project will be documented in this file.
 - **Code Quality**: Fixed 37 lint warnings including unused imports, unused variables, and deprecated API calls.
 - **API Updates**: Migrated PocketBase SDK calls from `getDataValue` to `get<T>`.
 - **Formatting**: Standardized code formatting across the entire project.
-

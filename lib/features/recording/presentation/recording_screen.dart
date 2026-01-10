@@ -541,18 +541,27 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
               padding: EdgeInsets.zero,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
+              crossAxisCount: 3,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              childAspectRatio: 2.6, // 从 2.2 调回 2.6，在高度和空间之间取得平衡
+              childAspectRatio: 2.0,
               children: [
                 _TagButton(
-                  label: i18n.t('rapid_accel'),
-                  icon: Icons.speed,
-                  color: const Color(0xFFFF9500),
+                  label: i18n.t('jerk'),
+                  icon: Icons.bolt_rounded,
+                  color: const Color(0xFF5856D6),
                   onPressed: () => ref
                       .read(recordingProvider.notifier)
-                      .tagEvent(EventType.rapidAcceleration),
+                      .tagEvent(EventType.jerk),
+                  compact: true,
+                ),
+                _TagButton(
+                  label: i18n.t('bump'),
+                  icon: Icons.vibration,
+                  color: const Color(0xFF007AFF),
+                  onPressed: () => ref
+                      .read(recordingProvider.notifier)
+                      .tagEvent(EventType.bump),
                   compact: true,
                 ),
                 _TagButton(
@@ -562,24 +571,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                   onPressed: () => ref
                       .read(recordingProvider.notifier)
                       .tagEvent(EventType.rapidDeceleration),
-                  compact: true,
-                ),
-                _TagButton(
-                  label: i18n.t('bump'),
-                  icon: Icons.vibration,
-                  color: const Color(0xFF5856D6),
-                  onPressed: () => ref
-                      .read(recordingProvider.notifier)
-                      .tagEvent(EventType.bump),
-                  compact: true,
-                ),
-                _TagButton(
-                  label: i18n.t('wobble'),
-                  icon: Icons.waves,
-                  color: const Color(0xFF007AFF),
-                  onPressed: () => ref
-                      .read(recordingProvider.notifier)
-                      .tagEvent(EventType.wobble),
                   compact: true,
                 ),
               ],
@@ -930,18 +921,27 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 2.8,
+              crossAxisCount: 3,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.8,
               children: [
                 _TagButton(
-                  label: i18n.t('rapid_accel'),
-                  icon: Icons.speed,
-                  color: const Color(0xFFFF9500),
+                  label: i18n.t('jerk'),
+                  icon: Icons.bolt_rounded,
+                  color: const Color(0xFF5856D6),
                   onPressed: () => ref
                       .read(recordingProvider.notifier)
-                      .tagEvent(EventType.rapidAcceleration),
+                      .tagEvent(EventType.jerk),
+                  compact: true,
+                ),
+                _TagButton(
+                  label: i18n.t('bump'),
+                  icon: Icons.vibration,
+                  color: const Color(0xFF007AFF),
+                  onPressed: () => ref
+                      .read(recordingProvider.notifier)
+                      .tagEvent(EventType.bump),
                   compact: true,
                 ),
                 _TagButton(
@@ -951,24 +951,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                   onPressed: () => ref
                       .read(recordingProvider.notifier)
                       .tagEvent(EventType.rapidDeceleration),
-                  compact: true,
-                ),
-                _TagButton(
-                  label: i18n.t('bump'),
-                  icon: Icons.vibration,
-                  color: const Color(0xFF5856D6),
-                  onPressed: () => ref
-                      .read(recordingProvider.notifier)
-                      .tagEvent(EventType.bump),
-                  compact: true,
-                ),
-                _TagButton(
-                  label: i18n.t('wobble'),
-                  icon: Icons.waves,
-                  color: const Color(0xFF007AFF),
-                  onPressed: () => ref
-                      .read(recordingProvider.notifier)
-                      .tagEvent(EventType.wobble),
                   compact: true,
                 ),
               ],

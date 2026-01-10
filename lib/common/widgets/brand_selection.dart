@@ -68,7 +68,7 @@ class BrandSelectionItem extends StatelessWidget {
 /// 统一的品牌选择网格
 class BrandSelectionGrid extends StatelessWidget {
   final List<Brand> brands;
-  final String? selectedBrandName;
+  final String? selectedBrandKey; // 支持 ID 或名称
   final Function(Brand) onBrandSelected;
   final ScrollController? scrollController;
   final bool shrinkWrap;
@@ -77,7 +77,7 @@ class BrandSelectionGrid extends StatelessWidget {
   const BrandSelectionGrid({
     super.key,
     required this.brands,
-    this.selectedBrandName,
+    this.selectedBrandKey,
     required this.onBrandSelected,
     this.scrollController,
     this.shrinkWrap = true,
@@ -102,7 +102,8 @@ class BrandSelectionGrid extends StatelessWidget {
       itemCount: brands.length,
       itemBuilder: (context, index) {
         final brand = brands[index];
-        final isSelected = selectedBrandName == brand.name;
+        final isSelected = selectedBrandKey == brand.name ||
+            (brand.cloudId != null && selectedBrandKey == brand.cloudId);
         return BrandSelectionItem(
           brand: brand,
           isSelected: isSelected,

@@ -64,8 +64,10 @@ class CloudTripService {
         body: {
           'user': userId,
           'brand': trip.brand ?? 'Others',
+          'brand_ref': trip.brand_ref ?? '',
           'car_model': trip.carModel ?? 'Others',
           'software_version': trip.softwareVersion ?? 'Others',
+          'software_version_ref': trip.software_version_ref ?? '',
           'is_public': true,
           'metrics': metrics,
           'route_summary': {}, // 如果有聚合路径可以放在这里
@@ -152,8 +154,10 @@ class CloudTripService {
             ..cloudId = record.id
             ..startTime = DateTime.parse(record.get<String>('created'))
             ..brand = record.getStringValue('brand')
+            ..brand_ref = record.getStringValue('brand_ref')
             ..carModel = record.getStringValue('car_model')
             ..softwareVersion = record.getStringValue('software_version')
+            ..software_version_ref = record.getStringValue('software_version_ref')
             ..distance = distanceKm * 1000
             ..eventCount = eventCount
             ..isUploaded = true
@@ -221,6 +225,22 @@ class CloudTripService {
     }
   }
 
+  /// 获取公开行程的总数，用于判断是否需要刷新
+  Future<int> getTotalPublicTripsCount() async {
+    try {
+      final result = await _pbService.pb.collection('trips').getList(
+            page: 1,
+            perPage: 1,
+            filter: 'is_public = true',
+            fields: 'id', // 只返回 id 减少数据量
+          );
+      return result.totalItems;
+    } catch (e) {
+      debugPrint('Error fetching public trips count: $e');
+      return -1;
+    }
+  }
+
   // 辅助方法：在后台线程解析 JSON
   static Map<String, dynamic> _parseJson(Uint8List bytes) {
     return jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
@@ -243,6 +263,7 @@ class CloudTripService {
 
         // 获取用户信息
         String? userName;
+        String? userAvatar;
         String? userId = r.getStringValue('user');
 
         // 优先尝试直接访问 expand['user']，这是最标准的方式
@@ -253,28 +274,32 @@ class CloudTripService {
 
           final name = userRecord.get<String>('name');
           final username = userRecord.get<String>('username');
+          final avatar = userRecord.get<String>('avatar');
 
           if (name.isNotEmpty) {
             userName = name;
           } else if (username.isNotEmpty) {
             userName = username;
           }
+
+          if (avatar.isNotEmpty) {
+            userAvatar = _pbService.pb.files.getUrl(userRecord, avatar).toString();
+          }
         } else {
           // 备用方案：如果 expand['user'] 为空，递归扫描所有 expand 入口
-          // 有时关联字段可能被命名为 owner 或其他
           final expand = r.get<Map<String, List<RecordModel>>?>('expand');
           if (expand != null) {
             for (final entry in expand.entries) {
               for (final record in entry.value) {
                 final n = record.get<String>('name');
                 final un = record.get<String>('username');
-                if (n.isNotEmpty) {
+                final av = record.get<String>('avatar');
+                if (n.isNotEmpty || un.isNotEmpty) {
                   userId = record.id;
-                  userName = n;
-                  break;
-                } else if (un.isNotEmpty) {
-                  userId = record.id;
-                  userName = un;
+                  userName = n.isNotEmpty ? n : un;
+                  if (av.isNotEmpty) {
+                    userAvatar = _pbService.pb.files.getUrl(record, av).toString();
+                  }
                   break;
                 }
               }
@@ -287,13 +312,16 @@ class CloudTripService {
         final trip = Trip()
           ..uuid = r.getStringValue('local_uuid')
           ..brand = r.getStringValue('brand')
+          ..brand_ref = r.getStringValue('brand_ref')
           ..carModel = r.getStringValue('car_model')
           ..softwareVersion = r.getStringValue('software_version')
+          ..software_version_ref = r.getStringValue('software_version_ref')
           ..distance = distanceKm * 1000 // 转回米
           ..eventCount = eventCount
           ..startTime = DateTime.parse(r.get<String>('created'))
           ..cloudId = r.id
           ..userName = userName
+          ..userAvatar = userAvatar
           ..userId = userId;
 
         // 这里有个难点：RecordedEvent 是 Isar 集合，不能直接在内存中构建并关联。

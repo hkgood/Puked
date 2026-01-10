@@ -26,8 +26,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 自动刷新云端数据
-      ref.read(arenaCloudTripsProvider.notifier).refresh();
+      // 自动刷新云端数据 (使用静默刷新，只有数据变化才更新 UI)
+      ref.read(arenaCloudTripsProvider.notifier).refresh(force: false);
 
       final arena = ref.read(arenaProvider);
       setState(() {
@@ -38,7 +38,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   }
 
   Future<void> _onRefresh() async {
-    await ref.read(arenaCloudTripsProvider.notifier).refresh();
+    // 手动刷新时强制更新
+    await ref.read(arenaCloudTripsProvider.notifier).refresh(force: true);
   }
 
   @override
@@ -71,129 +72,136 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
         right: true,
         top: false,
         bottom: false,
-        child: RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: cloudTripsAsync.when(
-            loading: () => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                              Theme.of(context).colorScheme.primary),
-                        ),
+        child: cloudTripsAsync.when(
+          skipLoadingOnReload: true, // 关键：重载时不显示 loading 状态，保持现有数据
+          loading: () => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    i18n.t('syncing'),
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  i18n.t('syncing'),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    i18n.locale.languageCode == 'zh'
-                        ? '正在连接到全球竞技场...'
-                        : 'Connecting to Global Arena...',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            error: (err, stack) => ListView(
-              children: [
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.7,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Error: $err'),
-                        TextButton(
-                          onPressed: _onRefresh,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  i18n.locale.languageCode == 'zh'
+                      ? '正在连接到全球竞技场...'
+                      : 'Connecting to Global Arena...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.outline,
                   ),
                 ),
               ],
             ),
-            data: (trips) => trips.isEmpty
-                ? ListView(
-                    // 使用 ListView 确保在空状态下也能下拉刷新
-                    physics: const AlwaysScrollableScrollPhysics(),
+          ),
+          error: (err, stack) => cloudTripsAsync.hasValue 
+            ? _buildArenaContent(arena, i18n, cloudTripsAsync.value!)
+            : ListView(
+            children: [
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.7,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.leaderboard_outlined,
-                                  size: 64,
-                                  color: Theme.of(context).colorScheme.outline),
-                              const SizedBox(height: 16),
-                              Text(i18n.t('no_trips_yet'),
-                                  style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline)),
-                            ],
-                          ),
-                        ),
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text('Error: $err'),
+                      TextButton(
+                        onPressed: _onRefresh,
+                        child: const Text('Retry'),
                       ),
                     ],
-                  )
-                : SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                    child: Column(
-                      children: [
-                        _buildCard1(arena, i18n),
-                        const SizedBox(height: 16),
-                        _buildScenarioRankingCard(arena, i18n),
-                        const SizedBox(height: 16),
-                        _buildUserLeaderboardCard(arena, i18n),
-                        const SizedBox(height: 16),
-                        _buildTotalMileageCard(arena, i18n),
-                        const SizedBox(height: 16),
-                        _buildCard2(arena, i18n),
-                        const SizedBox(height: 16),
-                        _buildCard3(arena, i18n),
-                      ],
-                    ),
                   ),
+                ),
+              ),
+            ],
           ),
+          data: (trips) => _buildArenaContent(arena, i18n, trips),
         ),
       ),
     );
+  }
+
+  Widget _buildArenaContent(ArenaService arena, dynamic i18n, List<dynamic> trips) {
+    return trips.isEmpty
+        ? ListView(
+            // 使用 ListView 确保在空状态下也能响应布局
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.leaderboard_outlined,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.outline),
+                      const SizedBox(height: 16),
+                      Text(i18n.t('no_trips_yet'),
+                          style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outline)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          )
+        : RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                child: Column(
+                  children: [
+                    _buildCard1(arena, i18n),
+                    const SizedBox(height: 16),
+                    _buildScenarioRankingCard(arena, i18n),
+                    const SizedBox(height: 16),
+                    _buildUserLeaderboardCard(arena, i18n),
+                    const SizedBox(height: 16),
+                    _buildTotalMileageCard(arena, i18n),
+                    const SizedBox(height: 16),
+                    _buildCard2(arena, i18n),
+                    const SizedBox(height: 16),
+                    _buildCard3(arena, i18n),
+                  ],
+                ),
+              ),
+          );
   }
 
   // 统一的标题样式 (使用 bold 替代 w900)
@@ -327,12 +335,20 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                               .primary
                               .withValues(alpha: 0.1),
                           shape: BoxShape.circle,
+                          image: item.avatarUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(item.avatarUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                         ),
-                        child: Icon(
+                        child: item.avatarUrl == null
+                            ? Icon(
                           Icons.person_outline,
                           color: Theme.of(context).colorScheme.primary,
                           size: 24,
-                        ),
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 16),
                       // 姓名和进度条
@@ -880,7 +896,6 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                               .colorScheme
                               .onSurface
                               .withValues(alpha: 0.8),
-                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ),
@@ -899,7 +914,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                item.brand.toUpperCase(),
+                                item.displayName.toUpperCase(),
                                 style: const TextStyle(
                                   fontSize: nameFontSize,
                                   fontWeight:
@@ -1012,8 +1027,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
 
   // --- 卡片2：品牌舒适度进化 ---
   Widget _buildCard2(ArenaService arena, dynamic i18n) {
-    final brand = _card2Brand ?? arena.getDefaultBrand();
-    final data = arena.getEvolutionData(brand);
+    final brandKey = _card2Brand ?? arena.getDefaultBrand();
+    final brandName = arena.getBrandName(brandKey);
+    final data = arena.getEvolutionData(brandKey);
 
     // 计算 Y 轴最大值和刻度间隔 (对齐 Web 端规整算法)
     double maxVal = 0;
@@ -1071,7 +1087,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                   children: [
                     InkWell(
                       onTap: () =>
-                          _showBrandPicker(context, arena, brand, (selected) {
+                          _showBrandPicker(context, arena, brandKey, (selected) {
                         setState(() => _card2Brand = selected);
                       }),
                       borderRadius: BorderRadius.circular(8),
@@ -1082,7 +1098,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                           children: [
                             Text(
                               i18n.t('arena_brand_evolution_title',
-                                  args: [brand]),
+                                  args: [brandName]),
                               style: _headerStyle(context),
                             ),
                             const SizedBox(width: 4),
@@ -1101,7 +1117,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                   ],
                 ),
                 BrandLogo(
-                  brandName: brand,
+                  brandName: brandKey,
                   size: 42,
                   padding: 8,
                   showBackground: true,
@@ -1211,8 +1227,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
 
   // --- 卡片3：详情详情 ---
   Widget _buildCard3(ArenaService arena, dynamic i18n) {
-    final brand = _card3Brand ?? arena.getDefaultBrand();
-    final data = arena.getSymptomDetails(brand, version: _card3Version);
+    final brandKey = _card3Brand ?? arena.getDefaultBrand();
+    final brandName = arena.getBrandName(brandKey);
+    final data = arena.getSymptomDetails(brandKey, version: _card3Version);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -1244,9 +1261,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                 Row(
                   children: [
                     _buildFilterChip(
-                        brand,
+                        brandName,
                         () =>
-                            _showBrandPicker(context, arena, brand, (selected) {
+                            _showBrandPicker(context, arena, brandKey, (selected) {
                               setState(() {
                                 _card3Brand = selected;
                                 _card3Version = null;
@@ -1254,8 +1271,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                             })),
                     const SizedBox(width: 8),
                     _buildFilterChip(
-                        _card3Version ?? i18n.t('all_versions'),
-                        () => _showVersionPicker(context, i18n, brand,
+                        _card3Version == null ? i18n.t('all_versions') : arena.getVersionName(_card3Version!),
+                        () => _showVersionPicker(context, i18n, brandKey,
                                 (selected) {
                               setState(() => _card3Version = selected);
                             })),
@@ -1341,18 +1358,22 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
     );
   }
 
-  void _showVersionPicker(BuildContext context, dynamic i18n, String brand,
+  void _showVersionPicker(BuildContext context, dynamic i18n, String brandKey,
       Function(String?) onSelected) {
     final arena = ref.read(arenaProvider);
-    // 从真实行程数据中提取该品牌的所有版本
+    // 从真实行程数据中提取该品牌的所有版本，支持 ID 或 名称匹配
     final versions = arena.trips
-        .where((t) => t.brand == brand && t.softwareVersion != null)
-        .map((t) => t.softwareVersion!)
+        .where((t) =>
+            arena.getCanonicalBrandKey(t) == brandKey &&
+            (t.software_version_ref != null || t.softwareVersion != null))
+        .map((t) => arena.getCanonicalVersionKey(t))
         .toSet()
         .toList();
 
-    // 排序版本号
-    versions.sort();
+    // 转换版本 Key 为显示名称
+    final Map<String, String> displayNames = {
+      for (var v in versions) v: arena.getVersionName(v)
+    };
 
     final List<String?> options = [null, ...versions];
 
@@ -1366,7 +1387,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
             itemBuilder: (context, index) {
               final v = options[index];
               return ListTile(
-                title: Text(v ?? i18n.t('all_versions')),
+                title: Text(v == null ? i18n.t('all_versions') : displayNames[v]!),
                 onTap: () {
                   onSelected(v);
                   Navigator.pop(context);
@@ -1512,12 +1533,12 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                   Expanded(
                     child: BrandSelectionGrid(
                       brands: arena.availableBrands,
-                      selectedBrandName: currentBrand,
+                      selectedBrandKey: currentBrand,
                       scrollController: scrollController,
                       shrinkWrap: false,
                       physics: const AlwaysScrollableScrollPhysics(),
                       onBrandSelected: (brand) {
-                        onSelected(brand.name);
+                        onSelected(brand.cloudId ?? brand.name);
                         Navigator.pop(context);
                       },
                     ),

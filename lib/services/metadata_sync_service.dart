@@ -96,6 +96,10 @@ class MetadataSyncService {
   Future<void> syncBrandsFromCloud() async {
     try {
       debugPrint('Starting metadata sync from cloud...');
+
+      // --- 【深度清洗】强制清理本地数据库中的脏数据 ---
+      await _storage.cleanupDirtyMetadata();
+
       // 1. 从 PocketBase 获取所有品牌（包含已禁用的，以便更新本地状态）
       final remoteBrands = await _pbService.pb.collection('brands').getFullList(
             sort: 'order',
@@ -112,6 +116,7 @@ class MetadataSyncService {
 
         final brand = Brand()
           ..name = record.getStringValue('name')
+          ..cloudId = record.id
           ..displayName = record.getStringValue('displayName')
           ..logoUrl = record.getStringValue('logo').isNotEmpty
               ? _pbService.pb.files
@@ -143,6 +148,7 @@ class MetadataSyncService {
           await _storage.addVersion(
             brandName,
             vRecord.getStringValue('versionString'),
+            cloudId: vRecord.id,
             isCustom: vRecord.getBoolValue('isCustom'),
           );
         }

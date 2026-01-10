@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/cloud_trip_service.dart';
+import 'package:puked/services/pocketbase_service.dart';
 import 'package:puked/models/db_models.dart';
 import '../models/arena_data.dart';
 
@@ -27,10 +29,38 @@ class ArenaCloudTripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
   final Ref ref;
   ArenaCloudTripsNotifier(this.ref) : super(const AsyncValue.loading());
 
-  Future<void> refresh() async {
-    state = const AsyncValue.loading();
+  Future<void> refresh({bool force = false}) async {
+    // 如果没有数据或者是强制刷新，显示加载状态
+    if (!state.hasValue || force) {
+      state = const AsyncValue.loading();
+    }
+
     try {
       final cloudService = ref.read(cloudTripServiceProvider);
+      final prefs = ref.read(sharedPreferencesProvider);
+
+      // 如果不是强制刷新，先检查总数是否有变化
+      if (!force) {
+        final currentCount = await cloudService.getTotalPublicTripsCount();
+        final lastCount = prefs.getInt('last_arena_total_trips') ?? -1;
+
+        // 如果总数没变，且已经有数据，则跳过刷新
+        if (currentCount != -1 && currentCount == lastCount && state.hasValue) {
+          return;
+        }
+        
+        // 更新记录的总数
+        if (currentCount != -1) {
+          await prefs.setInt('last_arena_total_trips', currentCount);
+        }
+      } else {
+        // 强制刷新时，也尝试更新总数记录
+        final currentCount = await cloudService.getTotalPublicTripsCount();
+        if (currentCount != -1) {
+          await prefs.setInt('last_arena_total_trips', currentCount);
+        }
+      }
+
       final trips = await cloudService.fetchPublicTrips();
       state = AsyncValue.data(trips);
     } catch (e, stack) {
@@ -45,24 +75,48 @@ final arenaProvider = Provider((ref) {
   final brands = brandsAsync.when(
       data: (d) => d, loading: () => <Brand>[], error: (_, __) => <Brand>[]);
 
+  // 监听版本列表
+  final versionsAsync = ref.watch(allVersionsProvider);
+  final versions = versionsAsync.when(
+      data: (d) => d, loading: () => <SoftwareVersion>[], error: (_, __) => <SoftwareVersion>[]);
+
   // 监听云端公开行程 (Arena 只统计云端公开数据)
   final cloudTripsAsync = ref.watch(arenaCloudTripsProvider);
   final cloudTrips = cloudTripsAsync.when(
       data: (d) => d, loading: () => <Trip>[], error: (_, __) => <Trip>[]);
 
-  return ArenaService(ref, brands, cloudTrips);
+  return ArenaService(ref, brands, versions, cloudTrips);
 });
 
 class ArenaService {
   final Ref _ref;
   final List<Brand> brands;
+  final List<SoftwareVersion> versions;
   final List<Trip> trips;
 
-  ArenaService(this._ref, this.brands, this.trips);
+  ArenaService(this._ref, this.brands, this.versions, this.trips);
 
   List<Brand> get availableBrands => brands;
 
-  List<String> get _allBrands => brands.map((b) => b.name).toList();
+  String getBrandName(String idOrName) {
+    if (idOrName == 'Unknown') return 'Unknown';
+    // 优先匹配 cloudId，然后匹配 name (忽略大小写)
+    final brand = brands.firstWhere(
+      (b) =>
+          b.cloudId == idOrName || b.name.toLowerCase() == idOrName.toLowerCase(),
+      orElse: () => Brand()..name = idOrName,
+    );
+    return brand.displayName ?? brand.name;
+  }
+
+  String getVersionName(String idOrString) {
+    if (idOrString == 'Unknown') return 'Unknown';
+    final version = versions.firstWhere(
+      (v) => v.cloudId == idOrString || v.versionString == idOrString,
+      orElse: () => SoftwareVersion()..versionString = idOrString,
+    );
+    return version.versionString;
+  }
 
   // 卡片1: Top 10 平均无负面体验里程 (km/Event)
   List<BrandData> getTop10Data({bool groupByBrand = true}) {
@@ -83,6 +137,28 @@ class ArenaService {
     return _calculateRanking(filteredTrips, groupByBrand: groupByBrand);
   }
 
+  String getCanonicalBrandKey(Trip t) {
+    if (t.brand_ref != null && t.brand_ref!.isNotEmpty) return t.brand_ref!;
+    if (t.brand == null ||
+        t.brand!.isEmpty ||
+        t.brand!.toLowerCase() == 'unknown') {
+      return 'Unknown';
+    }
+    // 对于旧数据，尝试在本地品牌列表中查找匹配的名称
+    final brandObj = brands.firstWhere(
+      (b) => b.name.toLowerCase() == t.brand!.toLowerCase(),
+      orElse: () => Brand()..name = t.brand!,
+    );
+    return brandObj.cloudId ?? brandObj.name;
+  }
+
+  String getCanonicalVersionKey(Trip t) {
+    if (t.software_version_ref != null && t.software_version_ref!.isNotEmpty) {
+      return t.software_version_ref!;
+    }
+    return t.softwareVersion ?? 'Unknown';
+  }
+
   List<BrandData> _calculateRanking(List<Trip> sourceTrips,
       {bool groupByBrand = true}) {
     if (sourceTrips.isEmpty) return [];
@@ -90,24 +166,16 @@ class ArenaService {
     final Map<String, List<Trip>> groups = {};
 
     for (final trip in sourceTrips) {
-      final brandName = trip.brand;
-      if (brandName == null ||
-          brandName.isEmpty ||
-          brandName.toLowerCase() == 'unknown') {
-        continue;
-      }
+      final brandKey = getCanonicalBrandKey(trip);
+      if (brandKey == 'Unknown') continue;
 
       String key;
       if (groupByBrand) {
-        key = brandName;
+        key = brandKey;
       } else {
-        final version = trip.softwareVersion;
-        if (version == null ||
-            version.isEmpty ||
-            version.toLowerCase() == 'unknown') {
-          continue;
-        }
-        key = '$brandName|$version';
+        final versionKey = getCanonicalVersionKey(trip);
+        if (versionKey == 'Unknown') continue;
+        key = '$brandKey|$versionKey';
       }
 
       groups.putIfAbsent(key, () => []).add(trip);
@@ -122,12 +190,17 @@ class ArenaService {
         totalEvents += _getFilteredEventCount(t);
       }
 
-      final String brand = groupByBrand ? key : key.split('|')[0];
-      final String? version = groupByBrand ? null : key.split('|')[1];
+      final String brandKey = groupByBrand ? key : key.split('|')[0];
+      final String? versionKey = groupByBrand ? null : key.split('|')[1];
+
+      final bNameForDisplay = getBrandName(brandKey);
+      final vNameForDisplay = versionKey != null ? getVersionName(versionKey) : null;
 
       result.add(BrandData(
-        brand: brand,
-        version: version,
+        brand: brandKey,
+        brandName: bNameForDisplay,
+        version: versionKey,
+        versionName: vNameForDisplay, // 增加一个版本名字段（需要修改 BrandData 模型）
         totalKm: totalDist,
         totalEvents: totalEvents,
         kmPerEvent: totalEvents == 0
@@ -205,28 +278,33 @@ class ArenaService {
     return durationHours > 0.01 ? km / durationHours : -1.0;
   }
 
-  VersionEvolutionData getEvolutionData(String brand) {
-    final brandTrips = trips.where((t) => t.brand == brand).toList();
+  VersionEvolutionData getEvolutionData(String brandKey) {
+    final brandTrips =
+        trips.where((t) => getCanonicalBrandKey(t) == brandKey).toList();
     if (brandTrips.isEmpty) {
-      return VersionEvolutionData(brand: brand, evolution: []);
+      return VersionEvolutionData(brand: brandKey, evolution: []);
     }
 
     final Map<String, List<Trip>> versionGroups = {};
     for (final t in brandTrips) {
-      final v = t.softwareVersion ?? 'Unknown';
+      final v = getCanonicalVersionKey(t);
       versionGroups.putIfAbsent(v, () => []).add(t);
     }
 
     final List<VersionPoint> points = [];
-    versionGroups.forEach((version, group) {
+    versionGroups.forEach((versionKey, group) {
       double totalDist = 0;
       int totalEvents = 0;
       for (final t in group) {
         totalDist += (t.distance / 1000.0);
         totalEvents += _getFilteredEventCount(t);
       }
+
+      // 尝试查找版本字符串供显示
+      String displayVersion = getVersionName(versionKey);
+
       points.add(VersionPoint(
-        version: version,
+        version: displayVersion,
         // 关键改进：如果 evt 为 0，表示“完美舒适度”，将其上限限制在 10km (或公里数本身，取小者)
         kmPerEvent: totalEvents == 0
             ? (totalDist > 10 ? 10.0 : totalDist)
@@ -240,7 +318,7 @@ class ArenaService {
       return _compareVersions(a.version, b.version);
     });
 
-    return VersionEvolutionData(brand: brand, evolution: points);
+    return VersionEvolutionData(brand: brandKey, evolution: points);
   }
 
   /// 版本号自然排序比较逻辑
@@ -321,15 +399,14 @@ class ArenaService {
     return totalFiltered;
   }
 
-  SymptomData getSymptomDetails(String brand, {String? version}) {
+  SymptomData getSymptomDetails(String brandKey, {String? version}) {
     final filteredTrips = trips.where((t) {
-      final tripBrand = (t.brand ?? '').toLowerCase().trim();
-      final targetBrand = brand.toLowerCase().trim();
-      if (tripBrand != targetBrand) return false;
-      if (version != null &&
-          version.isNotEmpty &&
-          t.softwareVersion != version) {
-        return false;
+      if (getCanonicalBrandKey(t) != brandKey) return false;
+
+      if (version != null && version.isNotEmpty) {
+        if (getCanonicalVersionKey(t) != version) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -420,8 +497,10 @@ class ArenaService {
     });
 
     return SymptomData(
-      brand: brand,
+      brand: brandKey,
+      brandName: getBrandName(brandKey),
       version: version,
+      versionName: version != null ? getVersionName(version) : null,
       details: details,
       counts: typeCounts,
       totalKm: totalKm,
@@ -438,16 +517,14 @@ class ArenaService {
     final Map<String, _MileageRecord> mileageMap = {};
 
     for (final t in trips) {
-      final brand = t.brand;
-      if (brand == null || brand.isEmpty || brand.toLowerCase() == 'unknown') {
-        continue;
-      }
+      final brandKey = getCanonicalBrandKey(t);
+      if (brandKey == 'Unknown') continue;
 
       final km = t.distance / 1000.0;
-      if (!mileageMap.containsKey(brand)) {
-        mileageMap[brand] = _MileageRecord(brand);
+      if (!mileageMap.containsKey(brandKey)) {
+        mileageMap[brandKey] = _MileageRecord(brandKey);
       }
-      final record = mileageMap[brand]!;
+      final record = mileageMap[brandKey]!;
       record.totalKm += km;
 
       // --- 贪婪时长解析 (完全对齐 Web 端 logic) ---
@@ -530,11 +607,15 @@ class ArenaService {
     }
 
     final List<BrandData> result = mileageMap.values
-        .map((e) => BrandData(
-              brand: e.brand,
-              totalKm: e.totalKm,
-              breakdown: e.breakdown,
-            ))
+        .map((e) {
+          final bNameForDisplay = getBrandName(e.brand);
+          return BrandData(
+            brand: e.brand,
+            brandName: bNameForDisplay,
+            totalKm: e.totalKm,
+            breakdown: e.breakdown,
+          );
+        })
         .toList();
 
     result.sort((a, b) => (b.totalKm ?? 0.0).compareTo(a.totalKm ?? 0.0));
@@ -569,7 +650,7 @@ class ArenaService {
             displayName = 'Anonymous';
           }
         }
-        userMap[uId] = _UserMileageRecord(displayName);
+        userMap[uId] = _UserMileageRecord(displayName, t.userAvatar);
       }
 
       final record = userMap[uId]!;
@@ -580,6 +661,7 @@ class ArenaService {
     final List<UserLeaderboardData> result = userMap.values
         .map((e) => UserLeaderboardData(
               userName: e.userName,
+              avatarUrl: e.avatarUrl,
               totalKm: e.totalKm,
               tripCount: e.tripCount,
             ))
@@ -591,11 +673,19 @@ class ArenaService {
 
   String getDefaultBrand() {
     final settings = _ref.read(settingsProvider);
-    if (settings.brand != null && settings.brand!.isNotEmpty) {
-      return settings.brand!;
+    if (settings.brandRef != null && settings.brandRef!.isNotEmpty) {
+      return settings.brandRef!;
     }
-    if (_allBrands.isNotEmpty) {
-      return _allBrands.first;
+    if (settings.brand != null && settings.brand!.isNotEmpty) {
+      // 尝试解析名称为 ID
+      final brandObj = brands.firstWhere(
+        (b) => b.name.toLowerCase() == settings.brand!.toLowerCase(),
+        orElse: () => Brand()..name = settings.brand!,
+      );
+      return brandObj.cloudId ?? brandObj.name;
+    }
+    if (availableBrands.isNotEmpty) {
+      return availableBrands.first.cloudId ?? availableBrands.first.name;
     }
     return 'Tesla';
   }
@@ -616,8 +706,9 @@ class _MileageRecord {
 
 class _UserMileageRecord {
   final String userName;
+  final String? avatarUrl;
   double totalKm = 0;
   int tripCount = 0;
 
-  _UserMileageRecord(this.userName);
+  _UserMileageRecord(this.userName, this.avatarUrl);
 }

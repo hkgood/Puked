@@ -440,6 +440,74 @@ class AppLocalizationsEn extends AppLocalizations {
   String get max_bump_allowed_label => 'Max Bump Limit';
 
   @override
+  String get threshold_accel_hint =>
+      'Min acceleration to trigger \'Rapid Acceleration\'';
+
+  @override
+  String get threshold_decel_hint =>
+      'Min deceleration to trigger \'Rapid Deceleration\'';
+
+  @override
+  String get threshold_wobble_span_hint =>
+      'Min lateral span to trigger \'Wobble\'';
+
+  @override
+  String get threshold_bump_hint => 'Min vertical G to trigger \'Bump\'';
+
+  @override
+  String get threshold_jerk_hint => 'Min change rate to trigger \'Jerk\'';
+
+  @override
+  String get threshold_pitch_hint =>
+      'Min angular velocity to trigger \'Pitching\'';
+
+  @override
+  String get jerk_window_ms_hint => 'Time window for calculating Jerk rate';
+
+  @override
+  String get accel_decel_window_ms_hint =>
+      'Min continuous time for Accel/Decel';
+
+  @override
+  String get wobble_window_ms_hint =>
+      'Time window for detecting lateral swings';
+
+  @override
+  String get fusion_window_ms_hint => 'Wait time for merging multiple features';
+
+  @override
+  String get max_jerk_allowed_hint =>
+      'Max jerk limit to filter out device drops';
+
+  @override
+  String get max_accel_allowed_hint =>
+      'Max accel limit to filter out non-driving noise';
+
+  @override
+  String get max_wobble_span_allowed_hint =>
+      'Max wobble limit to filter out device handling';
+
+  @override
+  String get max_bump_allowed_hint =>
+      'Max bump limit to filter out non-road impacts';
+
+  @override
+  String get zy_interference_threshold_hint =>
+      'Z-axis activity level to suppress Y-axis';
+
+  @override
+  String get pitch_validation_enabled_hint =>
+      'Use gyroscope to verify car\'s pitching';
+
+  @override
+  String get speed_low_factor_hint =>
+      'Sensitivity factor at low speeds (<10km/h)';
+
+  @override
+  String get speed_high_factor_hint =>
+      'Sensitivity factor at high speeds (>80km/h)';
+
+  @override
   String get sync_now => 'Sync Now';
 
   @override
@@ -464,4 +532,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String cloud_sync_result(Object count) {
     return 'Sync complete, found $count new trips';
   }
+
+  @override
+  String get custom_version_input =>
+      'Manual Input (Format: x.x.x, no sub-versions)';
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get select_version => 'Select Version';
 }

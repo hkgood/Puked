@@ -10,6 +10,7 @@ import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/services/cloud_trip_service.dart';
 import 'package:puked/services/pocketbase_service.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
+import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:puked/features/history/providers/trip_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -466,7 +467,7 @@ class _TripCardState extends ConsumerState<_TripCard> {
                   Opacity(
                     opacity: isCloudOnly ? 0.3 : 1.0, // 纯云端 Logo 进一步变淡
                     child: BrandLogo(
-                      brandName: trip.brand,
+                      brandName: trip.brand_ref ?? trip.brand ?? '',
                       size: 52,
                       padding: 10,
                       showBackground: !isCloudOnly, // 只有本地行程才显示 Logo 背景圆圈
@@ -499,8 +500,8 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                             .onSurface),
                               ),
                             ),
-                            if (trip.softwareVersion != null &&
-                                trip.softwareVersion!.isNotEmpty)
+                            if (trip.software_version_ref != null || (trip.softwareVersion != null &&
+                                trip.softwareVersion!.isNotEmpty))
                               Container(
                                 margin: const EdgeInsets.only(left: 8),
                                 padding: const EdgeInsets.symmetric(
@@ -517,7 +518,10 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  trip.softwareVersion!,
+                                  ref.watch(versionNameProvider(
+                                      trip.software_version_ref ??
+                                          trip.softwareVersion ??
+                                          '')),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isCloudOnly

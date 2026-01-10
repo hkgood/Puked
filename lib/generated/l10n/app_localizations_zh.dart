@@ -428,6 +428,60 @@ class AppLocalizationsZh extends AppLocalizations {
   String get max_bump_allowed_label => '最大允许颠簸';
 
   @override
+  String get threshold_accel_hint => '触发“急加速”所需的最小加速度门槛';
+
+  @override
+  String get threshold_decel_hint => '触发“急刹车”所需的最小减速度门槛';
+
+  @override
+  String get threshold_wobble_span_hint => '触发“横摆/晃动”所需的最小横轴跨度';
+
+  @override
+  String get threshold_bump_hint => '触发“颠簸”所需的最小垂直冲击力';
+
+  @override
+  String get threshold_jerk_hint => '触发“顿挫/冲击”所需的最小加速度变化率';
+
+  @override
+  String get threshold_pitch_hint => '触发“抬头/点头”所需的最小俯仰角速度';
+
+  @override
+  String get jerk_window_ms_hint => '计算顿挫冲击率的时间探测窗口';
+
+  @override
+  String get accel_decel_window_ms_hint => '判定急加减速所需的最小持续动作时长';
+
+  @override
+  String get wobble_window_ms_hint => '检测左右横摆晃动的时间观测周期';
+
+  @override
+  String get fusion_window_ms_hint => '决策引擎合并多项特征并判定前的等待时长';
+
+  @override
+  String get max_jerk_allowed_hint => '过滤因手机掉落或剧烈晃动产生的虚假冲击';
+
+  @override
+  String get max_accel_allowed_hint => '过滤非行车产生的极端物理加速度噪声';
+
+  @override
+  String get max_wobble_span_allowed_hint => '过滤因操作手机产生的超大幅度横摆噪声';
+
+  @override
+  String get max_bump_allowed_hint => '过滤手机跌落等非路面引起的极端垂直冲击';
+
+  @override
+  String get zy_interference_threshold_hint => '垂直活跃到何种程度时开始压制纵向顿挫检测';
+
+  @override
+  String get pitch_validation_enabled_hint => '配合陀螺仪校验车辆真实的抬头/点头动作';
+
+  @override
+  String get speed_low_factor_hint => '低速（<10km/h）场景下的灵敏度修正系数';
+
+  @override
+  String get speed_high_factor_hint => '高速（>80km/h）场景下的灵敏度修正系数';
+
+  @override
   String get sync_now => '立即同步';
 
   @override
@@ -452,4 +506,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String cloud_sync_result(Object count) {
     return '同步完成，发现 $count 条新行程';
   }
+
+  @override
+  String get custom_version_input => '自行输入（尽量输入格式x.x.x，不含子版本号）';
+
+  @override
+  String get confirm => '确认';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get select_version => '选择版本号';
 }

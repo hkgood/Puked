@@ -14,8 +14,10 @@ class SettingsState {
   final ThemeMode themeMode;
   final Locale? locale;
   final String? brand;
+  final String? brandRef;
   final String? carModel;
   final String? softwareVersion;
+  final String? softwareVersionRef;
   final bool isFirstLaunch;
   final bool isEventSoundEnabled;
 
@@ -23,8 +25,10 @@ class SettingsState {
     required this.themeMode,
     this.locale,
     this.brand,
+    this.brandRef,
     this.carModel,
     this.softwareVersion,
+    this.softwareVersionRef,
     this.isFirstLaunch = false,
     this.isEventSoundEnabled = false,
   });
@@ -33,8 +37,10 @@ class SettingsState {
     ThemeMode? themeMode,
     Locale? locale,
     String? brand,
+    String? brandRef,
     String? carModel,
     String? softwareVersion,
+    String? softwareVersionRef,
     bool? isFirstLaunch,
     bool? isEventSoundEnabled,
   }) {
@@ -42,8 +48,10 @@ class SettingsState {
       themeMode: themeMode ?? this.themeMode,
       locale: locale ?? this.locale,
       brand: brand ?? this.brand,
+      brandRef: brandRef ?? this.brandRef,
       carModel: carModel ?? this.carModel,
       softwareVersion: softwareVersion ?? this.softwareVersion,
+      softwareVersionRef: softwareVersionRef ?? this.softwareVersionRef,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
       isEventSoundEnabled: isEventSoundEnabled ?? this.isEventSoundEnabled,
     );
@@ -61,8 +69,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
     // 监听登录状态变化，自动刷新设置
     _ref.listen(authProvider, (previous, next) {
-      if (previous?.isAuthenticated == false && next.isAuthenticated) {
-        // 仅在从“未登录”变为“已登录”时自动刷新
+      if (next.isAuthenticated && next.user != null) {
+        // 只要用户对象发生变化（如刷新成功），就重新加载设置以覆盖本地缓存
         _loadSettings();
       }
     });
@@ -78,8 +86,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   static const _themeKey = 'theme_mode';
   static const _localeKey = 'locale_code';
   static const _brandKey = 'default_brand';
+  static const _brandRefKey = 'default_brand_ref';
   static const _carModelKey = 'default_car_model';
   static const _softwareVersionKey = 'default_software_version';
+  static const _softwareVersionRefKey = 'default_software_version_ref';
   static const _firstLaunchKey = 'is_first_launch';
   static const _eventSoundKey = 'is_event_sound_enabled';
 
@@ -108,30 +118,77 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
     // 加载品牌和车型
     String? brand = prefs.getString(_brandKey);
+    String? brandRef = prefs.getString(_brandRefKey);
     String? carModel = prefs.getString(_carModelKey);
     String? softwareVersion = prefs.getString(_softwareVersionKey);
+    String? softwareVersionRef = prefs.getString(_softwareVersionRefKey);
 
     // 如果已登录，优先从账号信息加载
     final auth = _ref.read(authProvider);
     if (auth.isAuthenticated) {
-      brand = auth.user?.getStringValue('brand').isEmpty == false
-          ? auth.user?.getStringValue('brand')
-          : brand;
-      carModel = auth.user?.getStringValue('car_model').isEmpty == false
-          ? auth.user?.getStringValue('car_model')
-          : carModel;
+      String? cloudBrand = auth.user?.getStringValue('brand');
+      String? cloudBrandRef = auth.user?.getStringValue('brand_ref');
+      String? cloudCarModel = auth.user?.getStringValue('car_model');
+      String? cloudVersion = auth.user?.getStringValue('software_version');
+      String? cloudVersionRef = auth.user?.getStringValue('software_version_ref');
+
+      // 核心防御逻辑：如果 Cloud 传回来的 string 字段里存的是 15 位 ID
+      // 则将其“拨乱反正”到 ref 字段，避免 UI 直接显示 ID
+      if (cloudVersion != null &&
+          cloudVersion.length == 15 &&
+          !cloudVersion.contains('.')) {
+        cloudVersionRef = cloudVersion;
+        cloudVersion = null;
+      }
+      if (cloudBrand != null &&
+          cloudBrand.length == 15 &&
+          !cloudBrand.contains(' ')) {
+        cloudBrandRef = cloudBrand;
+        cloudBrand = null;
+      }
+
+      brand = cloudBrand?.isNotEmpty == true ? cloudBrand : brand;
+      brandRef = cloudBrandRef?.isNotEmpty == true ? cloudBrandRef : brandRef;
+      carModel = cloudCarModel?.isNotEmpty == true ? cloudCarModel : carModel;
       softwareVersion =
-          auth.user?.getStringValue('software_version').isEmpty == false
-              ? auth.user?.getStringValue('software_version')
-              : softwareVersion;
+          cloudVersion?.isNotEmpty == true ? cloudVersion : softwareVersion;
+      softwareVersionRef = cloudVersionRef?.isNotEmpty == true
+          ? cloudVersionRef
+          : softwareVersionRef;
+    }
+
+    // --- 【深度清洗】如果本地持久化缓存也是 ID，强制清理并持久化 ---
+    bool needsResave = false;
+    if (softwareVersion != null &&
+        softwareVersion.length == 15 &&
+        !softwareVersion.contains('.')) {
+      softwareVersionRef = softwareVersion;
+      softwareVersion = null;
+      needsResave = true;
+    }
+    if (brand != null && brand.length == 15 && !brand.contains(' ')) {
+      brandRef = brand;
+      brand = null;
+      needsResave = true;
+    }
+
+    if (needsResave) {
+      if (softwareVersion == null) await prefs.remove(_softwareVersionKey);
+      if (brand == null) await prefs.remove(_brandKey);
+      if (softwareVersionRef != null) {
+        await prefs.setString(_softwareVersionRefKey, softwareVersionRef);
+      }
+      if (brandRef != null) await prefs.setString(_brandRefKey, brandRef);
     }
 
     state = SettingsState(
       themeMode: themeMode,
       locale: locale,
       brand: brand,
+      brandRef: brandRef,
       carModel: carModel,
       softwareVersion: softwareVersion,
+      softwareVersionRef: softwareVersionRef,
       isFirstLaunch: isFirstLaunch,
       isEventSoundEnabled: isEventSoundEnabled,
     );
@@ -157,8 +214,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       final pb = _ref.read(pbServiceProvider).pb;
       await pb.collection('users').update(auth.user!.id, body: {
         'brand': state.brand ?? '',
+        'brand_ref': state.brandRef ?? '',
         'car_model': state.carModel ?? '',
         'software_version': state.softwareVersion ?? '',
+        'software_version_ref': state.softwareVersionRef ?? '',
       });
       // 更新本地 auth 状态
       await _ref.read(authProvider.notifier).refreshUserFromServer();
@@ -184,17 +243,27 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> setVehicleInfo(
-      {String? brand, String? model, String? version}) async {
+      {String? brand,
+      String? brandRef,
+      String? model,
+      String? version,
+      String? versionRef}) async {
     state = state.copyWith(
       brand: brand,
+      brandRef: brandRef,
       carModel: model,
       softwareVersion: version,
+      softwareVersionRef: versionRef,
     );
 
     final prefs = await SharedPreferences.getInstance();
     if (brand != null) await prefs.setString(_brandKey, brand);
+    if (brandRef != null) await prefs.setString(_brandRefKey, brandRef);
     if (model != null) await prefs.setString(_carModelKey, model);
     if (version != null) await prefs.setString(_softwareVersionKey, version);
+    if (versionRef != null) {
+      await prefs.setString(_softwareVersionRefKey, versionRef);
+    }
 
     await _syncToPocketBase();
   }
@@ -202,13 +271,17 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> clearVehicleSettings() async {
     state = state.copyWith(
       brand: null,
+      brandRef: null,
       carModel: null,
       softwareVersion: null,
+      softwareVersionRef: null,
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_brandKey);
+    await prefs.remove(_brandRefKey);
     await prefs.remove(_carModelKey);
     await prefs.remove(_softwareVersionKey);
+    await prefs.remove(_softwareVersionRefKey);
   }
 
   @Deprecated('Use setVehicleInfo instead')

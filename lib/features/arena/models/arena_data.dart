@@ -1,6 +1,8 @@
 class BrandData {
-  final String brand;
-  final String? version;
+  final String brand; // Canonical Key (ID or Name)
+  final String? brandName; // Display Name for Brand
+  final String? version; // Canonical Key (ID or String)
+  final String? versionName; // Display Name for Version
   final double? kmPerEvent; // 公里/次
   final double? totalKm; // 总里程
   final int? totalEvents; // 总负体验次数
@@ -8,14 +10,20 @@ class BrandData {
 
   BrandData({
     required this.brand,
+    this.brandName,
     this.version,
+    this.versionName,
     this.kmPerEvent,
     this.totalKm,
     this.totalEvents,
     this.breakdown,
   });
 
-  String get displayName => version != null ? '$brand $version' : brand;
+  String get displayName {
+    final bName = brandName ?? brand;
+    final vName = versionName ?? version;
+    return vName != null ? '$bName $vName' : bName;
+  }
 }
 
 class VersionEvolutionData {
@@ -40,7 +48,9 @@ class VersionPoint {
 
 class SymptomData {
   final String brand;
+  final String? brandName;
   final String? version;
+  final String? versionName;
   final Map<String, double> details; // key: symptom name, value: km/event
   final Map<String, int> counts; // key: symptom name, value: absolute count
   final double totalKm;
@@ -48,7 +58,9 @@ class SymptomData {
 
   SymptomData({
     required this.brand,
+    this.brandName,
     this.version,
+    this.versionName,
     required this.details,
     required this.counts,
     required this.totalKm,
@@ -58,11 +70,13 @@ class SymptomData {
 
 class UserLeaderboardData {
   final String userName;
+  final String? avatarUrl;
   final double totalKm;
   final int tripCount;
 
   UserLeaderboardData({
     required this.userName,
+    this.avatarUrl,
     required this.totalKm,
     required this.tripCount,
   });

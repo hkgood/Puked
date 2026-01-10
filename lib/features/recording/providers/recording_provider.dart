@@ -178,7 +178,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   // --- 聚合引擎相关成员 ---
   final List<_PendingEvent> _pendingEvents = [];
   Timer? _fusionTimer;
-  static const Duration _fusionWindow = Duration(milliseconds: 3000);
+  // 移除硬编码，统一使用 _config.fusionWindowMs
 
   RecordingNotifier(this._engine, this._storage, this._ref)
       : super(RecordingState(
@@ -212,8 +212,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       if (this.state.isRecording) {
       debugPrint('App resumed, re-enabling Wakelock');
       WakelockPlus.enable();
-      }
     }
+  }
     // 当 App 进入后台（暂停或失去焦点）时
     else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -404,7 +404,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           LatLng(position.latitude, position.longitude),
           position.speed,
           position.accuracy,
-        );
+    );
       }
     }
 
@@ -462,7 +462,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       lastInsLocation: insLatLng,
       debugMessage: 'INS ACTIVE (Display Only)',
     );
-  }
+    }
 
   // ignore: unused_element
   // ignore: unused_element
@@ -534,8 +534,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (type != EventType.manual &&
         _ref.read(settingsProvider).isEventSoundEnabled) {
       _audioPlayer.play(AssetSource('sound/events.mp3'));
-    }
-  }
+            }
+          }
 
   void setAlgorithmMode(AlgorithmMode mode) {
     state = state.copyWith(algorithmMode: mode);
@@ -775,7 +775,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       _xHistory.addLast(MapEntry(now, data.processedAccel.x));
       _yHistory.addLast(MapEntry(now, data.processedAccel.y));
       return;
-    }
+  }
 
     // 2. 启动保护期 (5秒内，除非车速已稳定)
     if (_recordingStartTime != null) {
@@ -815,13 +815,14 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     // --- 核心逻辑 0: Z-Axis 动态阈值抑制 (耦合防御) ---
     // 第一性原理：垂直方向的剧烈运动（过坎）会向 X/Y 轴泄露能量。
-    // 改进：使用非线性抑制，避免在大冲击下完全“吃掉”水平事件
+    // 改进：使用更强的非线性抑制，确保在大冲击下顿挫检测被严格压制
     double couplingSuppression = 1.0;
     final double az = accel.z.abs();
     if (az > config.zyInterferenceThreshold) {
-      // 使用 log 增长代替线性增长，并设置 2.5x 的上限
-      couplingSuppression = 1.0 + math.log(1.0 + (az - config.zyInterferenceThreshold)) * 0.8;
-      couplingSuppression = couplingSuppression.clamp(1.0, 2.5);
+      // 增强型互斥抑制：使用幂函数增长，并提高上限到 3.5x
+      // 这样当 Z 轴冲击达到一定程度时，Y 轴需要极大的加速度跳变才能触发
+      couplingSuppression = 1.0 + math.pow(az - config.zyInterferenceThreshold, 1.2) * 0.5;
+      couplingSuppression = couplingSuppression.clamp(1.0, 3.5);
     }
 
     // --- 逻辑 1: 持续性检测 (急加速/急刹车) ---
@@ -878,31 +879,45 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               (e) => now.difference(e.key).inMilliseconds < config.jerkWindowMs)
           .toList();
 
-      if (recentJerkPoints.length >= 3) {
-        // 改进：计算窗口内相邻点之间的最大变化率，捕捉瞬时冲击
-        double maxJerk = 0;
-        for (int i = 1; i < recentJerkPoints.length; i++) {
-          final dt = recentJerkPoints[i]
-                  .key
-                  .difference(recentJerkPoints[i - 1].key)
-                  .inMicroseconds /
-              1000000.0;
-          if (dt > 0) {
-            final currentJerk =
-                (recentJerkPoints[i].value - recentJerkPoints[i - 1].value) /
-                    dt;
-            if (currentJerk.abs() > maxJerk.abs()) {
-              maxJerk = currentJerk;
+      // 改进：使用 100ms 跨点积分算法，平滑高频噪声
+      if (recentJerkPoints.length >= 5) {
+        double maxWindowedJerk = 0;
+        const int integrationMs = 100; // 100ms 跨度
+
+        for (int i = 0; i < recentJerkPoints.length; i++) {
+          final currentPoint = recentJerkPoints[i];
+          // 寻找约 100ms 前的点
+          final targetTime = currentPoint.key.subtract(const Duration(milliseconds: integrationMs));
+          
+          // 在窗口内找最接近 100ms 前的点
+          MapEntry<DateTime, double>? prevPoint;
+          for (int j = i - 1; j >= 0; j--) {
+            if (recentJerkPoints[j].key.isBefore(targetTime)) {
+              prevPoint = recentJerkPoints[j];
+              break;
+            }
+          }
+
+          if (prevPoint != null) {
+            final dt = currentPoint.key.difference(prevPoint.key).inMicroseconds / 1000000.0;
+            if (dt > 0.05) { // 至少确保有 50ms 的跨度才计算，防止 dt 过小
+              final windowedJerk = (currentPoint.value - prevPoint.value) / dt;
+              if (windowedJerk.abs() > maxWindowedJerk.abs()) {
+                maxWindowedJerk = windowedJerk;
+              }
             }
           }
         }
 
         // 物理合理性过滤
-        if (maxJerk.abs() >
-                (config.thresholdJerk * factor * couplingSuppression) &&
-            maxJerk.abs() < config.maxJerkAllowed) {
-          _lastTriggered['jerk'] = now;
-          _enqueueEvent(EventType.jerk, now);
+        if (maxWindowedJerk.abs() > (config.thresholdJerk * factor * couplingSuppression) &&
+            maxWindowedJerk.abs() < config.maxJerkAllowed) {
+          // 绝对加速度门槛校验：窗口内必须有显著的加速度幅值
+          final peakAy = recentJerkPoints.map((e) => e.value.abs()).reduce(math.max);
+          if (peakAy > config.minAccelForJerk) {
+            _lastTriggered['jerk'] = now;
+            _enqueueEvent(EventType.jerk, now);
+          }
         }
       }
     }
@@ -973,7 +988,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     ));
 
     // 如果计时器没启动，则启动它 (第一个入队的事件决定了窗口起始)
-    _fusionTimer ??= Timer(_fusionWindow, _processPendingEvents);
+    // 核心改进：移除硬编码的 3000ms，改用云端配置的 fusionWindowMs
+    _fusionTimer ??= Timer(
+        Duration(milliseconds: _config.fusionWindowMs), _processPendingEvents);
   }
 
   /// 处理缓冲区中的待定事件
@@ -982,11 +999,14 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (_pendingEvents.isEmpty) return;
 
     // 1. 优先级定义 (数值越小优先级越高)
+    // 核心改进：将 bump 优先级提升到 jerk 之上。
+    // 第一性原理：在自动驾驶测评中，路面颠簸属于“环境噪声”，规控顿挫属于“系统信号”。
+    // 当两者同时发生时，应优先判定为环境干扰导致的误报。
     final priority = {
       EventType.rapidAcceleration: 1,
       EventType.rapidDeceleration: 1,
-      EventType.jerk: 2,
-      EventType.bump: 3,
+      EventType.bump: 2, // 提升至 2，拦截由于颠簸引起的伴生冲击
+      EventType.jerk: 3, // 降至 3
       EventType.wobble: 4,
     };
 
@@ -1001,7 +1021,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     final speedKmh = mainEvent.speed * 3.6;
     var finalType = mainEvent.type;
 
-    if (finalType == EventType.rapidDeceleration && speedKmh < 3.0) {
+    // 核心改进：低速点头转换门槛由 3.0km/h 降至 2.0km/h，减少对极重刹的误杀
+    if (finalType == EventType.rapidDeceleration && speedKmh < 2.0) {
       // 场景：极低速下的剧烈减速信号，通常是停稳瞬间的“点头”或过坎
       // 决策：将其修正为“顿挫 (Jerk)”，因为此时不具备“危险驾驶”的急刹性质
       finalType = EventType.jerk;

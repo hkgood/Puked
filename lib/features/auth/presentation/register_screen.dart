@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
@@ -20,6 +23,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _agreeToPrivacy = false;
+  File? _avatarFile;
 
   @override
   void dispose() {
@@ -28,6 +32,54 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _confirmPasswordController.dispose();
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndCropAvatar() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (image == null) return;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
+    final toolbarColor = isDark ? const Color(0xFF1A1A1A) : Theme.of(context).colorScheme.primary;
+
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Avatar',
+          toolbarColor: toolbarColor,
+          statusBarColor: toolbarColor,
+          backgroundColor: backgroundColor,
+          toolbarWidgetColor: Colors.white,
+          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          dimmedLayerColor: isDark ? Colors.black.withValues(alpha: 0.8) : null,
+          cropFrameColor: Theme.of(context).colorScheme.primary,
+          cropGridColor: Colors.white.withValues(alpha: 0.5),
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+          showCropGrid: true,
+        ),
+        IOSUiSettings(
+          title: 'Crop Avatar',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          hidesNavigationBar: false,
+        ),
+      ],
+    );
+
+    if (croppedFile != null) {
+      setState(() {
+        _avatarFile = File(croppedFile.path);
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -50,6 +102,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             _passwordController.text,
             _nameController.text.trim(),
           );
+
+      // 如果选择了头像，在注册并自动登录后上传
+      if (_avatarFile != null) {
+        await ref.read(authProvider.notifier).updateAvatar(_avatarFile!);
+      }
+
       if (mounted) {
         // 注册成功并自动登录后，跳转到“我的爱车”设置页面
         Navigator.pushReplacement(
@@ -131,8 +189,42 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                const Icon(Icons.person_add_outlined,
-                    size: 80, color: Colors.grey),
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickAndCropAvatar,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.grey[200],
+                          backgroundImage:
+                              _avatarFile != null ? FileImage(_avatarFile!) : null,
+                          child: _avatarFile == null
+                              ? const Icon(Icons.person_add_outlined,
+                                  size: 50, color: Colors.grey)
+                              : null,
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _nameController,

@@ -15,6 +15,11 @@ class Trip {
   String? carModel;
   String? brand;
   String? softwareVersion;
+
+  // 云端关联 ID (PocketBase Record ID)
+  String? brand_ref;
+  String? software_version_ref;
+
   String? appVersion;
   String? platform;
   String? algorithm;
@@ -25,6 +30,9 @@ class Trip {
 
   @ignore
   String? userId;
+
+  @ignore
+  String? userAvatar;
 
   // 云端关联 ID (PocketBase Record ID)
   String? cloudId;
@@ -74,6 +82,7 @@ class Brand {
   @Index(unique: true)
   late String name; // 品牌标识，如 "Tesla"
 
+  String? cloudId; // PocketBase Record ID
   String? displayName; // 显示名称
   String? logoUrl; // 远程 SVG 图标地址
 
@@ -94,6 +103,8 @@ class SoftwareVersion {
 
   @Index()
   late String versionString; // 版本号，如 "v12.3.6"
+
+  String? cloudId; // PocketBase Record ID
 
   final brand = IsarLink<Brand>(); // 属于哪个品牌
 

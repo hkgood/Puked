@@ -69,14 +69,18 @@ class BrandLogo extends ConsumerWidget {
     return brandsAsync.maybeWhen(
       data: (brands) {
         final brand = brands.firstWhere(
-          (b) => b.name.toLowerCase() == brandName!.toLowerCase(),
+          (b) =>
+              b.cloudId == brandName ||
+              b.name.toLowerCase() == brandName!.toLowerCase(),
           orElse: () => Brand()..name = brandName!,
         );
 
         // 构建图标 Widget (优先尝试本地，再尝试远程)
         Widget buildIcon() {
-          final isLocal = _localBrands.contains(brand.name);
-          final assetPath = 'assets/logos/${brand.name}.svg';
+          // 注意：如果 brandName 是 ID，我们需要使用查找到的 brand.name 来定位本地资源
+          final String canonicalName = brand.name;
+          final isLocal = _localBrands.contains(canonicalName);
+          final assetPath = 'assets/logos/$canonicalName.svg';
 
           // 1. 如果是已知本地品牌且处于黑夜模式，或者没有远程 URL
           // 优先使用本地资产，因为本地资产的 colorFilter 适配通常更稳定

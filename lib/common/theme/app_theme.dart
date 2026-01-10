@@ -59,6 +59,31 @@ class AppTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
+    dialogTheme: const DialogThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+      actionsPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+      alignment: Alignment.center,
+      elevation: 0,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
+    ),
   );
 
   // 黑夜模式 (Apple Level Design)
@@ -110,6 +135,31 @@ class AppTheme {
       color: const Color(0xFF1C1C1E),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    dialogTheme: const DialogThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+      actionsPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+      alignment: Alignment.center,
+      elevation: 0,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
     ),
   );
 }

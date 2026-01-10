@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:puked/models/db_models.dart';
+import 'package:puked/common/widgets/version_selection_dialog.dart';
 import 'package:puked/features/history/presentation/trip_detail_screen.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
 import 'package:puked/common/utils/i18n.dart';
@@ -34,6 +35,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _versionController = TextEditingController();
   String? _selectedBrand;
+  String? _selectedBrandRef;
+  String? _selectedVersionRef;
   bool _isInitialized = false;
 
   // 图片相关状态
@@ -67,6 +70,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       _modelController.text = settings.carModel ?? '';
       _versionController.text = settings.softwareVersion ?? '';
       _selectedBrand = settings.brand;
+      _selectedBrandRef = settings.brandRef;
+      _selectedVersionRef = settings.softwareVersionRef;
     } else if (widget.tripId != null) {
       final trips = await storage.getAllTrips();
       final trip = trips.firstWhere((t) => t.id == widget.tripId);
@@ -76,6 +81,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       _versionController.text =
           trip.softwareVersion ?? settings.softwareVersion ?? '';
       _selectedBrand = trip.brand ?? settings.brand;
+      _selectedBrandRef = trip.brand_ref ?? settings.brandRef;
+      _selectedVersionRef = trip.software_version_ref ?? settings.softwareVersionRef;
     }
 
     setState(() {
@@ -148,7 +155,9 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   Future<void> _saveInfo(bool skip) async {
     // 即使点击跳过，也记录为 'Others'，避免 Arena 出现 unknown 数据
     final brand = skip ? 'Others' : _selectedBrand;
+    final brandRef = skip ? null : _selectedBrandRef;
     final version = skip ? 'Others' : _versionController.text.trim();
+    final versionRef = skip ? null : _selectedVersionRef;
     final model = skip ? 'Others' : _modelController.text.trim();
 
     if (!skip && brand != null && version.isNotEmpty) {
@@ -160,8 +169,10 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       if (!skip) {
         await ref.read(settingsProvider.notifier).setVehicleInfo(
               brand: brand,
+              brandRef: brandRef,
               model: model,
               version: version,
+              versionRef: versionRef,
             );
       }
       if (mounted) Navigator.of(context).pop();
@@ -175,8 +186,10 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     await storage.updateTripVehicleInfo(
       widget.tripId!,
       brand: brand,
+      brandRef: brandRef,
       carModel: model,
       softwareVersion: version,
+      softwareVersionRef: versionRef,
     );
 
     if (mounted) {
@@ -209,8 +222,10 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       // 1. 准备上传到 PocketBase 的资料
       final Map<String, dynamic> body = {
         'brand': _selectedBrand,
+        'brand_ref': _selectedBrandRef,
         'car_model': _modelController.text.trim(),
         'software_version': _versionController.text.trim(),
+        'software_version_ref': _selectedVersionRef,
         'audit_status': 'pending', // 提交后重置状态为待审核
       };
 
@@ -233,8 +248,10 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       // 4. 同步本地设置
       await ref.read(settingsProvider.notifier).setVehicleInfo(
             brand: _selectedBrand,
+            brandRef: _selectedBrandRef,
             model: _modelController.text.trim(),
             version: _versionController.text.trim(),
+            versionRef: _selectedVersionRef,
           );
 
       // 5. 刷新本地用户状态
@@ -270,10 +287,12 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     }
   }
 
-  void _onBrandSelected(String? brandName) {
-    if (_selectedBrand == brandName) {
+  void _onBrandSelected(Brand brand) {
+    if (_selectedBrand == brand.name) {
       setState(() {
         _selectedBrand = null;
+        _selectedBrandRef = null;
+        _selectedVersionRef = null;
         _versionController.clear();
         _modelController.clear();
       });
@@ -281,7 +300,9 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     }
 
     setState(() {
-      _selectedBrand = brandName;
+      _selectedBrand = brand.name;
+      _selectedBrandRef = brand.cloudId;
+      _selectedVersionRef = null;
       _versionController.clear();
       _modelController.clear();
     });
@@ -298,55 +319,50 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       AsyncValue<List<SoftwareVersion>> presetVersionsAsync) {
     return presetVersionsAsync.when(
       data: (versions) {
-        final List<String> options =
-            versions.map((v) => v.versionString).toList();
-
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return DropdownMenu<String>(
-              controller: _versionController,
-              initialSelection: _versionController.text.isNotEmpty
-                  ? _versionController.text
-                  : null,
-              width: constraints.maxWidth,
-              hintText: i18n.t('version_hint'),
-              label: Text(i18n.t('software_version'),
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              leadingIcon: const Icon(Icons.code),
-              enableSearch: true,
-              enableFilter: true,
-              requestFocusOnTap: true,
-              inputDecorationTheme: InputDecorationTheme(
-                border: const OutlineInputBorder(),
-                filled: false,
-                labelStyle: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withValues(alpha: 0.7)
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              textStyle: TextStyle(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.95)
-                    : Theme.of(context).colorScheme.onSurface,
-              ),
-              dropdownMenuEntries:
-                  options.map<DropdownMenuEntry<String>>((String version) {
-                return DropdownMenuEntry<String>(
-                  value: version,
-                  label: version,
-                  trailingIcon: const Icon(Icons.history, size: 16),
-                );
-              }).toList(),
-              onSelected: (String? selection) {
-                if (selection != null) {
-                  setState(() {
-                    _versionController.text = selection;
-                  });
-                }
-              },
-            );
-          },
+        return TextField(
+          controller: _versionController,
+          readOnly: true,
+                onTap: _selectedBrand == null
+              ? null
+              : () async {
+                  final result = await showDialog<dynamic>(
+                    context: context,
+                    builder: (context) => VersionSelectionDialog(
+                      currentVersion: _versionController.text,
+                      presetVersions: versions,
+                      brandName: _selectedBrand!,
+                    ),
+                  );
+                  if (result != null) {
+                    setState(() {
+                      if (result is SoftwareVersion) {
+                        _versionController.text = result.versionString;
+                        _selectedVersionRef = result.cloudId;
+                      } else if (result is String) {
+                        _versionController.text = result;
+                        _selectedVersionRef = null;
+                      }
+                    });
+                  }
+                },
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.95)
+                : Theme.of(context).colorScheme.onSurface,
+          ),
+          decoration: InputDecoration(
+            labelText: i18n.t('software_version'),
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.7)
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            hintText: i18n.t('version_hint'),
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.code),
+            suffixIcon: const Icon(Icons.arrow_drop_down),
+          ),
         );
       },
       loading: () => const LinearProgressIndicator(),
@@ -411,8 +427,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                     const SizedBox(height: 16),
                     BrandSelectionGrid(
                       brands: brands,
-                      selectedBrandName: _selectedBrand,
-                      onBrandSelected: (brand) => _onBrandSelected(brand.name),
+                      selectedBrandKey: _selectedBrandRef ?? _selectedBrand,
+                      onBrandSelected: _onBrandSelected,
                     ),
                     const SizedBox(height: 24),
                     TextField(

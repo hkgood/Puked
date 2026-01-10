@@ -908,6 +908,114 @@ abstract class AppLocalizations {
   /// **'Max Bump Limit'**
   String get max_bump_allowed_label;
 
+  /// No description provided for @threshold_accel_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min acceleration to trigger \'Rapid Acceleration\''**
+  String get threshold_accel_hint;
+
+  /// No description provided for @threshold_decel_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min deceleration to trigger \'Rapid Deceleration\''**
+  String get threshold_decel_hint;
+
+  /// No description provided for @threshold_wobble_span_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min lateral span to trigger \'Wobble\''**
+  String get threshold_wobble_span_hint;
+
+  /// No description provided for @threshold_bump_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min vertical G to trigger \'Bump\''**
+  String get threshold_bump_hint;
+
+  /// No description provided for @threshold_jerk_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min change rate to trigger \'Jerk\''**
+  String get threshold_jerk_hint;
+
+  /// No description provided for @threshold_pitch_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min angular velocity to trigger \'Pitching\''**
+  String get threshold_pitch_hint;
+
+  /// No description provided for @jerk_window_ms_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Time window for calculating Jerk rate'**
+  String get jerk_window_ms_hint;
+
+  /// No description provided for @accel_decel_window_ms_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min continuous time for Accel/Decel'**
+  String get accel_decel_window_ms_hint;
+
+  /// No description provided for @wobble_window_ms_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Time window for detecting lateral swings'**
+  String get wobble_window_ms_hint;
+
+  /// No description provided for @fusion_window_ms_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait time for merging multiple features'**
+  String get fusion_window_ms_hint;
+
+  /// No description provided for @max_jerk_allowed_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Max jerk limit to filter out device drops'**
+  String get max_jerk_allowed_hint;
+
+  /// No description provided for @max_accel_allowed_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Max accel limit to filter out non-driving noise'**
+  String get max_accel_allowed_hint;
+
+  /// No description provided for @max_wobble_span_allowed_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Max wobble limit to filter out device handling'**
+  String get max_wobble_span_allowed_hint;
+
+  /// No description provided for @max_bump_allowed_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Max bump limit to filter out non-road impacts'**
+  String get max_bump_allowed_hint;
+
+  /// No description provided for @zy_interference_threshold_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Z-axis activity level to suppress Y-axis'**
+  String get zy_interference_threshold_hint;
+
+  /// No description provided for @pitch_validation_enabled_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use gyroscope to verify car\'s pitching'**
+  String get pitch_validation_enabled_hint;
+
+  /// No description provided for @speed_low_factor_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitivity factor at low speeds (<10km/h)'**
+  String get speed_low_factor_hint;
+
+  /// No description provided for @speed_high_factor_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitivity factor at high speeds (>80km/h)'**
+  String get speed_high_factor_hint;
+
   /// No description provided for @sync_now.
   ///
   /// In en, this message translates to:
@@ -955,6 +1063,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sync complete, found {count} new trips'**
   String cloud_sync_result(Object count);
+
+  /// No description provided for @custom_version_input.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Input (Format: x.x.x, no sub-versions)'**
+  String get custom_version_input;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @select_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Version'**
+  String get select_version;
 }
 
 class _AppLocalizationsDelegate

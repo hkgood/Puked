@@ -5,6 +5,7 @@ import 'package:puked/features/history/presentation/history_screen.dart';
 import 'package:puked/features/settings/presentation/settings_screen.dart';
 import 'package:puked/features/arena/presentation/arena_screen.dart';
 import 'package:puked/features/arena/providers/arena_provider.dart';
+import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/common/utils/i18n.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
@@ -16,6 +17,17 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // 应用启动时强制从服务器刷新用户信息，避免本地缓存脏数据导致上传错误
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(authProvider.notifier).refreshUserFromServer();
+      }
+    });
+  }
 
   final List<Widget> _screens = [
     const RecordingScreen(),

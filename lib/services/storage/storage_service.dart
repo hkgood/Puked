@@ -109,6 +109,15 @@ class StorageService {
         .watch(fireImmediately: true);
   }
 
+  /// 监听所有版本表的变化
+  Stream<List<SoftwareVersion>> watchAllVersions() async* {
+    await init();
+    yield* _isar!.softwareVersions
+        .filter()
+        .isEnabledEqualTo(true)
+        .watch(fireImmediately: true);
+  }
+
   Future<List<SoftwareVersion>> getVersionsForBrand(String brandName) async {
     await init();
     final brand =
@@ -130,8 +139,53 @@ class StorageService {
     });
   }
 
+  /// 【核心修复】深度清理本地数据库中的“脏数据”
+  /// 删除那些版本名称或品牌名称看起来像 PocketBase ID 的残留记录
+  Future<void> cleanupDirtyMetadata() async {
+    await init();
+    final isar = _isar!;
+
+    await isar.writeTxn(() async {
+      // 1. 查找并删除版本名称字段中存入 ID 的脏记录
+      // 修复：Isar 3 不支持直接 Length 过滤，改为内存过滤
+      final allVersions = await isar.softwareVersions.where().findAll();
+      final dirtyVersions = allVersions.where((v) => v.versionString.length == 15).toList();
+
+      final actualDirtyVersionIds = dirtyVersions
+          .where((v) =>
+              !v.versionString.contains('.') &&
+              RegExp(r'^[a-z0-9]+$').hasMatch(v.versionString))
+          .map((v) => v.id)
+          .toList();
+
+      if (actualDirtyVersionIds.isNotEmpty) {
+        debugPrint(
+            '[Storage] Cleaning up ${actualDirtyVersionIds.length} dirty version records...');
+        await isar.softwareVersions.deleteAll(actualDirtyVersionIds);
+      }
+
+      // 2. 查找并删除品牌名称字段中存入 ID 的脏记录
+      // 修复：同上，改为内存过滤
+      final allBrands = await isar.brands.where().findAll();
+      final dirtyBrands = allBrands.where((b) => b.name.length == 15).toList();
+
+      final actualDirtyBrandIds = dirtyBrands
+          .where((b) =>
+              !b.name.contains(' ') &&
+              RegExp(r'^[a-z0-9]+$').hasMatch(b.name))
+          .map((b) => b.id)
+          .toList();
+
+      if (actualDirtyBrandIds.isNotEmpty) {
+        debugPrint(
+            '[Storage] Cleaning up ${actualDirtyBrandIds.length} dirty brand records...');
+        await isar.brands.deleteAll(actualDirtyBrandIds);
+      }
+    });
+  }
+
   Future<void> addVersion(String brandName, String versionString,
-      {bool isCustom = true}) async {
+      {String? cloudId, bool isCustom = true}) async {
     await init();
     final brand =
         await _isar!.brands.filter().nameEqualTo(brandName).findFirst();
@@ -144,11 +198,22 @@ class StorageService {
         .and()
         .brand((q) => q.nameEqualTo(brandName))
         .findFirst();
-    if (existing != null) return;
+
+    if (existing != null) {
+      // 如果云端 ID 有更新，则同步更新
+      if (cloudId != null && existing.cloudId != cloudId) {
+        await _isar!.writeTxn(() async {
+          existing.cloudId = cloudId;
+          await _isar!.softwareVersions.put(existing);
+        });
+      }
+      return;
+    }
 
     await _isar!.writeTxn(() async {
       final version = SoftwareVersion()
         ..versionString = versionString
+        ..cloudId = cloudId
         ..isCustom = isCustom;
       version.brand.value = brand;
       await _isar!.softwareVersions.put(version);
@@ -168,6 +233,7 @@ class StorageService {
             await _isar!.brands.filter().nameEqualTo(remote.name).findFirst();
 
         if (local != null) {
+          local.cloudId = remote.cloudId;
           local.displayName = remote.displayName;
           local.logoUrl = remote.logoUrl;
           local.order = remote.order;
@@ -301,15 +367,21 @@ class StorageService {
   }
 
   Future<void> updateTripVehicleInfo(int tripId,
-      {String? brand, String? carModel, String? softwareVersion}) async {
+      {String? brand,
+      String? brandRef,
+      String? carModel,
+      String? softwareVersion,
+      String? softwareVersionRef}) async {
     final isar = _isar;
     if (isar == null) return;
     await isar.writeTxn(() async {
       final trip = await isar.trips.get(tripId);
       if (trip != null) {
         trip.brand = brand;
+        trip.brand_ref = brandRef;
         trip.carModel = carModel;
         trip.softwareVersion = softwareVersion;
+        trip.software_version_ref = softwareVersionRef;
         await isar.trips.put(trip);
       }
     });

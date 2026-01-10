@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:puked/services/update_service.dart';
@@ -11,6 +14,7 @@ import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/services/algorithm_config_service.dart';
 import 'package:puked/features/settings/presentation/algorithm_config_screen.dart';
+import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -64,15 +68,44 @@ class SettingsScreen extends ConsumerWidget {
                 )
               else
                 ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage:
-                        ref.watch(pbServiceProvider).currentAvatarUrl != null
+                  leading: GestureDetector(
+                    onTap: () => _handleUpdateAvatar(context, ref),
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundImage: ref
+                                      .watch(pbServiceProvider)
+                                      .currentAvatarUrl !=
+                                  null
                             ? NetworkImage(
                                 ref.watch(pbServiceProvider).currentAvatarUrl!)
                             : null,
-                    child: ref.watch(pbServiceProvider).currentAvatarUrl == null
-                        ? const Icon(Icons.person)
+                          child: ref.watch(pbServiceProvider).currentAvatarUrl ==
+                                  null
+                              ? const Icon(Icons.person, size: 28)
                         : null,
+                        ),
+                        if (ref.watch(pbServiceProvider).currentAvatarUrl == null)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(
+                                Icons.add_a_photo,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   title: Row(
                     children: [
@@ -192,13 +225,20 @@ class SettingsScreen extends ConsumerWidget {
                 _buildSectionHeader(context, i18n.t('my_car')),
                 ListTile(
                   leading: BrandLogo(
-                    brandName: settings.brand,
+                    brandName: settings.brandRef ?? settings.brand ?? '',
                     showBackground: true,
                   ),
                   title: Row(
                     children: [
                       Text(
-                        settings.brand ?? i18n.t('my_car'),
+                        // 品牌名也增加保护：如果是 15 位 ID 则通过 Provider 查找名称
+                        (settings.brand != null &&
+                                settings.brand!.length == 15 &&
+                                !settings.brand!.contains(' '))
+                            ? ref.watch(brandNameProvider(settings.brand!))
+                            : (settings.brand ??
+                                ref.watch(brandNameProvider(
+                                    settings.brandRef ?? ''))),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
@@ -210,18 +250,29 @@ class SettingsScreen extends ConsumerWidget {
                       if (settings.carModel != null &&
                           settings.carModel!.isNotEmpty)
                         settings.carModel,
-                      if (settings.softwareVersion != null &&
-                          settings.softwareVersion!.isNotEmpty)
-                        settings.softwareVersion,
-                    ].join(' • ').isEmpty
+                      // 严格切换到 Ref 优先逻辑，屏蔽 ID 泄露
+                      ref.watch(versionNameProvider(settings.softwareVersionRef ??
+                          settings.softwareVersion ??
+                          '')),
+                    ].join(' • ').isEmpty ||
+                            [
+                              if (settings.carModel != null &&
+                                  settings.carModel!.isNotEmpty)
+                                settings.carModel,
+                              ref.watch(versionNameProvider(
+                                  settings.softwareVersionRef ??
+                                      settings.softwareVersion ??
+                                      '')),
+                            ].join(' • ').contains('...')
                         ? i18n.t('model_hint')
                         : [
                             if (settings.carModel != null &&
                                 settings.carModel!.isNotEmpty)
                               settings.carModel,
-                            if (settings.softwareVersion != null &&
-                                settings.softwareVersion!.isNotEmpty)
-                              settings.softwareVersion,
+                            ref.watch(versionNameProvider(
+                                settings.softwareVersionRef ??
+                                    settings.softwareVersion ??
+                                    '')),
                           ].join(' • '),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -394,6 +445,73 @@ class SettingsScreen extends ConsumerWidget {
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
     );
+  }
+
+  Future<void> _handleUpdateAvatar(BuildContext context, WidgetRef ref) async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (image == null) return;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
+    final toolbarColor = isDark ? const Color(0xFF1A1A1A) : Theme.of(context).colorScheme.primary;
+
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Avatar',
+          toolbarColor: toolbarColor,
+          statusBarColor: toolbarColor,
+          backgroundColor: backgroundColor,
+          toolbarWidgetColor: Colors.white,
+          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          dimmedLayerColor: isDark ? Colors.black.withValues(alpha: 0.8) : null,
+          cropFrameColor: Theme.of(context).colorScheme.primary,
+          cropGridColor: Colors.white.withValues(alpha: 0.5),
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+          showCropGrid: true,
+        ),
+        IOSUiSettings(
+          title: 'Crop Avatar',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          hidesNavigationBar: false,
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    try {
+      await ref
+          .read(authProvider.notifier)
+          .updateAvatar(File(croppedFile.path));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Avatar updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update avatar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSectionHeader(BuildContext context, String title) {

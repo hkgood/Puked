@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-01-10
+### Added
+- **支持头像设定**：引入头像裁剪（1:1）与上传功能，支持个性化个人主页。
+- **跨设备同步**：支持历史行程的云端双向同步，点击刷新即可获取最新列表。
+- **参数热更新**：算法阈值支持云端动态下发，无需更新 App 即可实时同步最新的检测精度。
+- **Web 端管理增强**：支持负体验事件的批量删除与算法回溯校准。
+
+### Changed
+- **算法深度优化**：特别鸣谢肉肉爸比，协同解决了顽固的误触发和漏触发问题，大幅提升物理感知精度。
+- **数据架构迁移**：完成品牌与版本号的引用字段化（Ref）迁移，屏蔽 ID 泄露并为数据精简做准备。
+- **精简敏感度**：移除手动灵敏度设置，采用云控统一算法，实现 App 与 Web 端判定逻辑的绝对一致。
+- **交互体验优化**：重构了版本号选择界面，操作更直观流畅。
+
 ## [2.2.0] - 2026-01-07
 ### Added
 - **Cross-device Synchronization**: Support for pulling latest trips from cloud by refreshing history list.

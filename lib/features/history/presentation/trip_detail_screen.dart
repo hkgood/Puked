@@ -15,6 +15,7 @@ import 'package:puked/services/export/export_service.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/cloud_trip_service.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
+import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -232,9 +233,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               content:
                                   Text(i18n.t('insufficient_data_message')),
                               actions: [
-                                TextButton(
+                                ElevatedButton(
                                   onPressed: () => Navigator.pop(context),
-                                  child: Text(i18n.t('save')),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: Text(i18n.t('confirm')),
                                 ),
                               ],
                             ),
@@ -253,8 +258,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               onPressed: () => Navigator.pop(context, false),
                               child: Text(i18n.t('cancel')),
                             ),
-                            TextButton(
+                            ElevatedButton(
                               onPressed: () => Navigator.pop(context, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Colors.white,
+                              ),
                               child: Text(i18n.t('upload')),
                             ),
                           ],
@@ -363,7 +372,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       child: Row(
                         children: [
                           BrandLogo(
-                            brandName: trip.brand,
+                            brandName: trip.brand_ref ?? trip.brand ?? '',
                             size: 52,
                             padding: 10,
                           ),
@@ -384,10 +393,14 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                         Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
-                                if (trip.softwareVersion != null &&
-                                    trip.softwareVersion!.isNotEmpty)
+                                if (trip.software_version_ref != null ||
+                                    (trip.softwareVersion != null &&
+                                        trip.softwareVersion!.isNotEmpty))
                                   Text(
-                                    trip.softwareVersion!,
+                                    ref.watch(versionNameProvider(
+                                        trip.software_version_ref ??
+                                            trip.softwareVersion ??
+                                            '')),
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Theme.of(context)
@@ -649,9 +662,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                                   Navigator.pop(context, false),
                                               child: Text(i18n.t('cancel')),
                                             ),
-                                            TextButton(
-                                              style: TextButton.styleFrom(
-                                                  foregroundColor: Colors.red),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.red,
+                                                  foregroundColor: Colors.white),
                                               onPressed: () =>
                                                   Navigator.pop(context, true),
                                               child: Text(i18n.t('delete')),

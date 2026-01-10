@@ -32,63 +32,78 @@ const TripSchema = CollectionSchema(
       name: r'brand',
       type: IsarType.string,
     ),
-    r'carModel': PropertySchema(
+    r'brand_ref': PropertySchema(
       id: 3,
+      name: r'brand_ref',
+      type: IsarType.string,
+    ),
+    r'carModel': PropertySchema(
+      id: 4,
       name: r'carModel',
       type: IsarType.string,
     ),
     r'cloudId': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'cloudId',
       type: IsarType.string,
     ),
     r'distance': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'distance',
       type: IsarType.double,
     ),
     r'endTime': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'endTime',
       type: IsarType.dateTime,
     ),
     r'eventCount': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'eventCount',
       type: IsarType.long,
     ),
     r'isDataSufficient': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'isDataSufficient',
       type: IsarType.bool,
     ),
+    r'isLocalMissing': PropertySchema(
+      id: 10,
+      name: r'isLocalMissing',
+      type: IsarType.bool,
+    ),
     r'isUploaded': PropertySchema(
-      id: 9,
+      id: 11,
       name: r'isUploaded',
       type: IsarType.bool,
     ),
     r'notes': PropertySchema(
-      id: 10,
+      id: 12,
       name: r'notes',
       type: IsarType.string,
     ),
     r'platform': PropertySchema(
-      id: 11,
+      id: 13,
       name: r'platform',
       type: IsarType.string,
     ),
     r'softwareVersion': PropertySchema(
-      id: 12,
+      id: 14,
       name: r'softwareVersion',
       type: IsarType.string,
     ),
+    r'software_version_ref': PropertySchema(
+      id: 15,
+      name: r'software_version_ref',
+      type: IsarType.string,
+    ),
     r'startTime': PropertySchema(
-      id: 13,
+      id: 16,
       name: r'startTime',
       type: IsarType.dateTime,
     ),
     r'uuid': PropertySchema(
-      id: 14,
+      id: 17,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -159,6 +174,12 @@ int _tripEstimateSize(
     }
   }
   {
+    final value = object.brand_ref;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.carModel;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -188,6 +209,12 @@ int _tripEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  {
+    final value = object.software_version_ref;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.uuid.length * 3;
   return bytesCount;
 }
@@ -201,18 +228,21 @@ void _tripSerialize(
   writer.writeString(offsets[0], object.algorithm);
   writer.writeString(offsets[1], object.appVersion);
   writer.writeString(offsets[2], object.brand);
-  writer.writeString(offsets[3], object.carModel);
-  writer.writeString(offsets[4], object.cloudId);
-  writer.writeDouble(offsets[5], object.distance);
-  writer.writeDateTime(offsets[6], object.endTime);
-  writer.writeLong(offsets[7], object.eventCount);
-  writer.writeBool(offsets[8], object.isDataSufficient);
-  writer.writeBool(offsets[9], object.isUploaded);
-  writer.writeString(offsets[10], object.notes);
-  writer.writeString(offsets[11], object.platform);
-  writer.writeString(offsets[12], object.softwareVersion);
-  writer.writeDateTime(offsets[13], object.startTime);
-  writer.writeString(offsets[14], object.uuid);
+  writer.writeString(offsets[3], object.brand_ref);
+  writer.writeString(offsets[4], object.carModel);
+  writer.writeString(offsets[5], object.cloudId);
+  writer.writeDouble(offsets[6], object.distance);
+  writer.writeDateTime(offsets[7], object.endTime);
+  writer.writeLong(offsets[8], object.eventCount);
+  writer.writeBool(offsets[9], object.isDataSufficient);
+  writer.writeBool(offsets[10], object.isLocalMissing);
+  writer.writeBool(offsets[11], object.isUploaded);
+  writer.writeString(offsets[12], object.notes);
+  writer.writeString(offsets[13], object.platform);
+  writer.writeString(offsets[14], object.softwareVersion);
+  writer.writeString(offsets[15], object.software_version_ref);
+  writer.writeDateTime(offsets[16], object.startTime);
+  writer.writeString(offsets[17], object.uuid);
 }
 
 Trip _tripDeserialize(
@@ -225,18 +255,21 @@ Trip _tripDeserialize(
   object.algorithm = reader.readStringOrNull(offsets[0]);
   object.appVersion = reader.readStringOrNull(offsets[1]);
   object.brand = reader.readStringOrNull(offsets[2]);
-  object.carModel = reader.readStringOrNull(offsets[3]);
-  object.cloudId = reader.readStringOrNull(offsets[4]);
-  object.distance = reader.readDouble(offsets[5]);
-  object.endTime = reader.readDateTimeOrNull(offsets[6]);
-  object.eventCount = reader.readLong(offsets[7]);
+  object.brand_ref = reader.readStringOrNull(offsets[3]);
+  object.carModel = reader.readStringOrNull(offsets[4]);
+  object.cloudId = reader.readStringOrNull(offsets[5]);
+  object.distance = reader.readDouble(offsets[6]);
+  object.endTime = reader.readDateTimeOrNull(offsets[7]);
+  object.eventCount = reader.readLong(offsets[8]);
   object.id = id;
-  object.isUploaded = reader.readBool(offsets[9]);
-  object.notes = reader.readStringOrNull(offsets[10]);
-  object.platform = reader.readStringOrNull(offsets[11]);
-  object.softwareVersion = reader.readStringOrNull(offsets[12]);
-  object.startTime = reader.readDateTime(offsets[13]);
-  object.uuid = reader.readString(offsets[14]);
+  object.isLocalMissing = reader.readBool(offsets[10]);
+  object.isUploaded = reader.readBool(offsets[11]);
+  object.notes = reader.readStringOrNull(offsets[12]);
+  object.platform = reader.readStringOrNull(offsets[13]);
+  object.softwareVersion = reader.readStringOrNull(offsets[14]);
+  object.software_version_ref = reader.readStringOrNull(offsets[15]);
+  object.startTime = reader.readDateTime(offsets[16]);
+  object.uuid = reader.readString(offsets[17]);
   return object;
 }
 
@@ -258,24 +291,30 @@ P _tripDeserializeProp<P>(
     case 4:
       return (reader.readStringOrNull(offset)) as P;
     case 5:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 6:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 7:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 8:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 9:
       return (reader.readBool(offset)) as P;
     case 10:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 11:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 12:
       return (reader.readStringOrNull(offset)) as P;
     case 13:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 14:
+      return (reader.readStringOrNull(offset)) as P;
+    case 15:
+      return (reader.readStringOrNull(offset)) as P;
+    case 16:
+      return (reader.readDateTime(offset)) as P;
+    case 17:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -907,6 +946,152 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'brand_ref',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'brand_ref',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'brand_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'brand_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'brand_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'brand_ref',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'brand_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'brand_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'brand_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'brand_ref',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'brand_ref',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> brand_refIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'brand_ref',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> carModelIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1441,6 +1626,16 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> isLocalMissingEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isLocalMissing',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> isUploadedEqualTo(
       bool value) {
     return QueryBuilder.apply(this, (query) {
@@ -1886,6 +2081,157 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> software_version_refIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'software_version_ref',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      software_version_refIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'software_version_ref',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> software_version_refEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'software_version_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      software_version_refGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'software_version_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> software_version_refLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'software_version_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> software_version_refBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'software_version_ref',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      software_version_refStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'software_version_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> software_version_refEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'software_version_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> software_version_refContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'software_version_ref',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> software_version_refMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'software_version_ref',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      software_version_refIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'software_version_ref',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      software_version_refIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'software_version_ref',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> startTimeEqualTo(
       DateTime value) {
     return QueryBuilder.apply(this, (query) {
@@ -2221,6 +2567,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByBrand_ref() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brand_ref', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByBrand_refDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brand_ref', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByCarModel() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'carModel', Sort.asc);
@@ -2293,6 +2651,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByIsLocalMissing() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLocalMissing', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByIsLocalMissingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLocalMissing', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByIsUploaded() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isUploaded', Sort.asc);
@@ -2338,6 +2708,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> sortBySoftwareVersionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'softwareVersion', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortBySoftware_version_ref() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'software_version_ref', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortBySoftware_version_refDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'software_version_ref', Sort.desc);
     });
   }
 
@@ -2400,6 +2782,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByBrandDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'brand', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByBrand_ref() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brand_ref', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByBrand_refDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'brand_ref', Sort.desc);
     });
   }
 
@@ -2487,6 +2881,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByIsLocalMissing() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLocalMissing', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByIsLocalMissingDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isLocalMissing', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByIsUploaded() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isUploaded', Sort.asc);
@@ -2532,6 +2938,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> thenBySoftwareVersionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'softwareVersion', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenBySoftware_version_ref() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'software_version_ref', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenBySoftware_version_refDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'software_version_ref', Sort.desc);
     });
   }
 
@@ -2582,6 +3000,13 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QDistinct> distinctByBrand_ref(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'brand_ref', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByCarModel(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2620,6 +3045,12 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QDistinct> distinctByIsLocalMissing() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isLocalMissing');
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByIsUploaded() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isUploaded');
@@ -2644,6 +3075,14 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'softwareVersion',
+          caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QDistinct> distinctBySoftware_version_ref(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'software_version_ref',
           caseSensitive: caseSensitive);
     });
   }
@@ -2687,6 +3126,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
     });
   }
 
+  QueryBuilder<Trip, String?, QQueryOperations> brand_refProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'brand_ref');
+    });
+  }
+
   QueryBuilder<Trip, String?, QQueryOperations> carModelProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'carModel');
@@ -2723,6 +3168,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
     });
   }
 
+  QueryBuilder<Trip, bool, QQueryOperations> isLocalMissingProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isLocalMissing');
+    });
+  }
+
   QueryBuilder<Trip, bool, QQueryOperations> isUploadedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isUploaded');
@@ -2744,6 +3195,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
   QueryBuilder<Trip, String?, QQueryOperations> softwareVersionProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'softwareVersion');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> software_version_refProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'software_version_ref');
     });
   }
 
@@ -2771,38 +3228,43 @@ const BrandSchema = CollectionSchema(
   name: r'Brand',
   id: 4318366976370227238,
   properties: {
-    r'displayName': PropertySchema(
+    r'cloudId': PropertySchema(
       id: 0,
+      name: r'cloudId',
+      type: IsarType.string,
+    ),
+    r'displayName': PropertySchema(
+      id: 1,
       name: r'displayName',
       type: IsarType.string,
     ),
     r'isCustom': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'isCustom',
       type: IsarType.bool,
     ),
     r'isEnabled': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'isEnabled',
       type: IsarType.bool,
     ),
     r'logoUrl': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'logoUrl',
       type: IsarType.string,
     ),
     r'name': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'name',
       type: IsarType.string,
     ),
     r'order': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'order',
       type: IsarType.long,
     ),
     r'updatedAt': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -2850,6 +3312,12 @@ int _brandEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.cloudId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.displayName;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -2871,13 +3339,14 @@ void _brandSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.displayName);
-  writer.writeBool(offsets[1], object.isCustom);
-  writer.writeBool(offsets[2], object.isEnabled);
-  writer.writeString(offsets[3], object.logoUrl);
-  writer.writeString(offsets[4], object.name);
-  writer.writeLong(offsets[5], object.order);
-  writer.writeDateTime(offsets[6], object.updatedAt);
+  writer.writeString(offsets[0], object.cloudId);
+  writer.writeString(offsets[1], object.displayName);
+  writer.writeBool(offsets[2], object.isCustom);
+  writer.writeBool(offsets[3], object.isEnabled);
+  writer.writeString(offsets[4], object.logoUrl);
+  writer.writeString(offsets[5], object.name);
+  writer.writeLong(offsets[6], object.order);
+  writer.writeDateTime(offsets[7], object.updatedAt);
 }
 
 Brand _brandDeserialize(
@@ -2887,14 +3356,15 @@ Brand _brandDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Brand();
-  object.displayName = reader.readStringOrNull(offsets[0]);
+  object.cloudId = reader.readStringOrNull(offsets[0]);
+  object.displayName = reader.readStringOrNull(offsets[1]);
   object.id = id;
-  object.isCustom = reader.readBool(offsets[1]);
-  object.isEnabled = reader.readBool(offsets[2]);
-  object.logoUrl = reader.readStringOrNull(offsets[3]);
-  object.name = reader.readString(offsets[4]);
-  object.order = reader.readLong(offsets[5]);
-  object.updatedAt = reader.readDateTimeOrNull(offsets[6]);
+  object.isCustom = reader.readBool(offsets[2]);
+  object.isEnabled = reader.readBool(offsets[3]);
+  object.logoUrl = reader.readStringOrNull(offsets[4]);
+  object.name = reader.readString(offsets[5]);
+  object.order = reader.readLong(offsets[6]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[7]);
   return object;
 }
 
@@ -2908,16 +3378,18 @@ P _brandDeserializeProp<P>(
     case 0:
       return (reader.readStringOrNull(offset)) as P;
     case 1:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 2:
       return (reader.readBool(offset)) as P;
     case 3:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 4:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 6:
+      return (reader.readLong(offset)) as P;
+    case 7:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -3111,6 +3583,152 @@ extension BrandQueryWhere on QueryBuilder<Brand, Brand, QWhereClause> {
 }
 
 extension BrandQueryFilter on QueryBuilder<Brand, Brand, QFilterCondition> {
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'cloudId',
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'cloudId',
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'cloudId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'cloudId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cloudId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterFilterCondition> cloudIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'cloudId',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Brand, Brand, QAfterFilterCondition> displayNameIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -3786,6 +4404,18 @@ extension BrandQueryLinks on QueryBuilder<Brand, Brand, QFilterCondition> {
 }
 
 extension BrandQuerySortBy on QueryBuilder<Brand, Brand, QSortBy> {
+  QueryBuilder<Brand, Brand, QAfterSortBy> sortByCloudId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterSortBy> sortByCloudIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.desc);
+    });
+  }
+
   QueryBuilder<Brand, Brand, QAfterSortBy> sortByDisplayName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'displayName', Sort.asc);
@@ -3872,6 +4502,18 @@ extension BrandQuerySortBy on QueryBuilder<Brand, Brand, QSortBy> {
 }
 
 extension BrandQuerySortThenBy on QueryBuilder<Brand, Brand, QSortThenBy> {
+  QueryBuilder<Brand, Brand, QAfterSortBy> thenByCloudId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Brand, Brand, QAfterSortBy> thenByCloudIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.desc);
+    });
+  }
+
   QueryBuilder<Brand, Brand, QAfterSortBy> thenByDisplayName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'displayName', Sort.asc);
@@ -3970,6 +4612,13 @@ extension BrandQuerySortThenBy on QueryBuilder<Brand, Brand, QSortThenBy> {
 }
 
 extension BrandQueryWhereDistinct on QueryBuilder<Brand, Brand, QDistinct> {
+  QueryBuilder<Brand, Brand, QDistinct> distinctByCloudId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'cloudId', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Brand, Brand, QDistinct> distinctByDisplayName(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -4020,6 +4669,12 @@ extension BrandQueryProperty on QueryBuilder<Brand, Brand, QQueryProperty> {
   QueryBuilder<Brand, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<Brand, String?, QQueryOperations> cloudIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'cloudId');
     });
   }
 
@@ -4077,23 +4732,28 @@ const SoftwareVersionSchema = CollectionSchema(
   name: r'SoftwareVersion',
   id: -7963522245691611834,
   properties: {
-    r'isCustom': PropertySchema(
+    r'cloudId': PropertySchema(
       id: 0,
+      name: r'cloudId',
+      type: IsarType.string,
+    ),
+    r'isCustom': PropertySchema(
+      id: 1,
       name: r'isCustom',
       type: IsarType.bool,
     ),
     r'isEnabled': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'isEnabled',
       type: IsarType.bool,
     ),
     r'updatedAt': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
     r'versionString': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'versionString',
       type: IsarType.string,
     )
@@ -4139,6 +4799,12 @@ int _softwareVersionEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  {
+    final value = object.cloudId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.versionString.length * 3;
   return bytesCount;
 }
@@ -4149,10 +4815,11 @@ void _softwareVersionSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeBool(offsets[0], object.isCustom);
-  writer.writeBool(offsets[1], object.isEnabled);
-  writer.writeDateTime(offsets[2], object.updatedAt);
-  writer.writeString(offsets[3], object.versionString);
+  writer.writeString(offsets[0], object.cloudId);
+  writer.writeBool(offsets[1], object.isCustom);
+  writer.writeBool(offsets[2], object.isEnabled);
+  writer.writeDateTime(offsets[3], object.updatedAt);
+  writer.writeString(offsets[4], object.versionString);
 }
 
 SoftwareVersion _softwareVersionDeserialize(
@@ -4162,11 +4829,12 @@ SoftwareVersion _softwareVersionDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = SoftwareVersion();
+  object.cloudId = reader.readStringOrNull(offsets[0]);
   object.id = id;
-  object.isCustom = reader.readBool(offsets[0]);
-  object.isEnabled = reader.readBool(offsets[1]);
-  object.updatedAt = reader.readDateTimeOrNull(offsets[2]);
-  object.versionString = reader.readString(offsets[3]);
+  object.isCustom = reader.readBool(offsets[1]);
+  object.isEnabled = reader.readBool(offsets[2]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[3]);
+  object.versionString = reader.readString(offsets[4]);
   return object;
 }
 
@@ -4178,12 +4846,14 @@ P _softwareVersionDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 1:
       return (reader.readBool(offset)) as P;
     case 2:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 3:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 4:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -4331,6 +5001,160 @@ extension SoftwareVersionQueryWhere
 
 extension SoftwareVersionQueryFilter
     on QueryBuilder<SoftwareVersion, SoftwareVersion, QFilterCondition> {
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'cloudId',
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'cloudId',
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'cloudId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'cloudId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'cloudId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cloudId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
+      cloudIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'cloudId',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterFilterCondition>
       idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -4640,6 +5464,19 @@ extension SoftwareVersionQueryLinks
 
 extension SoftwareVersionQuerySortBy
     on QueryBuilder<SoftwareVersion, SoftwareVersion, QSortBy> {
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterSortBy> sortByCloudId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterSortBy>
+      sortByCloudIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.desc);
+    });
+  }
+
   QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterSortBy>
       sortByIsCustom() {
     return QueryBuilder.apply(this, (query) {
@@ -4699,6 +5536,19 @@ extension SoftwareVersionQuerySortBy
 
 extension SoftwareVersionQuerySortThenBy
     on QueryBuilder<SoftwareVersion, SoftwareVersion, QSortThenBy> {
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterSortBy> thenByCloudId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterSortBy>
+      thenByCloudIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cloudId', Sort.desc);
+    });
+  }
+
   QueryBuilder<SoftwareVersion, SoftwareVersion, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -4770,6 +5620,13 @@ extension SoftwareVersionQuerySortThenBy
 
 extension SoftwareVersionQueryWhereDistinct
     on QueryBuilder<SoftwareVersion, SoftwareVersion, QDistinct> {
+  QueryBuilder<SoftwareVersion, SoftwareVersion, QDistinct> distinctByCloudId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'cloudId', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<SoftwareVersion, SoftwareVersion, QDistinct>
       distinctByIsCustom() {
     return QueryBuilder.apply(this, (query) {
@@ -4805,6 +5662,12 @@ extension SoftwareVersionQueryProperty
   QueryBuilder<SoftwareVersion, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<SoftwareVersion, String?, QQueryOperations> cloudIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'cloudId');
     });
   }
 
@@ -5763,18 +6626,23 @@ const RecordedEventSchema = CollectionSchema(
       name: r'source',
       type: IsarType.string,
     ),
-    r'timestamp': PropertySchema(
+    r'speed': PropertySchema(
       id: 5,
+      name: r'speed',
+      type: IsarType.double,
+    ),
+    r'timestamp': PropertySchema(
+      id: 6,
       name: r'timestamp',
       type: IsarType.dateTime,
     ),
     r'type': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'type',
       type: IsarType.string,
     ),
     r'uuid': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -5836,9 +6704,10 @@ void _recordedEventSerialize(
     object.sensorData,
   );
   writer.writeString(offsets[4], object.source);
-  writer.writeDateTime(offsets[5], object.timestamp);
-  writer.writeString(offsets[6], object.type);
-  writer.writeString(offsets[7], object.uuid);
+  writer.writeDouble(offsets[5], object.speed);
+  writer.writeDateTime(offsets[6], object.timestamp);
+  writer.writeString(offsets[7], object.type);
+  writer.writeString(offsets[8], object.uuid);
 }
 
 RecordedEvent _recordedEventDeserialize(
@@ -5860,9 +6729,10 @@ RecordedEvent _recordedEventDeserialize(
       ) ??
       [];
   object.source = reader.readString(offsets[4]);
-  object.timestamp = reader.readDateTime(offsets[5]);
-  object.type = reader.readString(offsets[6]);
-  object.uuid = reader.readString(offsets[7]);
+  object.speed = reader.readDoubleOrNull(offsets[5]);
+  object.timestamp = reader.readDateTime(offsets[6]);
+  object.type = reader.readString(offsets[7]);
+  object.uuid = reader.readString(offsets[8]);
   return object;
 }
 
@@ -5890,10 +6760,12 @@ P _recordedEventDeserializeProp<P>(
     case 4:
       return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 6:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 7:
+      return (reader.readString(offset)) as P;
+    case 8:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -6592,6 +7464,90 @@ extension RecordedEventQueryFilter
   }
 
   QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      speedIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'speed',
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      speedIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'speed',
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      speedEqualTo(
+    double? value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'speed',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      speedGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'speed',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      speedLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'speed',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      speedBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'speed',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
       timestampEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -6981,6 +7937,18 @@ extension RecordedEventQuerySortBy
     });
   }
 
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> sortBySpeed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'speed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> sortBySpeedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'speed', Sort.desc);
+    });
+  }
+
   QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> sortByTimestamp() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'timestamp', Sort.asc);
@@ -7081,6 +8049,18 @@ extension RecordedEventQuerySortThenBy
     });
   }
 
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> thenBySpeed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'speed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> thenBySpeedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'speed', Sort.desc);
+    });
+  }
+
   QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> thenByTimestamp() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'timestamp', Sort.asc);
@@ -7147,6 +8127,12 @@ extension RecordedEventQueryWhereDistinct
     });
   }
 
+  QueryBuilder<RecordedEvent, RecordedEvent, QDistinct> distinctBySpeed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'speed');
+    });
+  }
+
   QueryBuilder<RecordedEvent, RecordedEvent, QDistinct> distinctByTimestamp() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'timestamp');
@@ -7204,6 +8190,12 @@ extension RecordedEventQueryProperty
   QueryBuilder<RecordedEvent, String, QQueryOperations> sourceProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'source');
+    });
+  }
+
+  QueryBuilder<RecordedEvent, double?, QQueryOperations> speedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'speed');
     });
   }
 

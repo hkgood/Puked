@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/services/pocketbase_service.dart';
+import 'package:http/http.dart' as http;
 
 class AuthState {
   final bool isLoading;
@@ -147,6 +149,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _pbService.pb.collection('users').requestVerification(email);
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> updateAvatar(File imageFile) async {
+    final userId = _pbService.currentUserId;
+    if (userId == null) return;
+
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final multipartFile = await http.MultipartFile.fromPath(
+        'avatar',
+        imageFile.path,
+      );
+
+      await _pbService.pb.collection('users').update(
+            userId,
+            files: [multipartFile],
+          );
+
+      // 刷新用户信息以获取新的头像 URL
+      await refreshUserFromServer();
       state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

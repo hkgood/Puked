@@ -98,35 +98,17 @@ abstract class AppLocalizations {
     Locale('zh')
   ];
 
-  /// No description provided for @appTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Puked'**
-  String get appTitle;
-
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:
   /// **'Settings'**
   String get settings;
 
-  /// No description provided for @history.
+  /// No description provided for @preferences.
   ///
   /// In en, this message translates to:
-  /// **'History'**
-  String get history;
-
-  /// No description provided for @arena.
-  ///
-  /// In en, this message translates to:
-  /// **'Arena'**
-  String get arena;
-
-  /// No description provided for @language.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
-  String get language;
+  /// **'Preferences'**
+  String get preferences;
 
   /// No description provided for @theme.
   ///
@@ -137,20 +119,26 @@ abstract class AppLocalizations {
   /// No description provided for @themeAuto.
   ///
   /// In en, this message translates to:
-  /// **'System'**
+  /// **'AUTO'**
   String get themeAuto;
 
   /// No description provided for @themeLight.
   ///
   /// In en, this message translates to:
-  /// **'Light'**
+  /// **'LIGHT'**
   String get themeLight;
 
   /// No description provided for @themeDark.
   ///
   /// In en, this message translates to:
-  /// **'Dark'**
+  /// **'DARK'**
   String get themeDark;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
 
   /// No description provided for @chinese.
   ///
@@ -164,137 +152,71 @@ abstract class AppLocalizations {
   /// **'English'**
   String get english;
 
-  /// No description provided for @sensitivity.
+  /// No description provided for @event_sound.
   ///
   /// In en, this message translates to:
-  /// **'Auto-tagging Sensitivity'**
-  String get sensitivity;
+  /// **'Event Sound'**
+  String get event_sound;
 
-  /// No description provided for @sensitivityLow.
+  /// No description provided for @event_sound_desc.
   ///
   /// In en, this message translates to:
-  /// **'Low'**
-  String get sensitivityLow;
+  /// **'Play sound when negative event detected'**
+  String get event_sound_desc;
 
-  /// No description provided for @sensitivityMedium.
+  /// No description provided for @current_version.
   ///
   /// In en, this message translates to:
-  /// **'Medium (Sensitive)'**
-  String get sensitivityMedium;
+  /// **'Current Version'**
+  String get current_version;
 
-  /// No description provided for @sensitivityHigh.
+  /// No description provided for @algorithm_version.
   ///
   /// In en, this message translates to:
-  /// **'High (Most Sensitive - Default)'**
-  String get sensitivityHigh;
+  /// **'Algorithm Version'**
+  String get algorithm_version;
 
-  /// No description provided for @sensitivityLowDesc.
+  /// No description provided for @check_update.
   ///
   /// In en, this message translates to:
-  /// **'Accel > 3.0m/s², Brake > 3.5m/s²'**
-  String get sensitivityLowDesc;
+  /// **'Check for Update'**
+  String get check_update;
 
-  /// No description provided for @sensitivityMediumDesc.
+  /// No description provided for @privacy_policy.
   ///
   /// In en, this message translates to:
-  /// **'Accel > 2.4m/s², Brake > 2.8m/s²'**
-  String get sensitivityMediumDesc;
+  /// **'Privacy Policy'**
+  String get privacy_policy;
 
-  /// No description provided for @sensitivityHighDesc.
+  /// No description provided for @unknown.
   ///
   /// In en, this message translates to:
-  /// **'Accel > 1.8m/s², Brake > 2.1m/s²'**
-  String get sensitivityHighDesc;
+  /// **'Unknown'**
+  String get unknown;
 
-  /// No description provided for @sensitivityTip.
+  /// No description provided for @user.
   ///
   /// In en, this message translates to:
-  /// **'Higher sensitivity means lower acceleration thresholds for auto-tagging events.'**
-  String get sensitivityTip;
+  /// **'User'**
+  String get user;
 
-  /// No description provided for @rapidAcceleration.
+  /// No description provided for @logout.
   ///
   /// In en, this message translates to:
-  /// **'Rapid Acceleration'**
-  String get rapidAcceleration;
+  /// **'Logout'**
+  String get logout;
 
-  /// No description provided for @rapidDeceleration.
+  /// No description provided for @login.
   ///
   /// In en, this message translates to:
-  /// **'Rapid Deceleration'**
-  String get rapidDeceleration;
+  /// **'Login'**
+  String get login;
 
-  /// No description provided for @jerk.
+  /// No description provided for @login_to_sync.
   ///
   /// In en, this message translates to:
-  /// **'Jerk'**
-  String get jerk;
-
-  /// No description provided for @bump.
-  ///
-  /// In en, this message translates to:
-  /// **'Bump'**
-  String get bump;
-
-  /// No description provided for @wobble.
-  ///
-  /// In en, this message translates to:
-  /// **'Wobble'**
-  String get wobble;
-
-  /// No description provided for @start_trip.
-  ///
-  /// In en, this message translates to:
-  /// **'START TRIP'**
-  String get start_trip;
-
-  /// No description provided for @stop_trip.
-  ///
-  /// In en, this message translates to:
-  /// **'STOP TRIP'**
-  String get stop_trip;
-
-  /// No description provided for @calibrating.
-  ///
-  /// In en, this message translates to:
-  /// **'Calibrating...'**
-  String get calibrating;
-
-  /// No description provided for @calibration_tip.
-  ///
-  /// In en, this message translates to:
-  /// **'Keep the phone stable for vehicle alignment'**
-  String get calibration_tip;
-
-  /// No description provided for @edit.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit'**
-  String get edit;
-
-  /// No description provided for @modify_vehicle_info.
-  ///
-  /// In en, this message translates to:
-  /// **'Modify Vehicle Info'**
-  String get modify_vehicle_info;
-
-  /// No description provided for @vehicle_info.
-  ///
-  /// In en, this message translates to:
-  /// **'Vehicle Info'**
-  String get vehicle_info;
-
-  /// No description provided for @car_model.
-  ///
-  /// In en, this message translates to:
-  /// **'Car Model'**
-  String get car_model;
-
-  /// No description provided for @software_version.
-  ///
-  /// In en, this message translates to:
-  /// **'Software Version'**
-  String get software_version;
+  /// **'Login to sync data and share trips'**
+  String get login_to_sync;
 
   /// No description provided for @model_hint.
   ///
@@ -308,173 +230,11 @@ abstract class AppLocalizations {
   /// **'Enter version (e.g. v12.5)'**
   String get version_hint;
 
-  /// No description provided for @skip.
-  ///
-  /// In en, this message translates to:
-  /// **'Skip'**
-  String get skip;
-
-  /// No description provided for @save.
-  ///
-  /// In en, this message translates to:
-  /// **'Save'**
-  String get save;
-
-  /// No description provided for @about.
-  ///
-  /// In en, this message translates to:
-  /// **'About'**
-  String get about;
-
-  /// No description provided for @current_version.
-  ///
-  /// In en, this message translates to:
-  /// **'Current Version'**
-  String get current_version;
-
-  /// No description provided for @check_update.
-  ///
-  /// In en, this message translates to:
-  /// **'Check for Update'**
-  String get check_update;
-
-  /// No description provided for @account.
-  ///
-  /// In en, this message translates to:
-  /// **'Account'**
-  String get account;
-
-  /// No description provided for @login.
-  ///
-  /// In en, this message translates to:
-  /// **'Login'**
-  String get login;
-
-  /// No description provided for @logout.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout'**
-  String get logout;
-
-  /// No description provided for @sync_data.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync Data'**
-  String get sync_data;
-
-  /// No description provided for @login_to_sync.
-  ///
-  /// In en, this message translates to:
-  /// **'Login to sync data and share trips'**
-  String get login_to_sync;
-
-  /// No description provided for @connected_as.
-  ///
-  /// In en, this message translates to:
-  /// **'Connected as: {name}'**
-  String connected_as(Object name);
-
-  /// No description provided for @brand.
-  ///
-  /// In en, this message translates to:
-  /// **'My ADAS'**
-  String get brand;
-
-  /// No description provided for @my_car.
-  ///
-  /// In en, this message translates to:
-  /// **'My Car'**
-  String get my_car;
-
-  /// No description provided for @password.
-  ///
-  /// In en, this message translates to:
-  /// **'Password'**
-  String get password;
-
-  /// No description provided for @name.
-  ///
-  /// In en, this message translates to:
-  /// **'Nickname'**
-  String get name;
-
-  /// No description provided for @register.
-  ///
-  /// In en, this message translates to:
-  /// **'Register'**
-  String get register;
-
-  /// No description provided for @no_account.
-  ///
-  /// In en, this message translates to:
-  /// **'Don\'t have an account? Register'**
-  String get no_account;
-
-  /// No description provided for @has_account.
-  ///
-  /// In en, this message translates to:
-  /// **'Already have an account? Login'**
-  String get has_account;
-
-  /// No description provided for @login_failed.
-  ///
-  /// In en, this message translates to:
-  /// **'Login failed'**
-  String get login_failed;
-
-  /// No description provided for @register_failed.
-  ///
-  /// In en, this message translates to:
-  /// **'Registration failed'**
-  String get register_failed;
-
-  /// No description provided for @forgot_password.
-  ///
-  /// In en, this message translates to:
-  /// **'Forgot Password?'**
-  String get forgot_password;
-
-  /// No description provided for @reset_email_sent.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset email sent, please check your inbox'**
-  String get reset_email_sent;
-
-  /// No description provided for @verify_email.
-  ///
-  /// In en, this message translates to:
-  /// **'Verify Email'**
-  String get verify_email;
-
   /// No description provided for @verification_sent.
   ///
   /// In en, this message translates to:
   /// **'Verification email sent'**
   String get verification_sent;
-
-  /// No description provided for @not_verified.
-  ///
-  /// In en, this message translates to:
-  /// **'Not verified (Tap to verify)'**
-  String get not_verified;
-
-  /// No description provided for @error_email_taken.
-  ///
-  /// In en, this message translates to:
-  /// **'Email already registered'**
-  String get error_email_taken;
-
-  /// No description provided for @error_invalid_credentials.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid email or password'**
-  String get error_invalid_credentials;
-
-  /// No description provided for @error_password_too_short.
-  ///
-  /// In en, this message translates to:
-  /// **'Password must be at least 8 characters'**
-  String get error_password_too_short;
 
   /// No description provided for @verification_success.
   ///
@@ -482,53 +242,401 @@ abstract class AppLocalizations {
   /// **'Verification successful!'**
   String get verification_success;
 
-  /// No description provided for @syncing.
+  /// No description provided for @not_verified.
   ///
   /// In en, this message translates to:
-  /// **'Syncing cloud status...'**
-  String get syncing;
+  /// **'Not verified (Tap to verify)'**
+  String get not_verified;
 
-  /// No description provided for @sync_complete.
+  /// No description provided for @approved.
   ///
   /// In en, this message translates to:
-  /// **'Sync complete, marked {count} trips'**
-  String sync_complete(Object count);
+  /// **'Approved'**
+  String get approved;
 
-  /// No description provided for @no_cloud_records.
+  /// No description provided for @pending.
   ///
   /// In en, this message translates to:
-  /// **'No matching cloud records found'**
-  String get no_cloud_records;
+  /// **'Pending'**
+  String get pending;
 
-  /// No description provided for @sync_cloud_status.
+  /// No description provided for @rejected.
   ///
   /// In en, this message translates to:
-  /// **'Sync upload status'**
-  String get sync_cloud_status;
+  /// **'Rejected'**
+  String get rejected;
+
+  /// No description provided for @unverified.
+  ///
+  /// In en, this message translates to:
+  /// **'Unverified'**
+  String get unverified;
+
+  /// No description provided for @my_car.
+  ///
+  /// In en, this message translates to:
+  /// **'My Car'**
+  String get my_car;
+
+  /// No description provided for @my_data_uploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'My Data (Uploaded)'**
+  String get my_data_uploaded;
+
+  /// No description provided for @uploaded_mileage.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded Mileage'**
+  String get uploaded_mileage;
+
+  /// No description provided for @mileage_contribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Mileage Contribution'**
+  String get mileage_contribution;
+
+  /// No description provided for @my_puked_rank.
+  ///
+  /// In en, this message translates to:
+  /// **'My PUKED Rank'**
+  String get my_puked_rank;
+
+  /// No description provided for @my_puked_value.
+  ///
+  /// In en, this message translates to:
+  /// **'My PUKED Value'**
+  String get my_puked_value;
+
+  /// No description provided for @brand_distribution_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Dist.'**
+  String get brand_distribution_desc;
+
+  /// No description provided for @uploaded_mileage_val.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} KM'**
+  String uploaded_mileage_val(Object value);
+
+  /// No description provided for @mileage_contribution_val.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}%'**
+  String mileage_contribution_val(Object value);
+
+  /// No description provided for @my_puked_rank_val.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank {rank} / {total}'**
+  String my_puked_rank_val(Object rank, Object total);
+
+  /// No description provided for @my_puked_value_val.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} km/Evt'**
+  String my_puked_value_val(Object value);
+
+  /// No description provided for @account_and_car.
+  ///
+  /// In en, this message translates to:
+  /// **'Account & Car'**
+  String get account_and_car;
+
+  /// No description provided for @realtime_g.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-time G'**
+  String get realtime_g;
+
+  /// No description provided for @peak_g.
+  ///
+  /// In en, this message translates to:
+  /// **'Peak G'**
+  String get peak_g;
+
+  /// No description provided for @longitudinal.
+  ///
+  /// In en, this message translates to:
+  /// **'LONGITUDINAL'**
+  String get longitudinal;
+
+  /// No description provided for @lateral.
+  ///
+  /// In en, this message translates to:
+  /// **'LATERAL'**
+  String get lateral;
+
+  /// No description provided for @trip_summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip Summary'**
+  String get trip_summary;
+
+  /// No description provided for @total_events.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Events'**
+  String get total_events;
+
+  /// No description provided for @duration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get duration;
+
+  /// No description provided for @distance.
+  ///
+  /// In en, this message translates to:
+  /// **'Distance'**
+  String get distance;
+
+  /// No description provided for @avg_speed.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Speed'**
+  String get avg_speed;
+
+  /// No description provided for @calibrate.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrate'**
+  String get calibrate;
+
+  /// No description provided for @recorded_msg.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded (Last 10s data)'**
+  String get recorded_msg;
+
+  /// No description provided for @no_trips.
+  ///
+  /// In en, this message translates to:
+  /// **'No trip records'**
+  String get no_trips;
+
+  /// No description provided for @exporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting data...'**
+  String get exporting;
+
+  /// No description provided for @pro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro'**
+  String get pro;
+
+  /// No description provided for @submit_trip.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Trip'**
+  String get submit_trip;
+
+  /// No description provided for @uploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading...'**
+  String get uploading;
+
+  /// No description provided for @upload_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload successful'**
+  String get upload_success;
+
+  /// No description provided for @upload_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload failed'**
+  String get upload_failed;
+
+  /// No description provided for @neg_exp.
+  ///
+  /// In en, this message translates to:
+  /// **'Negative Exp.'**
+  String get neg_exp;
+
+  /// No description provided for @gps_strong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get gps_strong;
+
+  /// No description provided for @gps_fair.
+  ///
+  /// In en, this message translates to:
+  /// **'Fair'**
+  String get gps_fair;
+
+  /// No description provided for @gps_weak.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak'**
+  String get gps_weak;
+
+  /// No description provided for @gps_no_signal.
+  ///
+  /// In en, this message translates to:
+  /// **'No Signal'**
+  String get gps_no_signal;
+
+  /// No description provided for @share_card.
+  ///
+  /// In en, this message translates to:
+  /// **'Share Card'**
+  String get share_card;
+
+  /// No description provided for @trip_analysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip Analysis'**
+  String get trip_analysis;
+
+  /// No description provided for @event_breakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Breakdown'**
+  String get event_breakdown;
+
+  /// No description provided for @trigger_sensitivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigger Sensitivity'**
+  String get trigger_sensitivity;
+
+  /// No description provided for @trigger_duration.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigger Duration'**
+  String get trigger_duration;
+
+  /// No description provided for @false_positive_suppression.
+  ///
+  /// In en, this message translates to:
+  /// **'False Positive Suppression'**
+  String get false_positive_suppression;
+
+  /// No description provided for @download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get download;
+
+  /// No description provided for @downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing & Downloading...'**
+  String get downloading;
+
+  /// No description provided for @download_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync download successful'**
+  String get download_success;
+
+  /// No description provided for @download_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync download failed'**
+  String get download_failed;
+
+  /// No description provided for @cloud_trip.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Trip'**
+  String get cloud_trip;
+
+  /// No description provided for @pulling_cloud_trips.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching cloud records...'**
+  String get pulling_cloud_trips;
+
+  /// No description provided for @cloud_sync_result.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete, found {count} new trips'**
+  String cloud_sync_result(Object count);
+
+  /// No description provided for @select_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Version'**
+  String get select_version;
+
+  /// No description provided for @custom_version_input.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Input'**
+  String get custom_version_input;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get skip;
+
+  /// No description provided for @software_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Software Version'**
+  String get software_version;
+
+  /// No description provided for @car_model.
+  ///
+  /// In en, this message translates to:
+  /// **'Car Model'**
+  String get car_model;
+
+  /// No description provided for @vehicle_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle Info'**
+  String get vehicle_info;
+
+  /// No description provided for @modify_vehicle_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Modify Vehicle Info'**
+  String get modify_vehicle_info;
 
   /// No description provided for @arena_top10_title.
   ///
   /// In en, this message translates to:
   /// **'Safe Driving Top 10'**
   String get arena_top10_title;
-
-  /// No description provided for @km_per_event_long.
-  ///
-  /// In en, this message translates to:
-  /// **'KM per Negative Event (Higher is better)'**
-  String get km_per_event_long;
-
-  /// No description provided for @by_brand.
-  ///
-  /// In en, this message translates to:
-  /// **'By Brand'**
-  String get by_brand;
-
-  /// No description provided for @by_version.
-  ///
-  /// In en, this message translates to:
-  /// **'By Version'**
-  String get by_version;
 
   /// No description provided for @arena_total_mileage_title.
   ///
@@ -548,23 +656,101 @@ abstract class AppLocalizations {
   /// **'{brand} Evolution'**
   String arena_brand_evolution_title(Object brand);
 
-  /// No description provided for @km_per_version_event_long.
-  ///
-  /// In en, this message translates to:
-  /// **'Comfort performance across software versions'**
-  String get km_per_version_event_long;
-
   /// No description provided for @arena_details_title.
   ///
   /// In en, this message translates to:
   /// **'Negative Experience Breakdown'**
   String get arena_details_title;
 
+  /// No description provided for @arena_leaderboard_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Mileage Contributors'**
+  String get arena_leaderboard_title;
+
+  /// No description provided for @low_speed_ranking.
+  ///
+  /// In en, this message translates to:
+  /// **'Urban Comfort Ranking'**
+  String get low_speed_ranking;
+
+  /// No description provided for @high_speed_ranking.
+  ///
+  /// In en, this message translates to:
+  /// **'Highway Comfort Ranking'**
+  String get high_speed_ranking;
+
+  /// No description provided for @low_speed_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Events for trips < 50 km/h, km/evt, total mileage > 300'**
+  String get low_speed_desc;
+
+  /// No description provided for @high_speed_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Events for trips >= 50 km/h, km/evt, total mileage > 300'**
+  String get high_speed_desc;
+
+  /// No description provided for @city.
+  ///
+  /// In en, this message translates to:
+  /// **'Urban'**
+  String get city;
+
+  /// No description provided for @highway.
+  ///
+  /// In en, this message translates to:
+  /// **'Highway'**
+  String get highway;
+
+  /// No description provided for @weekly_rank.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get weekly_rank;
+
+  /// No description provided for @total_rank.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total_rank;
+
+  /// No description provided for @user_mileage_unit.
+  ///
+  /// In en, this message translates to:
+  /// **'km'**
+  String get user_mileage_unit;
+
   /// No description provided for @km_per_event.
   ///
   /// In en, this message translates to:
   /// **'km/Event'**
   String get km_per_event;
+
+  /// No description provided for @km_per_event_long.
+  ///
+  /// In en, this message translates to:
+  /// **'Km between negative experiences, total mileage > 300'**
+  String get km_per_event_long;
+
+  /// No description provided for @km_per_version_event_long.
+  ///
+  /// In en, this message translates to:
+  /// **'Average km per negative experience by version'**
+  String get km_per_version_event_long;
+
+  /// No description provided for @by_brand.
+  ///
+  /// In en, this message translates to:
+  /// **'By Brand'**
+  String get by_brand;
+
+  /// No description provided for @by_version.
+  ///
+  /// In en, this message translates to:
+  /// **'By Version'**
+  String get by_version;
 
   /// No description provided for @all_versions.
   ///
@@ -578,23 +764,11 @@ abstract class AppLocalizations {
   /// **'Select Brand'**
   String get select_brand;
 
-  /// No description provided for @no_trips_yet.
+  /// No description provided for @mileage_label.
   ///
   /// In en, this message translates to:
-  /// **'No trip data recorded yet. Start a trip to see statistics!'**
-  String get no_trips_yet;
-
-  /// No description provided for @no_data_for_brand.
-  ///
-  /// In en, this message translates to:
-  /// **'No Data'**
-  String get no_data_for_brand;
-
-  /// No description provided for @events_count.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} Events'**
-  String events_count(Object count);
+  /// **'Mileage'**
+  String get mileage_label;
 
   /// No description provided for @trips_count.
   ///
@@ -602,11 +776,137 @@ abstract class AppLocalizations {
   /// **'{count} Trips'**
   String trips_count(Object count);
 
-  /// No description provided for @mileage_label.
+  /// No description provided for @events_count.
   ///
   /// In en, this message translates to:
-  /// **'Mileage'**
-  String get mileage_label;
+  /// **'{count} Events'**
+  String events_count(Object count);
+
+  /// No description provided for @app_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Puked'**
+  String get app_name;
+
+  /// No description provided for @history.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get history;
+
+  /// No description provided for @arena.
+  ///
+  /// In en, this message translates to:
+  /// **'Arena'**
+  String get arena;
+
+  /// No description provided for @start_trip.
+  ///
+  /// In en, this message translates to:
+  /// **'START TRIP'**
+  String get start_trip;
+
+  /// No description provided for @stop_trip.
+  ///
+  /// In en, this message translates to:
+  /// **'STOP TRIP'**
+  String get stop_trip;
+
+  /// No description provided for @calibrating.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrating...'**
+  String get calibrating;
+
+  /// No description provided for @calibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrated!'**
+  String get calibrated;
+
+  /// No description provided for @calibration_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibration Failed'**
+  String get calibration_failed;
+
+  /// No description provided for @calibration_failed_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please ensure the vehicle and phone are stationary.'**
+  String get calibration_failed_desc;
+
+  /// No description provided for @rapid_accel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rapid Accel'**
+  String get rapid_accel;
+
+  /// No description provided for @rapid_decel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rapid Decel'**
+  String get rapid_decel;
+
+  /// No description provided for @jerk.
+  ///
+  /// In en, this message translates to:
+  /// **'Jerk'**
+  String get jerk;
+
+  /// No description provided for @rapidAcceleration.
+  ///
+  /// In en, this message translates to:
+  /// **'Rapid Acceleration'**
+  String get rapidAcceleration;
+
+  /// No description provided for @rapidDeceleration.
+  ///
+  /// In en, this message translates to:
+  /// **'Rapid Deceleration'**
+  String get rapidDeceleration;
+
+  /// No description provided for @jerk_event.
+  ///
+  /// In en, this message translates to:
+  /// **'Jerk'**
+  String get jerk_event;
+
+  /// No description provided for @bump.
+  ///
+  /// In en, this message translates to:
+  /// **'Bump'**
+  String get bump;
+
+  /// No description provided for @wobble.
+  ///
+  /// In en, this message translates to:
+  /// **'Wobble'**
+  String get wobble;
+
+  /// No description provided for @manual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Mark'**
+  String get manual;
+
+  /// No description provided for @calibration_tip.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the phone stable for vehicle alignment'**
+  String get calibration_tip;
+
+  /// No description provided for @no_data_for_brand.
+  ///
+  /// In en, this message translates to:
+  /// **'No Data'**
+  String get no_data_for_brand;
+
+  /// No description provided for @connected_as.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected as: {name}'**
+  String connected_as(Object name);
 
   /// No description provided for @car_cert_banner.
   ///
@@ -623,7 +923,7 @@ abstract class AppLocalizations {
   /// No description provided for @upload_hint.
   ///
   /// In en, this message translates to:
-  /// **'Please upload a photo showing your car model and VIN (usually found on the lower driver-side windshield or door pillar).'**
+  /// **'Please upload a photo showing your car model and VIN'**
   String get upload_hint;
 
   /// No description provided for @file_limit_hint.
@@ -641,7 +941,7 @@ abstract class AppLocalizations {
   /// No description provided for @submit_success_tip.
   ///
   /// In en, this message translates to:
-  /// **'Verification details submitted! We\'ll review them shortly.'**
+  /// **'Verification details submitted!'**
   String get submit_success_tip;
 
   /// No description provided for @error_image_limit.
@@ -673,30 +973,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted events cannot be recovered. Are you sure?'**
   String get delete_event_desc;
-
-  /// No description provided for @insufficient_data_title.
-  ///
-  /// In en, this message translates to:
-  /// **'Insufficient Trip Data'**
-  String get insufficient_data_title;
-
-  /// No description provided for @insufficient_data_message.
-  ///
-  /// In en, this message translates to:
-  /// **'The trip data is too short, please upload trip data with longer mileage'**
-  String get insufficient_data_message;
-
-  /// No description provided for @upload.
-  ///
-  /// In en, this message translates to:
-  /// **'Upload'**
-  String get upload;
-
-  /// No description provided for @privacy_policy.
-  ///
-  /// In en, this message translates to:
-  /// **'Privacy Policy'**
-  String get privacy_policy;
 
   /// No description provided for @agree_privacy_link.
   ///
@@ -769,12 +1045,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please grant photo gallery permission'**
   String get error_no_photo_permission;
-
-  /// No description provided for @algorithm_version.
-  ///
-  /// In en, this message translates to:
-  /// **'Algorithm Version'**
-  String get algorithm_version;
 
   /// No description provided for @algorithm_update_success.
   ///
@@ -914,6 +1184,12 @@ abstract class AppLocalizations {
   /// **'Max Bump Limit'**
   String get max_bump_allowed_label;
 
+  /// No description provided for @min_accel_for_jerk_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Jerk Min Accel'**
+  String get min_accel_for_jerk_label;
+
   /// No description provided for @threshold_accel_hint.
   ///
   /// In en, this message translates to:
@@ -998,6 +1274,12 @@ abstract class AppLocalizations {
   /// **'Max bump limit to filter out non-road impacts'**
   String get max_bump_allowed_hint;
 
+  /// No description provided for @min_accel_for_jerk_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only calculate jerk if acceleration exceeds this'**
+  String get min_accel_for_jerk_hint;
+
   /// No description provided for @zy_interference_threshold_hint.
   ///
   /// In en, this message translates to:
@@ -1007,7 +1289,7 @@ abstract class AppLocalizations {
   /// No description provided for @zx_interference_threshold_hint.
   ///
   /// In en, this message translates to:
-  /// **'Z-axis activity level to suppress X-axis (Jerk) detection'**
+  /// **'Z-axis activity level to suppress X-axis'**
   String get zx_interference_threshold_hint;
 
   /// No description provided for @pitch_validation_enabled_hint.
@@ -1034,71 +1316,323 @@ abstract class AppLocalizations {
   /// **'Sync Now'**
   String get sync_now;
 
-  /// No description provided for @download.
+  /// No description provided for @error_invalid_credentials.
   ///
   /// In en, this message translates to:
-  /// **'Download'**
-  String get download;
+  /// **'Invalid email or password'**
+  String get error_invalid_credentials;
 
-  /// No description provided for @downloading.
+  /// No description provided for @login_failed.
   ///
   /// In en, this message translates to:
-  /// **'Syncing & Downloading...'**
-  String get downloading;
+  /// **'Login failed'**
+  String get login_failed;
 
-  /// No description provided for @download_success.
+  /// No description provided for @forgot_password.
   ///
   /// In en, this message translates to:
-  /// **'Sync download successful'**
-  String get download_success;
+  /// **'Forgot Password'**
+  String get forgot_password;
 
-  /// No description provided for @download_failed.
+  /// No description provided for @reset_email_sent.
   ///
   /// In en, this message translates to:
-  /// **'Sync download failed'**
-  String get download_failed;
+  /// **'Reset email sent'**
+  String get reset_email_sent;
 
-  /// No description provided for @cloud_trip.
+  /// No description provided for @password.
   ///
   /// In en, this message translates to:
-  /// **'Cloud Trip'**
-  String get cloud_trip;
+  /// **'Password'**
+  String get password;
 
-  /// No description provided for @pulling_cloud_trips.
+  /// No description provided for @no_account.
   ///
   /// In en, this message translates to:
-  /// **'Fetching cloud records...'**
-  String get pulling_cloud_trips;
+  /// **'No account? Register now'**
+  String get no_account;
 
-  /// No description provided for @cloud_sync_result.
+  /// No description provided for @error_email_taken.
   ///
   /// In en, this message translates to:
-  /// **'Sync complete, found {count} new trips'**
-  String cloud_sync_result(Object count);
+  /// **'Email already taken'**
+  String get error_email_taken;
 
-  /// No description provided for @custom_version_input.
+  /// No description provided for @error_password_too_short.
   ///
   /// In en, this message translates to:
-  /// **'Manual Input (Format: x.x.x, no sub-versions)'**
-  String get custom_version_input;
+  /// **'Password too short (min 8)'**
+  String get error_password_too_short;
 
-  /// No description provided for @confirm.
+  /// No description provided for @register_failed.
   ///
   /// In en, this message translates to:
-  /// **'Confirm'**
-  String get confirm;
+  /// **'Register failed'**
+  String get register_failed;
 
-  /// No description provided for @cancel.
+  /// No description provided for @register.
   ///
   /// In en, this message translates to:
-  /// **'Cancel'**
-  String get cancel;
+  /// **'Register'**
+  String get register;
 
-  /// No description provided for @select_version.
+  /// No description provided for @name.
   ///
   /// In en, this message translates to:
-  /// **'Select Version'**
-  String get select_version;
+  /// **'Name'**
+  String get name;
+
+  /// No description provided for @has_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Login'**
+  String get has_account;
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// No description provided for @delete_trips.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Trips'**
+  String get delete_trips;
+
+  /// No description provided for @delete_trips_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete these {count} trips?'**
+  String delete_trips_confirm(Object count);
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @select_items.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Items'**
+  String get select_items;
+
+  /// No description provided for @sync_cloud_status.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Status'**
+  String get sync_cloud_status;
+
+  /// No description provided for @bulk_upload_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to upload these {count} trips?'**
+  String bulk_upload_confirm(Object count);
+
+  /// No description provided for @upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get upload;
+
+  /// No description provided for @insufficient_data_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Insufficient Data'**
+  String get insufficient_data_title;
+
+  /// No description provided for @insufficient_data_message.
+  ///
+  /// In en, this message translates to:
+  /// **'Some trips have insufficient data (mileage too short). We suggest driving further before submitting.'**
+  String get insufficient_data_message;
+
+  /// No description provided for @syncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing...'**
+  String get syncing;
+
+  /// No description provided for @no_trips_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No History Trips'**
+  String get no_trips_yet;
+
+  /// No description provided for @submit_trip_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to submit this trip to the Arena?'**
+  String get submit_trip_confirm;
+
+  /// No description provided for @car_cert_banner_approved.
+  ///
+  /// In en, this message translates to:
+  /// **'Car Verified'**
+  String get car_cert_banner_approved;
+
+  /// No description provided for @car_cert_banner_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Car Verifying'**
+  String get car_cert_banner_pending;
+
+  /// No description provided for @car_cert_banner_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Car Verification Rejected'**
+  String get car_cert_banner_rejected;
+
+  /// No description provided for @upload_cert_photos_new.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-upload Certification'**
+  String get upload_cert_photos_new;
+
+  /// No description provided for @upload_cert_photos_submitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Certification Submitted'**
+  String get upload_cert_photos_submitted;
+
+  /// No description provided for @upload_hint_new.
+  ///
+  /// In en, this message translates to:
+  /// **'Please re-upload photos showing your license plate or VIN'**
+  String get upload_hint_new;
+
+  /// No description provided for @event_list.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Details'**
+  String get event_list;
+
+  /// No description provided for @min.
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get min;
+
+  /// No description provided for @value.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get value;
+
+  /// No description provided for @app_tagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantifying AD Comfort'**
+  String get app_tagline;
+
+  /// No description provided for @algo_a.
+  ///
+  /// In en, this message translates to:
+  /// **'ALGO A'**
+  String get algo_a;
+
+  /// No description provided for @algo_b.
+  ///
+  /// In en, this message translates to:
+  /// **'ALGO B'**
+  String get algo_b;
+
+  /// No description provided for @sensor_frozen.
+  ///
+  /// In en, this message translates to:
+  /// **'SENSOR FROZEN'**
+  String get sensor_frozen;
+
+  /// No description provided for @ins_active.
+  ///
+  /// In en, this message translates to:
+  /// **'INS ACTIVE'**
+  String get ins_active;
+
+  /// No description provided for @fetching_arena_data.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching Arena Data...'**
+  String get fetching_arena_data;
+
+  /// No description provided for @no_records.
+  ///
+  /// In en, this message translates to:
+  /// **'No Records'**
+  String get no_records;
+
+  /// No description provided for @arena_mileage_requirement.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranking brand mileage must be greater than 300 km'**
+  String get arena_mileage_requirement;
+
+  /// No description provided for @share_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Share failed'**
+  String get share_failed;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @avatar_updated.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatar updated'**
+  String get avatar_updated;
+
+  /// No description provided for @passwords_not_match.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get passwords_not_match;
+
+  /// No description provided for @required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get required;
+
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @invalid_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email format'**
+  String get invalid_email;
+
+  /// No description provided for @password_too_short_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be at least 8 characters'**
+  String get password_too_short_hint;
+
+  /// No description provided for @repeat_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat password'**
+  String get repeat_password;
+
+  /// No description provided for @crop_avatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop Avatar'**
+  String get crop_avatar;
+
+  /// No description provided for @update_avatar_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update avatar'**
+  String get update_avatar_failed;
 }
 
 class _AppLocalizationsDelegate

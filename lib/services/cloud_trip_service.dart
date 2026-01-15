@@ -19,8 +19,8 @@ class CloudTripService {
   CloudTripService(this._pbService);
 
   /// 上传行程到 PocketBase
-  /// 返回上传后的 Record ID
-  Future<String> uploadTrip(Trip trip) async {
+  /// 返回上传后的 Record ID 和 metrics
+  Future<Map<String, dynamic>> uploadTrip(Trip trip) async {
     if (!_pbService.isAuthenticated) {
       throw Exception('User not authenticated');
     }
@@ -56,6 +56,7 @@ class CloudTripService {
                   (trip.endTime!.difference(trip.startTime).inSeconds / 3600))
               .toStringAsFixed(1)
           : "0.0",
+      "start_time": trip.startTime.toUtc().toIso8601String(), // 增加时间戳对齐
     };
 
     // 4. 上传到 PocketBase 'trips' 集合
@@ -73,6 +74,7 @@ class CloudTripService {
           'route_summary': {}, // 如果有聚合路径可以放在这里
           'share_slug': trip.uuid.substring(0, 8),
           'local_uuid': trip.uuid,
+          'start_time': trip.startTime.toUtc().toIso8601String(),
         },
         files: [
           await http.MultipartFile.fromPath(
@@ -82,7 +84,10 @@ class CloudTripService {
           ),
         ],
       );
-      return record.id;
+      return {
+        'id': record.id,
+        'metrics': metrics,
+      };
     } catch (e) {
       debugPrint('Upload failed: $e');
       rethrow;
@@ -131,51 +136,81 @@ class CloudTripService {
   /// 1. 发现本地缺失的云端行程，创建占位符
   /// 2. 更新本地行程的上传状态
   Future<int> syncCloudToLocal(dynamic storage) async {
-    if (!_pbService.isAuthenticated) return 0;
+    final userId = _pbService.currentUserId;
+    final isAuth = _pbService.isAuthenticated;
+    
+    if (!isAuth || userId == null) {
+      debugPrint('[PukedSync] Skip sync: isAuth=$isAuth, userId=$userId');
+      return 0;
+    }
 
     try {
+      debugPrint('[PukedSync] Starting sync for user: $userId');
       final cloudRecords = await fetchUserCloudTrips();
+      debugPrint('[PukedSync] Cloud returned ${cloudRecords.length} records');
+      
       int newPlaceholders = 0;
+      int updatedCount = 0;
 
       for (final record in cloudRecords) {
         final uuid = record.getStringValue('local_uuid');
-        if (uuid.isEmpty) continue;
+        if (uuid.isEmpty) {
+          debugPrint('[PukedSync] Warning: Cloud record ${record.id} has no local_uuid');
+          continue;
+        }
 
         final localTrip = await storage.getTripByUuid(uuid);
         if (localTrip == null) {
-          // 本地完全没有，创建占位
-          final metrics = record.get<Map<String, dynamic>>('metrics');
-          final distanceKm =
-              double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
+          debugPrint('[PukedSync] Creating placeholder for missing trip: $uuid');
+          
+          final metricsRaw = record.get('metrics');
+          final Map<String, dynamic> metrics = metricsRaw is Map<String, dynamic> 
+              ? metricsRaw 
+              : {};
+          
+          final distanceKm = double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
           final eventCount = metrics['event_count'] as int? ?? 0;
 
-          final placeholder = Trip()
-            ..uuid = uuid
-            ..cloudId = record.id
-            ..startTime = DateTime.parse(record.get<String>('created'))
-            ..brand = record.getStringValue('brand')
-            ..brand_ref = record.getStringValue('brand_ref')
-            ..carModel = record.getStringValue('car_model')
-            ..softwareVersion = record.getStringValue('software_version')
-            ..software_version_ref =
-                record.getStringValue('software_version_ref')
-            ..distance = distanceKm * 1000
-            ..eventCount = eventCount
-            ..isUploaded = true
-            ..notes = '[CLOUD_ONLY]'; // 使用 notes 作为持久化标记位
+          // 核心修复：将云端完整的 metrics 序列化存入专门的 metricsJson 字段
+          final String metricsJson = jsonEncode(metrics);
+
+            final placeholder = Trip()
+              ..uuid = uuid
+              ..cloudId = record.id
+              // 关键修复：使用业务上的 start_time 字段
+              ..startTime = DateTime.parse(record.getStringValue('start_time').isNotEmpty 
+                  ? record.getStringValue('start_time') 
+                  : record.get<String>('created')).toLocal()
+              ..brand = record.getStringValue('brand')
+              ..brand_ref = record.getStringValue('brand_ref')
+              ..carModel = record.getStringValue('car_model')
+              ..softwareVersion = record.getStringValue('software_version')
+              ..software_version_ref =
+                  record.getStringValue('software_version_ref')
+              ..distance = distanceKm * 1000
+              ..eventCount = eventCount
+              ..isUploaded = true
+              ..isLocalMissing = true // 核心修复：显式标记为本地缺失详情
+              ..metricsJson = metricsJson;
 
           await storage.savePlaceholderTrip(placeholder);
           newPlaceholders++;
         } else {
-          // 本地有，更新 cloudId 和 isUploaded
-          if (!localTrip.isUploaded || localTrip.cloudId != record.id) {
-            await storage.updateTripCloudId(localTrip.id, record.id);
+          // 本地有，同步更新状态
+          if (!localTrip.isUploaded || localTrip.cloudId != record.id || localTrip.metricsJson == null) {
+            final metricsRaw = record.get('metrics');
+            final Map<String, dynamic> metrics = metricsRaw is Map<String, dynamic> 
+                ? metricsRaw 
+                : {};
+            await storage.updateTripCloudId(localTrip.id, record.id, metrics: metrics);
+            updatedCount++;
           }
         }
       }
+      debugPrint('[PukedSync] Sync completed. New: $newPlaceholders, Updated: $updatedCount');
       return newPlaceholders;
     } catch (e) {
-      debugPrint('Sync cloud to local failed: $e');
+      debugPrint('[PukedSync] Sync cloud to local failed: $e');
       return 0;
     }
   }
@@ -196,20 +231,33 @@ class CloudTripService {
       );
 
       // 关键修复：PocketBase 文件访问如果不是 Public，必须在 Header 中带上 Token
+      // 并且在 PocketBase 中，Token 通常不需要 Bearer 前缀，但为了保险我们做个判定
+      final String token = _pbService.pb.authStore.token;
       debugPrint('[PukedSync] Starting download from URL: $url');
+      
       final response = await http.get(
         url,
         headers: {
-          'Authorization': _pbService.pb.authStore.token,
+          'Authorization': token,
         },
-      ).timeout(const Duration(seconds: 60)); // 延长至60秒，确保大文件传完
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
         debugPrint(
-            '[PukedSync] Download success. Size: ${response.bodyBytes.length} bytes');
+            '[PukedSync] Download success. Size: ${bytes.length} bytes');
 
-        // 核心修复：恢复后台线程解析，确保大数据量下 UI 流畅
-        final data = await compute(_parseJson, response.bodyBytes);
+        Map<String, dynamic> data;
+        // 优化：针对小文件 (< 100KB) 直接在主线程解析，避免 compute (Isolate) 的启动和通信开销
+        if (bytes.length < 100 * 1024) {
+          debugPrint('[PukedSync] Small file detected, parsing on main thread...');
+          data = _parseJson(bytes);
+        } else {
+          debugPrint('[PukedSync] Large file detected, starting JSON parse (compute)...');
+          data = await compute(_parseJson, bytes);
+        }
+        
+        debugPrint('[PukedSync] JSON parse returned ${data.length} keys');
 
         debugPrint(
             '[PukedSync] JSON parse complete. Root keys: ${data.keys.toList()}');
@@ -226,7 +274,7 @@ class CloudTripService {
     }
   }
 
-  /// 获取公开行程的总数，用于判断是否需要刷新
+  /// 从云端抓取公开行程的总数，用于判断是否需要刷新
   Future<int> getTotalPublicTripsCount() async {
     try {
       final result = await _pbService.pb.collection('trips').getList(
@@ -242,9 +290,73 @@ class CloudTripService {
     }
   }
 
+  /// 获取 Arena 聚合统计数据 (从新的 trip_stats_summary 数据源)
+  Future<Map<String, dynamic>> fetchArenaStats() async {
+    try {
+      // 1. 并行获取所有汇总数据和周榜数据 (对齐 Web 端)
+      // 移除 fields 限制，确保 expand 数据完整返回
+      final results = await Future.wait([
+        _pbService.pb.collection('trip_stats_summary').getFullList(
+              filter: 'period_type="all"',
+              expand: 'brand,software_version,user',
+              sort: '-total_distance',
+            ),
+        _pbService.pb.collection('trip_stats_summary').getFullList(
+              filter: 'period_type="weekly"',
+              expand: 'user',
+              sort: '-total_distance',
+            ),
+      ]);
+
+      return {
+        'all_summary': results[0],
+        'weekly_summary': results[1],
+      };
+    } catch (e) {
+      debugPrint('Error fetching arena stats from summary table: $e');
+      return {};
+    }
+  }
+
+  /// 获取特定用户的统计数据
+  Future<Map<String, dynamic>?> fetchUserStats(String userId) async {
+    try {
+      final record = await _pbService.pb
+          .collection('user_stats')
+          .getFirstListItem('user_id = "$userId"');
+      return record.get('payload');
+    } catch (e) {
+      debugPrint('Error fetching user stats for $userId: $e');
+      return null;
+    }
+  }
+
+  /// 触发云端同步逻辑 (对齐 Web 端路由)
+  Future<bool> triggerArenaSync() async {
+    try {
+      // 注意：Web 端调用的是 /api/custom/sync-stats (GET)
+      // 这里根据实际后端配置调整，通常移动端也会调用同样的自定义接口
+      await _pbService.pb.send('/api/custom/sync-stats', method: 'GET');
+      return true;
+    } catch (e) {
+      debugPrint('Error triggering arena sync: $e');
+      return false;
+    }
+  }
+
   // 辅助方法：在后台线程解析 JSON
   static Map<String, dynamic> _parseJson(Uint8List bytes) {
-    return jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+    try {
+      final decodedString = utf8.decode(bytes);
+      final dynamic decodedJson = jsonDecode(decodedString);
+      if (decodedJson is! Map<String, dynamic>) {
+        throw Exception('JSON is not a Map: ${decodedJson.runtimeType}');
+      }
+      return decodedJson;
+    } catch (e) {
+      debugPrint('[PukedSync] CRITICAL: JSON parse error in Isolate: $e');
+      rethrow;
+    }
   }
 
   /// 从云端抓取所有公开的行程数据，用于 Arena 展示
@@ -332,8 +444,8 @@ class CloudTripService {
         // 为了兼容现有代码，我们可以通过一种“技巧”：在内存中模拟事件，或者扩展 Trip 对象。
         // 但最稳妥的是修改 ArenaService。
 
-        // 暂时我们将整个 metrics 存在 notes 字段里，作为一个临时方案
-        trip.notes = jsonEncode({'metrics': metrics});
+        // 暂时我们将整个 metrics 存在 metricsJson 字段里
+        trip.metricsJson = jsonEncode(metrics);
 
         return trip;
       }).toList();

@@ -42,6 +42,7 @@ class BrandSelectionItem extends StatelessWidget {
             Expanded(
               child: BrandLogo(
                 brandName: brand.name,
+                overrideLogoUrl: brand.logoUrl, // 确保直接使用 Brand 对象中的 logoUrl
                 size: double.infinity,
                 padding: 8,
               ),

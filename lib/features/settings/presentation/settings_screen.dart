@@ -15,6 +15,7 @@ import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/services/algorithm_config_service.dart';
 import 'package:puked/features/settings/presentation/algorithm_config_screen.dart';
 import 'package:puked/features/recording/providers/vehicle_provider.dart';
+import 'package:puked/features/settings/presentation/widgets/my_data_card.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -45,406 +46,544 @@ class SettingsScreen extends ConsumerWidget {
         title: Text(i18n.t('settings')),
       ),
       body: SafeArea(
-        left: true,
-        right: true,
-        top: false,
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8), // 统一标题和内容间距
-          child: ListView(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 账号系统
-              _buildSectionHeader(context, i18n.t('account')),
-              if (!auth.isAuthenticated)
-                ListTile(
-                  leading: const Icon(Icons.account_circle_outlined),
-                  title: Text(i18n.t('login')),
-                  subtitle: Text(i18n.t('login_to_sync')),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    // 跳转到独立登录页面
-                    _showAuthPage(context);
-                  },
-                )
-              else
-                ListTile(
-                  leading: GestureDetector(
-                    onTap: () => _handleUpdateAvatar(context, ref),
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundImage:
-                              ref.watch(pbServiceProvider).currentAvatarUrl !=
+              // 1. 账号与车辆卡片
+              _buildCard(
+                context,
+                title: null, // 第一张卡片不显示标题
+                children: [
+                  // 账号部分
+                  if (!auth.isAuthenticated)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.account_circle_outlined),
+                      title: Text(i18n.t('login')),
+                      subtitle: Text(i18n.t('login_to_sync')),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _showAuthPage(context),
+                    )
+                  else
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: GestureDetector(
+                        onTap: () => _handleUpdateAvatar(context, ref),
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Theme.of(context).colorScheme.primaryContainer, // 添加背景色
+                              backgroundImage: ref
+                                          .watch(pbServiceProvider)
+                                          .currentAvatarUrl !=
                                       null
-                                  ? NetworkImage(ref
-                                      .watch(pbServiceProvider)
-                                      .currentAvatarUrl!)
+                                  ? NetworkImage(
+                                      ref.watch(pbServiceProvider).currentAvatarUrl!)
                                   : null,
-                          child:
-                              ref.watch(pbServiceProvider).currentAvatarUrl ==
+                              child: ref
+                                          .watch(pbServiceProvider)
+                                          .currentAvatarUrl ==
                                       null
-                                  ? const Icon(Icons.person, size: 28)
+                                  ? Icon(
+                                      Icons.person, // 换成实心图标
+                                      size: 28,
+                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    )
                                   : null,
+                            ),
+                            if (ref.watch(pbServiceProvider).currentAvatarUrl ==
+                                null)
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.add_a_photo,
+                                    size: 10,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        if (ref.watch(pbServiceProvider).currentAvatarUrl ==
-                            null)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
+                      ),
+                      title: Row(
+                        children: [
+                          Text(auth.user?.getStringValue('name') ?? i18n.t('user')),
+                          if (auth.isPro) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                shape: BoxShape.circle,
-                                border:
-                                    Border.all(color: Colors.white, width: 2),
+                                color: const Color(0xFFFFA500),
+                                borderRadius: BorderRadius.circular(3),
                               ),
-                              child: const Icon(
-                                Icons.add_a_photo,
-                                size: 10,
-                                color: Colors.white,
+                              child: const Text(
+                                'PRO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  title: Row(
-                    children: [
-                      Text(auth.user?.getStringValue('name') ?? i18n.t('user')),
-                      if (auth.isPro) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFA500),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: const Text(
-                            'PRO',
+                          ],
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            auth.user?.getStringValue('email') ?? '',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        auth.user?.getStringValue('email') ?? '',
+                          if (auth.isSuperUser)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                "SuperUser / Admin",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          if (auth.user?.getBoolValue('verified') == false)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await ref
+                                      .read(authProvider.notifier)
+                                      .refreshUserFromServer();
+                                  if (ref
+                                          .read(authProvider)
+                                          .user
+                                          ?.getBoolValue('verified') ==
+                                      true) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text(i18n.t('verification_success')),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  await ref
+                                      .read(authProvider.notifier)
+                                      .requestVerification();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(i18n.t('verification_sent')),
+                                          backgroundColor: Colors.green),
+                                    );
+                                  }
+                                },
+                                child: Text(
+                                  i18n.t('not_verified'),
+                                  style: const TextStyle(
+                                      color: Colors.orange,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          await Future.wait([
+                            ref.read(authProvider.notifier).logout(),
+                            ref
+                                .read(settingsProvider.notifier)
+                                .clearVehicleSettings(),
+                          ]);
+                        },
+                        child: Text(i18n.t('logout'),
+                            style: const TextStyle(color: Colors.red)),
+                      ),
+                    ),
+
+                  // 车辆部分 (如果是已认证用户)
+                  if (auth.isAuthenticated) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Divider(height: 1),
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: BrandLogo(
+                        brandName: settings.brandRef ?? settings.brand ?? '',
+                        showBackground: true,
+                      ),
+                      title: Row(
+                        children: [
+                          Text(
+                            (settings.brand != null &&
+                                    settings.brand!.length == 15 &&
+                                    !settings.brand!.contains(' '))
+                                ? ref.watch(brandNameProvider(settings.brand!))
+                                : (settings.brand ??
+                                    ref.watch(brandNameProvider(
+                                        settings.brandRef ?? ''))),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildVerificationBadge(context, auth, i18n),
+                        ],
+                      ),
+                      subtitle: Text(
+                        [
+                                  if (settings.carModel != null &&
+                                      settings.carModel!.isNotEmpty)
+                                    settings.carModel,
+                                  ref.watch(versionNameProvider(
+                                      settings.softwareVersionRef ??
+                                          settings.softwareVersion ??
+                                          '')),
+                                ].join(' • ').isEmpty ||
+                                [
+                                  if (settings.carModel != null &&
+                                      settings.carModel!.isNotEmpty)
+                                    settings.carModel,
+                                  ref.watch(versionNameProvider(
+                                      settings.softwareVersionRef ??
+                                          settings.softwareVersion ??
+                                          '')),
+                                ].join(' • ').contains('...')
+                            ? i18n.t('model_hint')
+                            : [
+                                if (settings.carModel != null &&
+                                    settings.carModel!.isNotEmpty)
+                                  settings.carModel,
+                                ref.watch(versionNameProvider(
+                                    settings.softwareVersionRef ??
+                                        settings.softwareVersion ??
+                                        '')),
+                              ].join(' • '),
                         style: TextStyle(
-                          fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 12,
                         ),
                       ),
-                      if (auth.isSuperUser)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            "SuperUser / Admin",
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const VehicleInfoScreen(
+                              isSettingsMode: true,
                             ),
                           ),
-                        ),
-                      if (auth.user?.getBoolValue('verified') == false)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: GestureDetector(
-                            onTap: () async {
-                              // 点击时先尝试刷新状态，如果还是未验证，再提示发送邮件
-                              await ref
-                                  .read(authProvider.notifier)
-                                  .refreshUserFromServer();
-
-                              if (ref
-                                      .read(authProvider)
-                                      .user
-                                      ?.getBoolValue('verified') ==
-                                  true) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text(i18n.t('verification_success')),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-                                }
-                                return;
-                              }
-
-                              await ref
-                                  .read(authProvider.notifier)
-                                  .requestVerification();
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content:
-                                          Text(i18n.t('verification_sent')),
-                                      backgroundColor: Colors.green),
-                                );
-                              }
-                            },
-                            child: Text(
-                              i18n.t('not_verified'),
-                              style: const TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  trailing: TextButton(
-                    onPressed: () async {
-                      // 使用 Future.wait 并行处理，提高响应速度，但要 await 确保逻辑完成
-                      await Future.wait([
-                        ref.read(authProvider.notifier).logout(),
-                        ref
-                            .read(settingsProvider.notifier)
-                            .clearVehicleSettings(),
-                      ]);
-                    },
-                    child: Text(i18n.t('logout'),
-                        style: const TextStyle(color: Colors.red)),
-                  ),
-                ),
-
-              const Divider(),
-
-              // 账号关联的智驾设置
-              if (auth.isAuthenticated) ...[
-                _buildSectionHeader(context, i18n.t('my_car')),
-                ListTile(
-                  leading: BrandLogo(
-                    brandName: settings.brandRef ?? settings.brand ?? '',
-                    showBackground: true,
-                  ),
-                  title: Row(
-                    children: [
-                      Text(
-                        // 品牌名也增加保护：如果是 15 位 ID 则通过 Provider 查找名称
-                        (settings.brand != null &&
-                                settings.brand!.length == 15 &&
-                                !settings.brand!.contains(' '))
-                            ? ref.watch(brandNameProvider(settings.brand!))
-                            : (settings.brand ??
-                                ref.watch(brandNameProvider(
-                                    settings.brandRef ?? ''))),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVerificationBadge(context, auth, i18n),
-                    ],
-                  ),
-                  subtitle: Text(
-                    [
-                              if (settings.carModel != null &&
-                                  settings.carModel!.isNotEmpty)
-                                settings.carModel,
-                              // 严格切换到 Ref 优先逻辑，屏蔽 ID 泄露
-                              ref.watch(versionNameProvider(
-                                  settings.softwareVersionRef ??
-                                      settings.softwareVersion ??
-                                      '')),
-                            ].join(' • ').isEmpty ||
-                            [
-                              if (settings.carModel != null &&
-                                  settings.carModel!.isNotEmpty)
-                                settings.carModel,
-                              ref.watch(versionNameProvider(
-                                  settings.softwareVersionRef ??
-                                      settings.softwareVersion ??
-                                      '')),
-                            ].join(' • ').contains('...')
-                        ? i18n.t('model_hint')
-                        : [
-                            if (settings.carModel != null &&
-                                settings.carModel!.isNotEmpty)
-                              settings.carModel,
-                            ref.watch(versionNameProvider(
-                                settings.softwareVersionRef ??
-                                    settings.softwareVersion ??
-                                    '')),
-                          ].join(' • '),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
+                        );
+                      },
                     ),
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const VehicleInfoScreen(
-                          isSettingsMode: true,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(),
+                  ],
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // 2. 我的数据卡片
+              if (auth.isAuthenticated) ...[
+                const MyDataCard(),
+                const SizedBox(height: 16),
               ],
 
-              // 主题设置
-              _buildSectionHeader(context, i18n.t('theme')),
-              ListTile(
-                title: Text(i18n.t('theme_auto')),
-                trailing: settings.themeMode == ThemeMode.system
-                    ? const Icon(Icons.check, color: Colors.green)
-                    : null,
-                onTap: () => ref
-                    .read(settingsProvider.notifier)
-                    .setThemeMode(ThemeMode.system),
-              ),
-              ListTile(
-                title: Text(i18n.t('theme_light')),
-                trailing: settings.themeMode == ThemeMode.light
-                    ? const Icon(Icons.check, color: Colors.green)
-                    : null,
-                onTap: () => ref
-                    .read(settingsProvider.notifier)
-                    .setThemeMode(ThemeMode.light),
-              ),
-              ListTile(
-                title: Text(i18n.t('theme_dark')),
-                trailing: settings.themeMode == ThemeMode.dark
-                    ? const Icon(Icons.check, color: Colors.green)
-                    : null,
-                onTap: () => ref
-                    .read(settingsProvider.notifier)
-                    .setThemeMode(ThemeMode.dark),
-              ),
-
-              const Divider(),
-
-              // 语言设置
-              _buildSectionHeader(context, i18n.t('language')),
-              ListTile(
-                title: Text(i18n.t('chinese')),
-                trailing: settings.locale?.languageCode == 'zh'
-                    ? const Icon(Icons.check, color: Colors.green)
-                    : null,
-                onTap: () => ref
-                    .read(settingsProvider.notifier)
-                    .setLocale(const Locale('zh')),
-              ),
-              ListTile(
-                title: Text(i18n.t('english')),
-                trailing: settings.locale?.languageCode == 'en'
-                    ? const Icon(Icons.check, color: Colors.green)
-                    : null,
-                onTap: () => ref
-                    .read(settingsProvider.notifier)
-                    .setLocale(const Locale('en')),
-              ),
-
-              const Divider(),
-              // 负体验音效
-              _buildSectionHeader(context, i18n.t('event_sound')),
-              ListTile(
-                title: Text(i18n.t('event_sound')),
-                subtitle: Text(
-                  i18n.t('event_sound_desc'),
-                  style: const TextStyle(fontSize: 12),
-                ),
-                trailing: _SquareSwitch(
-                  value: settings.isEventSoundEnabled,
-                  onChanged: (value) => ref
-                      .read(settingsProvider.notifier)
-                      .setEventSoundEnabled(value),
-                ),
-              ),
-
-              const Divider(),
-
-              // 关于与更新
-              _buildSectionHeader(context, i18n.t('about')),
-              ListTile(
-                title: Text(
-                  i18n.t('current_version'),
-                  style: const TextStyle(),
-                ),
-                trailing: packageInfo.when(
-                  data: (info) => Text(
-                    'v${info.version}',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  loading: () => const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  error: (_, __) => Text(i18n.t('unknown')),
-                ),
-              ),
-              ListTile(
-                title: Text(
-                  i18n.t('algorithm_version'),
-                  style: const TextStyle(),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'v${algoConfig.version}',
-                      style: const TextStyle(color: Colors.grey),
+              // 3. 偏好设置卡片
+              _buildCard(
+                context,
+                title: i18n.t('preferences'),
+                children: [
+                  // 主题设置
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(i18n.t('theme'), style: const TextStyle(fontSize: 14)),
+                    trailing: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildTabToggleItem(
+                            context,
+                            label: i18n.t('themeAuto'),
+                            isSelected: settings.themeMode == ThemeMode.system,
+                            onTap: () => ref
+                                .read(settingsProvider.notifier)
+                                .setThemeMode(ThemeMode.system),
+                          ),
+                          _buildTabToggleItem(
+                            context,
+                            label: i18n.t('themeLight'),
+                            isSelected: settings.themeMode == ThemeMode.light,
+                            onTap: () => ref
+                                .read(settingsProvider.notifier)
+                                .setThemeMode(ThemeMode.light),
+                          ),
+                          _buildTabToggleItem(
+                            context,
+                            label: i18n.t('themeDark'),
+                            isSelected: settings.themeMode == ThemeMode.dark,
+                            onTap: () => ref
+                                .read(settingsProvider.notifier)
+                                .setThemeMode(ThemeMode.dark),
+                          ),
+                        ],
+                      ),
                     ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
-                  ],
-                ),
-                onTap: () async {
-                  await Navigator.push(
+                  ),
+
+                  // 语言设置
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(i18n.t('language'), style: const TextStyle(fontSize: 14)),
+                    trailing: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildTabToggleItem(
+                            context,
+                            label: i18n.t('chinese'),
+                            isSelected: settings.locale?.languageCode == 'zh',
+                            onTap: () => ref
+                                .read(settingsProvider.notifier)
+                                .setLocale(const Locale('zh')),
+                          ),
+                          _buildTabToggleItem(
+                            context,
+                            label: i18n.t('english'),
+                            isSelected: settings.locale?.languageCode == 'en',
+                            onTap: () => ref
+                                .read(settingsProvider.notifier)
+                                .setLocale(const Locale('en')),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 负体验音效
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(i18n.t('event_sound'),
+                        style: const TextStyle(fontSize: 14)),
+                    subtitle: Text(
+                      i18n.t('event_sound_desc'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: _SquareSwitch(
+                      value: settings.isEventSoundEnabled,
+                      onChanged: (value) => ref
+                          .read(settingsProvider.notifier)
+                          .setEventSoundEnabled(value),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // 4. 关于与支持卡片
+              _buildCard(
+                context,
+                title: i18n.t('about'),
+                children: [
+                  _buildAboutTile(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const AlgorithmConfigScreen(),
+                    title: i18n.t('current_version'),
+                    trailing: packageInfo.when(
+                      data: (info) => Text('v${info.version}',
+                          style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                      loading: () => const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      error: (_, __) => Text(i18n.t('unknown')),
                     ),
-                  );
-                },
-              ),
-              if (Theme.of(context).platform == TargetPlatform.android)
-                ListTile(
-                  title: Text(
-                    i18n.t('check_update'),
-                    style: const TextStyle(),
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                  onTap: () {
-                    UpdateService.checkUpdate(context, showNoUpdate: true);
-                  },
-                ),
-              ListTile(
-                title: Text(
-                  i18n.t('privacy_policy'),
-                  style: const TextStyle(),
-                ),
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                onTap: () {
-                  launchUrl(
-                    Uri.parse('https://hkgood.github.io/puked-privacy/'),
-                    mode: LaunchMode.inAppWebView,
-                  );
-                },
+                  _buildAboutTile(
+                    context,
+                    title: i18n.t('algorithm_version'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('v${algoConfig.version}',
+                            style:
+                                const TextStyle(color: Colors.grey, fontSize: 13)),
+                        const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                      ],
+                    ),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const AlgorithmConfigScreen()),
+                    ),
+                  ),
+                  if (Theme.of(context).platform == TargetPlatform.android)
+                    _buildAboutTile(
+                      context,
+                      title: i18n.t('check_update'),
+                      trailing:
+                          const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                      onTap: () =>
+                          UpdateService.checkUpdate(context, showNoUpdate: true),
+                    ),
+                  _buildAboutTile(
+                    context,
+                    title: i18n.t('privacy_policy'),
+                    trailing:
+                        const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                    onTap: () => launchUrl(
+                      Uri.parse('https://hkgood.github.io/puked-privacy/'),
+                      mode: LaunchMode.inAppWebView,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 32),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _buildCard(BuildContext context,
+      {String? title, required List<Widget> children}) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null) ...[
+              Text(title, style: _headerStyle(context)),
+              const SizedBox(height: 16),
+            ],
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabToggleItem(BuildContext context,
+      {required String label,
+      required bool isSelected,
+      required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Text(
+          label, // 移除 .toUpperCase()
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold, // 适当降低加粗，避免太拥挤
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+    );
+  }
+
+  TextStyle _headerStyle(BuildContext context) => TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+        color: Theme.of(context).colorScheme.primary,
+        letterSpacing: 0.5,
+      );
+
+  Widget _buildSectionSubHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.7),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutTile(
+    BuildContext context, {
+    required String title,
+    required Widget trailing,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Text(title, style: const TextStyle(fontSize: 14)),
+            const Spacer(),
+            trailing,
+          ],
+        ),
+      ),
+    );
+  }
+
 
   void _showAuthPage(BuildContext context) {
     Navigator.push(
@@ -454,6 +593,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _handleUpdateAvatar(BuildContext context, WidgetRef ref) async {
+    final i18n = ref.read(i18nProvider); // 定义 i18n
     final picker = ImagePicker();
     final image = await picker.pickImage(
       source: ImageSource.gallery,
@@ -462,6 +602,7 @@ class SettingsScreen extends ConsumerWidget {
 
     if (image == null) return;
 
+    if (!context.mounted) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
     final toolbarColor = isDark
@@ -478,14 +619,18 @@ class SettingsScreen extends ConsumerWidget {
       compressQuality: 85,
       uiSettings: [
         AndroidUiSettings(
-          toolbarTitle: 'Crop Avatar',
+          toolbarTitle: i18n.t('crop_avatar'),
           toolbarColor: toolbarColor,
           statusBarColor: toolbarColor,
           backgroundColor: backgroundColor,
           toolbarWidgetColor: Colors.white,
-          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          activeControlsWidgetColor: isDark
+              ? const Color(0xFF1A1A1A)
+              : Theme.of(context).colorScheme.primary,
           dimmedLayerColor: isDark ? Colors.black.withValues(alpha: 0.8) : null,
-          cropFrameColor: Theme.of(context).colorScheme.primary,
+          cropFrameColor: isDark
+              ? const Color(0xFF1A1A1A)
+              : Theme.of(context).colorScheme.primary,
           cropGridColor: Colors.white.withValues(alpha: 0.5),
           initAspectRatio: CropAspectRatioPreset.square,
           lockAspectRatio: true,
@@ -493,7 +638,7 @@ class SettingsScreen extends ConsumerWidget {
           showCropGrid: true,
         ),
         IOSUiSettings(
-          title: 'Crop Avatar',
+          title: i18n.t('crop_avatar'),
           aspectRatioLockEnabled: true,
           resetAspectRatioEnabled: false,
           hidesNavigationBar: false,
@@ -509,8 +654,8 @@ class SettingsScreen extends ConsumerWidget {
           .updateAvatar(File(croppedFile.path));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Avatar updated successfully'),
+          SnackBar(
+            content: Text(i18n.t('avatar_updated')),
             backgroundColor: Colors.green,
           ),
         );
@@ -519,25 +664,12 @@ class SettingsScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update avatar: $e'),
+            content: Text("${i18n.t('update_avatar_failed')}: $e"),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
-  }
-
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-      ),
-    );
   }
 
   Widget _buildVerificationBadge(

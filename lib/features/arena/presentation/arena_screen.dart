@@ -26,26 +26,20 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 自动刷新云端数据 (使用静默刷新，只有数据变化才更新 UI)
-      ref.read(arenaCloudTripsProvider.notifier).refresh(force: false);
-
-      final arena = ref.read(arenaProvider);
-      setState(() {
-        _card2Brand = arena.getDefaultBrand();
-        _card3Brand = arena.getDefaultBrand();
-      });
+      // 自动刷新统计快照 (核心优化：极速加载)
+      ref.read(arenaStatsProvider.notifier).refresh(force: false);
     });
   }
 
   Future<void> _onRefresh() async {
-    // 手动刷新时强制更新
-    await ref.read(arenaCloudTripsProvider.notifier).refresh(force: true);
+    // 手动刷新时强制更新 (触发云端重新计算)
+    await ref.read(arenaStatsProvider.notifier).refresh(force: true);
   }
 
   @override
   Widget build(BuildContext context) {
     final i18n = ref.watch(i18nProvider);
-    final cloudTripsAsync = ref.watch(arenaCloudTripsProvider);
+    final statsAsync = ref.watch(arenaStatsProvider);
     final arena = ref.watch(arenaProvider);
 
     return Scaffold(
@@ -53,7 +47,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
         title: Text(i18n.t('arena')),
         actions: [
           // 在 AppBar 右侧显示同步状态
-          cloudTripsAsync.maybeWhen(
+          statsAsync.maybeWhen(
             loading: () => Container(
               margin: const EdgeInsets.only(right: 16),
               width: 16,
@@ -72,8 +66,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
         right: true,
         top: false,
         bottom: false,
-        child: cloudTripsAsync.when(
-          skipLoadingOnReload: true, // 关键：重载时不显示 loading 状态，保持现有数据
+        child: statsAsync.when(
+          skipLoadingOnReload: true,
           loading: () => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -112,19 +106,29 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  i18n.locale.languageCode == 'zh'
-                      ? '正在连接到全球竞技场...'
-                      : 'Connecting to Global Arena...',
+                  i18n.t('fetching_arena_data'),
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.outline,
                   ),
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  i18n.t('arena_mileage_requirement'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.5),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
-          error: (err, stack) => cloudTripsAsync.hasValue
-              ? _buildArenaContent(arena, i18n, cloudTripsAsync.value!)
+          error: (err, stack) => statsAsync.hasValue
+              ? _buildArenaContent(arena, i18n)
               : ListView(
                   children: [
                     SizedBox(
@@ -139,7 +143,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                             Text('Error: $err'),
                             TextButton(
                               onPressed: _onRefresh,
-                              child: const Text('Retry'),
+                              child: Text(i18n.t('retry')),
                             ),
                           ],
                         ),
@@ -147,17 +151,15 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                     ),
                   ],
                 ),
-          data: (trips) => _buildArenaContent(arena, i18n, trips),
+          data: (stats) => _buildArenaContent(arena, i18n),
         ),
       ),
     );
   }
 
-  Widget _buildArenaContent(
-      ArenaService arena, dynamic i18n, List<dynamic> trips) {
-    return trips.isEmpty
+  Widget _buildArenaContent(ArenaService arena, dynamic i18n) {
+    return arena.stats.isEmpty
         ? ListView(
-            // 使用 ListView 确保在空状态下也能响应布局
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               SizedBox(
@@ -197,6 +199,27 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                   _buildCard2(arena, i18n),
                   const SizedBox(height: 16),
                   _buildCard3(arena, i18n),
+                  const SizedBox(height: 32),
+                  // 底部提示文字
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        i18n.t('arena_mileage_requirement').toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withValues(alpha: 0.5),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -331,8 +354,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                         decoration: BoxDecoration(
                           color: Theme.of(context)
                               .colorScheme
-                              .primary
-                              .withValues(alpha: 0.1),
+                              .primaryContainer, // 使用容器背景色
                           shape: BoxShape.circle,
                           image: item.avatarUrl != null
                               ? DecorationImage(
@@ -343,8 +365,10 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                         ),
                         child: item.avatarUrl == null
                             ? Icon(
-                                Icons.person_outline,
-                                color: Theme.of(context).colorScheme.primary,
+                                Icons.person, // 换成实心图标
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
                                 size: 24,
                               )
                             : null,
@@ -529,6 +553,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                     // 1. Logo
                     BrandLogo(
                       brandName: item.brand,
+                      overrideLogoUrl: item.logoUrl, // 关键：使用云端 Logo URL
                       size: logoSize,
                       padding: 8,
                       showBackground: true,
@@ -701,6 +726,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                       ),
                       BrandLogo(
                         brandName: item.brand,
+                        overrideLogoUrl: item.logoUrl,
                         size: logoSize,
                         padding: 8,
                         showBackground: true,
@@ -900,6 +926,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                     ),
                     BrandLogo(
                       brandName: item.brand,
+                      overrideLogoUrl: item.logoUrl,
                       size: logoSize,
                       padding: 8,
                       showBackground: true,
@@ -1117,6 +1144,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                 ),
                 BrandLogo(
                   brandName: brandKey,
+                  overrideLogoUrl: arena.getBrandLogoUrl(brandKey), // 使用合并后的 Logo URL
                   size: 42,
                   padding: 8,
                   showBackground: true,
@@ -1143,18 +1171,30 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              getTitlesWidget: (value, meta) {
+                              reservedSize: 32,
+                              interval: 1,
+                          getTitlesWidget: (value, meta) {
                                 final index = value.toInt();
                                 if (index < 0 ||
                                     index >= data.evolution.length) {
                                   return const SizedBox();
                                 }
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(data.evolution[index].version,
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold)),
+                                final version = data.evolution[index].version;
+                                if (version.isEmpty) return const SizedBox();
+                                
+                                return SideTitleWidget(
+                                  meta: meta,
+                                  space: 4, // 减少间距防止挤出显示区域
+                                  child: Text(
+                                    version,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 9, // 稍微减小字体
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
                                 );
                               },
                             ),
@@ -1362,19 +1402,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   void _showVersionPicker(BuildContext context, dynamic i18n, String brandKey,
       Function(String?) onSelected) {
     final arena = ref.read(arenaProvider);
-    // 从真实行程数据中提取该品牌的所有版本，支持 ID 或 名称匹配
-    final versions = arena.trips
-        .where((t) =>
-            arena.getCanonicalBrandKey(t) == brandKey &&
-            (t.software_version_ref != null || t.softwareVersion != null))
-        .map((t) => arena.getCanonicalVersionKey(t))
-        .toSet()
-        .toList();
-
-    // 转换版本 Key 为显示名称
-    final Map<String, String> displayNames = {
-      for (var v in versions) v: arena.getVersionName(v)
-    };
+    // 从预计算的进化数据中提取该品牌的所有版本
+    final evoData = arena.getEvolutionData(brandKey);
+    final versions = evoData.evolution.map((e) => e.version).toList();
 
     final List<String?> options = [null, ...versions];
 
@@ -1389,7 +1419,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
               final v = options[index];
               return ListTile(
                 title:
-                    Text(v == null ? i18n.t('all_versions') : displayNames[v]!),
+                    Text(v == null ? i18n.t('all_versions') : v),
                 onTap: () {
                   onSelected(v);
                   Navigator.pop(context);

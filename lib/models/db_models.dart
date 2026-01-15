@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:isar/isar.dart';
 
 part 'db_models.g.dart';
@@ -24,6 +25,7 @@ class Trip {
   String? platform;
   String? algorithm;
   String? notes;
+  String? metricsJson; // 新增：专门存储计算后的统计信息 (JSON)
 
   @ignore
   String? userName;
@@ -53,6 +55,68 @@ class Trip {
   int eventCount = 0;
   double distance = 0.0;
 
+  /// 优先从 metricsJson 中解析，兼容老的 notes 解析逻辑
+  @ignore
+  Map<String, dynamic>? get cloudMetrics {
+    // 1. 优先读取专门的字段
+    if (metricsJson != null && metricsJson!.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(metricsJson!);
+        return (decoded['metrics'] ?? decoded) as Map<String, dynamic>?;
+      } catch (_) {}
+    }
+
+    // 2. 兼容老版本存储在 notes 里的逻辑
+    if (notes != null && notes!.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(notes!);
+        return decoded['metrics'] as Map<String, dynamic>?;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// 获取平均车速的显示文本
+  String getAvgSpeedDisplay(String fallback) {
+    final metrics = cloudMetrics;
+    if (metrics != null && metrics.containsKey('avg_speed_kmh')) {
+      final val = metrics['avg_speed_kmh'].toString();
+      return "$val km/h";
+    }
+    
+    if (endTime != null && distance > 0) {
+      final durationSeconds = endTime!.difference(startTime).inSeconds.abs();
+      if (durationSeconds > 0) {
+        final speed = (distance / 1000) / (durationSeconds / 3600);
+        return "${speed.toStringAsFixed(1)} km/h";
+      }
+    }
+    return fallback;
+  }
+
+  /// 获取时长的显示文本
+  String getDurationDisplay(String unit, String fallback) {
+    final metrics = cloudMetrics;
+    if (metrics != null && metrics.containsKey('duration_min')) {
+      return "${metrics['duration_min']} $unit";
+    }
+
+    if (endTime != null) {
+      return "${endTime!.difference(startTime).inMinutes.abs()} $unit";
+    }
+    return fallback;
+  }
+
+  /// 获取距离的显示文本
+  String getDistanceDisplay() {
+    final metrics = cloudMetrics;
+    if (metrics != null && metrics.containsKey('distance_km')) {
+      final val = metrics['distance_km'].toString();
+      return "$val km";
+    }
+    return "${(distance / 1000).toStringAsFixed(2)} km";
+  }
+
   /// 检查行程数据是否充足
   /// 1. 里程 >= 500m
   /// 2. 时长 >= 120s (2分钟)
@@ -72,6 +136,22 @@ class Trip {
     if (avgSpeedKmh < 2.0) return false;
 
     return true;
+  }
+
+  /// 辅助方法：生成用于本地或云端的 metrics Map
+  Map<String, dynamic> generateMetrics() {
+    final durationMin = endTime != null ? endTime!.difference(startTime).inMinutes : 0;
+    final durationSec = endTime != null ? endTime!.difference(startTime).inSeconds : 1;
+    final avgSpeedKmh = (endTime != null && distance > 0)
+        ? (distance / 1000 / (durationSec / 3600)).toStringAsFixed(1)
+        : "0.0";
+
+    return {
+      "distance_km": (distance / 1000).toStringAsFixed(2),
+      "event_count": eventCount,
+      "duration_min": durationMin,
+      "avg_speed_kmh": avgSpeedKmh,
+    };
   }
 }
 
@@ -141,9 +221,7 @@ class RecordedEvent {
   double? speed; // 新增：记录触发时的融合车速 (m/s)
   double? gForce; // 新增：记录触发时的 G 值
 
-  // 存储传感器波形片段，由于 Isar 不直接支持自定义对象列表的嵌套存储，
-  // 我们将传感器数据序列化为 JSON 字符串存储，或者使用嵌入式类。
-  // 为了性能，我们这里使用 List<SensorPointEmbedded>。
+  // 存储传感器波形片段
   late List<SensorPointEmbedded> sensorData;
 }
 

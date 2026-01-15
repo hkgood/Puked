@@ -95,27 +95,29 @@ class MetadataSyncService {
   /// 从云端拉取品牌和版本数据并同步到本地 Isar
   Future<void> syncBrandsFromCloud() async {
     try {
-      debugPrint('Starting metadata sync from cloud...');
+      debugPrint('[MetadataSync] >>> ENTERING syncBrandsFromCloud');
 
-      // --- 【深度清洗】强制清理本地数据库中的脏数据 ---
+      // 1. 清理脏数据
+      debugPrint('[MetadataSync] Step 1: Cleaning dirty local metadata...');
       await _storage.cleanupDirtyMetadata();
+      debugPrint('[MetadataSync] Step 1: Success.');
 
-      // 1. 从 PocketBase 获取所有品牌（包含已禁用的，以便更新本地状态）
+      // 2. 网络请求
+      debugPrint('[MetadataSync] Step 2: Fetching brands from PocketBase...');
       final remoteBrands = await _pbService.pb.collection('brands').getFullList(
             sort: 'order',
           );
+      debugPrint('[MetadataSync] Step 2: Success. Cloud returned ${remoteBrands.length} brands.');
 
-      debugPrint('Cloud returned ${remoteBrands.length} brands.');
-
-      // 2. 将云端数据转换为本地模型并存入 Isar
+      // 3. 写入品牌
+      debugPrint('[MetadataSync] Step 3: Updating local Brand table...');
       final List<Brand> brandsToStore = [];
-      int disabledCount = 0;
       for (var record in remoteBrands) {
+        final name = record.getStringValue('name').trim();
         final isEnabled = record.getBoolValue('isEnabled');
-        if (!isEnabled) disabledCount++;
-
+        
         final brand = Brand()
-          ..name = record.getStringValue('name')
+          ..name = name
           ..cloudId = record.id
           ..displayName = record.getStringValue('displayName')
           ..logoUrl = record.getStringValue('logo').isNotEmpty
@@ -131,32 +133,40 @@ class MetadataSyncService {
       }
 
       await _storage.updateBrandsFromRemote(brandsToStore);
-      debugPrint(
-          'Local database updated. (${brandsToStore.length} total, $disabledCount disabled)');
+      debugPrint('[MetadataSync] Step 3: Local Brands updated.');
 
-      // 3. 异步拉取版本信息
-      for (var brandRecord in remoteBrands) {
-        if (!brandRecord.getBoolValue('isEnabled')) continue;
+      // 4. 并行拉取版本
+      debugPrint('[MetadataSync] Step 4: Starting parallel version sync...');
+      int successCount = 0;
+      int failCount = 0;
 
-        final brandName = brandRecord.getStringValue('name');
-        final remoteVersions = await _pbService.pb
-            .collection('software_versions')
-            .getFullList(
-                filter: 'brand = "${brandRecord.id}" && isEnabled = true');
+      await Future.wait(remoteBrands.map((brandRecord) async {
+        final brandName = brandRecord.getStringValue('name').trim();
+        try {
+          final remoteVersions = await _pbService.pb
+              .collection('software_versions')
+              .getFullList(
+                  filter: 'brand = "${brandRecord.id}"');
 
-        for (var vRecord in remoteVersions) {
-          await _storage.addVersion(
-            brandName,
-            vRecord.getStringValue('versionString'),
-            cloudId: vRecord.id,
-            isCustom: vRecord.getBoolValue('isCustom'),
-          );
+          for (var vRecord in remoteVersions) {
+            await _storage.addVersion(
+              brandName,
+              vRecord.getStringValue('versionString').trim(),
+              cloudId: vRecord.id,
+              isCustom: vRecord.getBoolValue('isCustom'),
+            );
+          }
+          successCount++;
+        } catch (e) {
+          failCount++;
+          debugPrint('[MetadataSync] !! Error for $brandName: $e');
         }
-      }
+      }));
 
-      debugPrint('Metadata sync from cloud completed successfully.');
-    } catch (e) {
-      debugPrint('Error syncing metadata from cloud: $e');
+      debugPrint('[MetadataSync] <<< EXITING syncBrandsFromCloud. Success: $successCount, Fail: $failCount');
+    } catch (e, stack) {
+      debugPrint('[MetadataSync] !!! CRITICAL ERROR in syncBrandsFromCloud: $e');
+      debugPrint('[MetadataSync] StackTrace: $stack');
     }
   }
 }

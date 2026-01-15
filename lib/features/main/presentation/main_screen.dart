@@ -64,7 +64,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         });
                         // 每次点击 Arena 标签时，主动触发云端数据刷新
                         if (index == 1) {
-                          ref.read(arenaCloudTripsProvider.notifier).refresh();
+                          ref.read(arenaStatsProvider.notifier).refresh();
                         }
                       },
                       destinations: [

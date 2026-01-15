@@ -38,8 +38,8 @@ void main() async {
       await container.read(storageServiceProvider).init();
       // 启动后尝试同步元数据
       await container.read(metadataSyncServiceProvider).syncBrandsFromCloud();
-      // 主动触发一次 Arena 数据加载
-      await container.read(arenaCloudTripsProvider.notifier).refresh();
+      // 主动触发一次 Arena 统计快照加载
+      await container.read(arenaStatsProvider.notifier).refresh();
     } catch (e) {
       debugPrint('Initialization error: $e');
     }

@@ -1,6 +1,7 @@
 class BrandData {
   final String brand; // Canonical Key (ID or Name)
   final String? brandName; // Display Name for Brand
+  final String? logoUrl; // 远程 Logo URL (从 expand 中提取)
   final String? version; // Canonical Key (ID or String)
   final String? versionName; // Display Name for Version
   final double? kmPerEvent; // 公里/次
@@ -11,6 +12,7 @@ class BrandData {
   BrandData({
     required this.brand,
     this.brandName,
+    this.logoUrl,
     this.version,
     this.versionName,
     this.kmPerEvent,

@@ -1,16 +1,18 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/cloud_trip_service.dart';
 import 'package:puked/services/pocketbase_service.dart';
+import 'package:puked/services/metadata_sync_service.dart';
 import 'package:puked/models/db_models.dart';
 import '../models/arena_data.dart';
 
-final arenaBrandsProvider = StreamProvider<List<Brand>>((ref) {
-  final storage = ref.read(storageServiceProvider);
-  return storage.watchBrands();
+final arenaBrandsProvider = Provider<AsyncValue<List<Brand>>>((ref) {
+  return ref.watch(allBrandsProvider);
 });
 
 final arenaTripsProvider = StreamProvider<List<Trip>>((ref) {
@@ -18,52 +20,48 @@ final arenaTripsProvider = StreamProvider<List<Trip>>((ref) {
   return storage.watchTrips();
 });
 
-/// 云端公开行程 Provider
-final arenaCloudTripsProvider =
-    StateNotifierProvider<ArenaCloudTripsNotifier, AsyncValue<List<Trip>>>(
+/// 云端统计快照 Provider (核心优化：不再拉取全量行程)
+final arenaStatsProvider =
+    StateNotifierProvider<ArenaStatsNotifier, AsyncValue<Map<String, dynamic>>>(
         (ref) {
-  return ArenaCloudTripsNotifier(ref);
+  return ArenaStatsNotifier(ref);
 });
 
-class ArenaCloudTripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
+class ArenaStatsNotifier
+    extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
   final Ref ref;
-  ArenaCloudTripsNotifier(this.ref) : super(const AsyncValue.loading());
+  ArenaStatsNotifier(this.ref) : super(const AsyncValue.loading());
 
   Future<void> refresh({bool force = false}) async {
-    // 如果没有数据或者是强制刷新，显示加载状态
+    // 核心追踪：只要进入 refresh，无论是否强制，都先打一行 log
+    debugPrint('[Arena] Refresh called. force: $force, hasValue: ${state.hasValue}');
+
     if (!state.hasValue || force) {
       state = const AsyncValue.loading();
     }
 
     try {
       final cloudService = ref.read(cloudTripServiceProvider);
-      final prefs = ref.read(sharedPreferencesProvider);
+      final metadataService = ref.read(metadataSyncServiceProvider);
 
-      // 如果不是强制刷新，先检查总数是否有变化
-      if (!force) {
-        final currentCount = await cloudService.getTotalPublicTripsCount();
-        final lastCount = prefs.getInt('last_arena_total_trips') ?? -1;
+      // 只要进入 Arena 页面就尝试同步一次元数据 (不再受 force 限制)
+      // 这样即便后台开启了新品牌，用户一进来就能同步到
+      debugPrint('[MetadataSync] Starting background metadata sync...');
+      await metadataService.syncBrandsFromCloud();
+      
+      // 给数据库写入留一点缓冲
+      await Future.delayed(const Duration(milliseconds: 200));
 
-        // 如果总数没变，且已经有数据，则跳过刷新
-        if (currentCount != -1 && currentCount == lastCount && state.hasValue) {
-          return;
-        }
-
-        // 更新记录的总数
-        if (currentCount != -1) {
-          await prefs.setInt('last_arena_total_trips', currentCount);
-        }
-      } else {
-        // 强制刷新时，也尝试更新总数记录
-        final currentCount = await cloudService.getTotalPublicTripsCount();
-        if (currentCount != -1) {
-          await prefs.setInt('last_arena_total_trips', currentCount);
-        }
+      // 如果是强制刷新，先触发云端重新计算统计数据
+      if (force) {
+        debugPrint('[Arena] Triggering cloud stats recalculation...');
+        await cloudService.triggerArenaSync();
       }
 
-      final trips = await cloudService.fetchPublicTrips();
-      state = AsyncValue.data(trips);
+      final stats = await cloudService.fetchArenaStats();
+      state = AsyncValue.data(stats);
     } catch (e, stack) {
+      debugPrint('[Arena] Error in refresh: $e');
       state = AsyncValue.error(e, stack);
     }
   }
@@ -82,34 +80,515 @@ final arenaProvider = Provider((ref) {
       loading: () => <SoftwareVersion>[],
       error: (_, __) => <SoftwareVersion>[]);
 
-  // 监听云端公开行程 (Arena 只统计云端公开数据)
-  final cloudTripsAsync = ref.watch(arenaCloudTripsProvider);
-  final cloudTrips = cloudTripsAsync.when(
-      data: (d) => d, loading: () => <Trip>[], error: (_, __) => <Trip>[]);
+  // 监听原始统计数据 (从 trip_stats_summary 获取)
+  final statsAsync = ref.watch(arenaStatsProvider);
+  final rawStats = statsAsync.when(
+      data: (d) => d,
+      loading: () => <String, dynamic>{},
+      error: (_, __) => <String, dynamic>{});
 
-  return ArenaService(ref, brands, versions, cloudTrips);
+  return ArenaService(ref, brands, versions, rawStats);
 });
 
 class ArenaService {
   final Ref _ref;
-  final List<Brand> brands;
+  final List<Brand> localBrands;
   final List<SoftwareVersion> versions;
-  final List<Trip> trips;
+  final Map<String, dynamic> rawStats;
+  late final Map<String, dynamic> _processedStats;
+  late final List<Brand> _mergedBrands; // 合并了统计数据中发现的新品牌
 
-  ArenaService(this._ref, this.brands, this.versions, this.trips);
+  Map<String, dynamic> get stats => _processedStats;
+  List<Brand> get availableBrands => _mergedBrands;
 
-  List<Brand> get availableBrands => brands;
+  ArenaService(this._ref, this.localBrands, this.versions, this.rawStats) {
+    _processedStats = _processRawStats(rawStats);
+    _mergedBrands = _buildMergedBrands();
+  }
 
+  /// 合并本地品牌库和从统计数据中通过 expand 获取到的实时品牌信息
+  List<Brand> _buildMergedBrands() {
+    // 1. 先加入本地已启用的品牌 (这些是用户在 Web 后台明确开启的)
+    // 增加 .distinct() 逻辑，防止本地数据库由于大小写同步问题出现重复项
+    final Map<String, Brand> brandMap = {};
+
+    for (var b in localBrands) {
+      final lowerName = b.name.toLowerCase();
+      // 如果品牌已启用，或者该 Key 尚未在 Map 中，则添加/更新
+      if (b.isEnabled || !brandMap.containsKey(lowerName)) {
+        brandMap[lowerName] = b;
+      }
+    }
+
+    final allSummary = rawStats['all_summary'] as List<RecordModel>? ?? [];
+    for (final s in allSummary) {
+      final brandRecord = s.expand['brand']?.firstOrNull;
+      if (brandRecord == null) continue;
+
+      final brandName = brandRecord.getStringValue('name');
+      if (brandName.isEmpty) continue;
+
+      final logoFile = brandRecord.getStringValue('logo');
+      final cloudLogoUrl = logoFile.isNotEmpty
+          ? _ref
+              .read(pbServiceProvider)
+              .pb
+              .files
+              .getUrl(brandRecord, logoFile)
+              .toString()
+          : null;
+
+      final lowerName = brandName.toLowerCase();
+      if (brandMap.containsKey(lowerName)) {
+        final local = brandMap[lowerName]!;
+        // 核心修复：如果在统计数据中发现了该品牌，强制将其设为启用，确保 UI 显示
+        local.isEnabled = true;
+        
+        if (local.logoUrl == null || local.logoUrl!.isEmpty) {
+          local.logoUrl = cloudLogoUrl;
+        }
+        if (local.cloudId == null || local.cloudId!.isEmpty) {
+          local.cloudId = brandRecord.id;
+        }
+      } else {
+        // 如果本地没有，但在统计数据中有记录，说明该品牌有历史数据，强制显示
+        final newBrand = Brand()
+          ..name = brandName
+          ..displayName = brandName
+          ..cloudId = brandRecord.id
+          ..logoUrl = cloudLogoUrl
+          ..isEnabled = true;
+        brandMap[lowerName] = newBrand;
+      }
+    }
+
+    // 2. 最终过滤：只显示已启用的品牌 (或者统计数据中强制发现的)
+    final result = brandMap.values.where((b) => b.isEnabled).toList();
+
+    result.sort((a, b) {
+      // 1. "Others" 品牌强制排在最后 (不分大小写)
+      if (a.name.toLowerCase() == 'others') return 1;
+      if (b.name.toLowerCase() == 'others') return -1;
+
+      // 2. 其余品牌按 order 排序，若 order 相同按名称字母排序
+      final int orderCompare = (a.order ?? 999).compareTo(b.order ?? 999);
+      if (orderCompare != 0) return orderCompare;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+
+    return result;
+  }
+
+  Map<String, dynamic> _processRawStats(Map<String, dynamic> raw) {
+    final allSummary = raw['all_summary'] as List<RecordModel>? ?? [];
+    final weeklySummary = raw['weekly_summary'] as List<RecordModel>? ?? [];
+
+    final stats = <String, dynamic>{
+      'ranking_brand': [],
+      'ranking_version': [],
+      'ranking_city': [],
+      'ranking_highway': [],
+      'mileage': [],
+      'leaderboard_total': [],
+      'leaderboard_weekly': [],
+      'brand_options': [],
+      'global_summary': {
+        'globalTotalMileage': 0.0,
+        'totalUsers': 0,
+      }
+    };
+
+    final brandMap = <String, dynamic>{};
+    final brandCityMap = <String, dynamic>{};
+    final brandHighwayMap = <String, dynamic>{};
+    final versionMap = <String, dynamic>{};
+    final userTotalMap = <String, dynamic>{};
+    final userWeeklyMap = <String, dynamic>{};
+
+    if (allSummary.isEmpty) return stats;
+
+    // 用于计算全局总量
+    double globalTotalMileage = 0;
+    final Set<String> uniqueUsers = {};
+
+    // --- 处理全量数据 (严格对齐 Web 端) ---
+    for (final s in allSummary) {
+      final brandId = s.getStringValue('brand');
+      final brandRecord = s.expand['brand']?.firstOrNull;
+      
+      // 累加全局里程
+      final dist = (s.get<num>('total_distance') ?? 0).toDouble();
+      globalTotalMileage += dist;
+      
+      final userId = s.getStringValue('user');
+      if (userId.isNotEmpty) uniqueUsers.add(userId);
+
+      final brandName = brandRecord?.getStringValue('name') ?? 'Unknown';
+
+      // 提取品牌 Logo URL (关键：解决 ADAS 品牌 Logo 无法显示的问题)
+      String? brandLogoUrl;
+      final logoFile = brandRecord?.getStringValue('logo') ?? '';
+      if (logoFile.isNotEmpty && brandRecord != null) {
+        brandLogoUrl = _ref
+            .read(pbServiceProvider)
+            .pb
+            .files
+            .getUrl(brandRecord, logoFile)
+            .toString();
+      }
+
+      final versionId = s.getStringValue('software_version');
+      // 兼容性修复：尝试多种可能的 expand key
+      final versionRecord = s.expand['software_version']?.firstOrNull ?? 
+                           s.expand['software_versions']?.firstOrNull;
+      
+      // 核心修复：极致增强版本号解析。
+      // 优先级 1: 统计数据中的 software_version 关联记录 (处理空字符串 fallback)
+      final vn = versionRecord?.getStringValue('version_name') ?? '';
+      final vs = versionRecord?.getStringValue('versionString') ?? '';
+      String versionName = vn.isNotEmpty ? vn : vs;
+
+      if (versionName.isEmpty) {
+        // 尝试从本地库匹配 (兜底)
+        final localVersion = versions.firstWhere(
+          (v) => v.cloudId == versionId || v.versionString == versionId,
+          orElse: () => SoftwareVersion()..versionString = '',
+        );
+        versionName = localVersion.versionString;
+      }
+
+      if (versionName.isEmpty) {
+        // 如果还是空的，尝试从 key 解析 (key 格式通常为: brandId_versionId_scenario)
+        final keyParts = s.getStringValue('key').split('_');
+        if (keyParts.length >= 2) {
+          // 如果第二部分不全是小写字母数字（即含有点、横杠等版本特征），则认为是版本号
+          // 或者如果它虽然是小写字母数字但不是 15 位（PB ID 的特征），也认为是版本号
+          final part = keyParts[1];
+          final isPbId = part.length == 15 && RegExp(r'^[a-z0-9]+$').hasMatch(part);
+          if (!isPbId) {
+            versionName = part;
+          }
+        }
+      }
+      
+      if (versionName.isEmpty) {
+        versionName = 'Unknown';
+      }
+
+      final userRecord = s.expand['user']?.firstOrNull;
+
+      String userName = userRecord?.getStringValue('username') ?? '';
+      if (userName.isEmpty) userName = userRecord?.getStringValue('name') ?? '';
+      if (userName.isEmpty) userName = 'Anonymous';
+
+      final avatar = userRecord?.getStringValue('avatar') ?? '';
+      final avatarUrl = (avatar.isNotEmpty && userRecord != null)
+          ? _ref
+              .read(pbServiceProvider)
+              .pb
+              .files
+              .getUrl(userRecord, avatar)
+              .toString()
+          : null;
+
+      final totalDistance = (s.get<num>('total_distance') ?? 0).toDouble();
+      final totalEvents = (s.get<num>('total_events') ?? 0).toInt();
+      final tripCount = (s.get<num>('trip_count') ?? 0).toInt();
+
+      // 解析速度分布
+      final speedDist = s.get<Map<String, dynamic>?>('speed_dist') ?? {};
+      double h = 0, sm = 0, u = 0, c = 0;
+      if (speedDist.isNotEmpty) {
+        h = (speedDist['highway'] as num? ?? 0).toDouble();
+        sm = (speedDist['smooth'] as num? ?? 0).toDouble();
+        u = (speedDist['urban'] as num? ?? 0).toDouble();
+        c = (speedDist['congested'] as num? ?? 0).toDouble();
+      }
+
+      // 1. 基础品牌初始化
+      brandMap.putIfAbsent(
+          brandId,
+          () => {
+                'id': brandId,
+                'name': brandName,
+                'logoUrl': brandLogoUrl, // 存储云端 Logo
+                'totalKm': 0.0,
+                'totalEvents': 0,
+                'tripCount': 0,
+                'mileage_buckets': {
+                  'h80': 0.0,
+                  'm5080': 0.0,
+                  'l2050': 0.0,
+                  'c20': 0.0
+                },
+                'event_breakdown': {
+                  'rapidAcceleration': 0,
+                  'rapidDeceleration': 0,
+                  'jerk': 0,
+                  'bump': 0,
+                  'wobble': 0
+                }
+              });
+
+      final b = brandMap[brandId];
+      b['totalKm'] += totalDistance;
+      b['totalEvents'] += totalEvents;
+      b['tripCount'] += tripCount;
+
+      b['mileage_buckets']['h80'] += h;
+      b['mileage_buckets']['m5080'] += sm;
+      b['mileage_buckets']['l2050'] += u;
+      b['mileage_buckets']['c20'] += c;
+
+      // 2. 场景聚合 (深度对齐 Web 端逻辑：优先使用 scenario 字段)
+      final keyStr = s.getStringValue('key');
+      final scenario = s.getStringValue('scenario').isNotEmpty
+          ? s.getStringValue('scenario')
+          : (keyStr.contains('_highway_') ? 'highway' : 'city');
+
+      final targetMap = scenario == 'highway' ? brandHighwayMap : brandCityMap;
+      targetMap.putIfAbsent(
+          brandId,
+          () => {
+                'id': brandId,
+                'name': brandName,
+                'logoUrl': brandLogoUrl,
+                'km': 0.0,
+                'events': 0,
+              });
+      final scenarioData = targetMap[brandId];
+      scenarioData['km'] += totalDistance;
+      scenarioData['events'] += totalEvents;
+
+      // 3. 症状累加
+      final eb = s.get<Map<String, dynamic>?>('event_breakdown') ?? {};
+      if (eb.isNotEmpty) {
+        b['event_breakdown']['rapidAcceleration'] +=
+            (eb['rapidAcceleration'] as num? ?? 0).toInt();
+        b['event_breakdown']['rapidDeceleration'] +=
+            (eb['rapidDeceleration'] as num? ?? 0).toInt();
+        b['event_breakdown']['jerk'] += (eb['jerk'] as num? ?? 0).toInt();
+        b['event_breakdown']['bump'] += (eb['bump'] as num? ?? 0).toInt();
+        b['event_breakdown']['wobble'] += (eb['wobble'] as num? ?? 0).toInt();
+      }
+
+      // 4. 版本和用户聚合
+      final vKey = '${brandId}_$versionId';
+      versionMap.putIfAbsent(
+          vKey,
+          () => {
+                'brand': brandId,
+                'brandName': brandName,
+                'logoUrl': brandLogoUrl,
+                'version': versionName,
+                'totalKm': 0.0,
+                'totalEvents': 0
+              });
+      final v = versionMap[vKey];
+      v['totalKm'] += totalDistance;
+      v['totalEvents'] += totalEvents;
+
+      if (userId.isNotEmpty) {
+        userTotalMap.putIfAbsent(userId,
+            () => {'userName': userName, 'avatarUrl': avatarUrl, 'totalKm': 0.0});
+        userTotalMap[userId]['totalKm'] += totalDistance;
+      }
+    }
+
+    // --- 处理周榜数据 (仅取最新一周) ---
+    if (weeklySummary.isNotEmpty) {
+      final weeks = weeklySummary
+          .map((s) => s.getStringValue('period_value'))
+          .toSet()
+          .toList();
+      weeks.sort((a, b) => b.compareTo(a));
+      final latestWeek = weeks.first;
+
+      for (final s in weeklySummary
+          .where((s) => s.getStringValue('period_value') == latestWeek)) {
+        final userId = s.getStringValue('user');
+        if (userId.isEmpty) continue;
+
+        final userRecord = s.expand['user']?.firstOrNull;
+        String userName = userRecord?.getStringValue('username') ?? '';
+        if (userName.isEmpty) userName = userRecord?.getStringValue('name') ?? '';
+        if (userName.isEmpty) userName = 'Anonymous';
+
+        final avatar = userRecord?.getStringValue('avatar') ?? '';
+        final avatarUrl = (avatar.isNotEmpty && userRecord != null)
+            ? _ref
+                .read(pbServiceProvider)
+                .pb
+                .files
+                .getUrl(userRecord, avatar)
+                .toString()
+            : null;
+
+        userWeeklyMap.putIfAbsent(userId,
+            () => {'userName': userName, 'avatarUrl': avatarUrl, 'totalKm': 0.0});
+        userWeeklyMap[userId]['totalKm'] +=
+            (s.get<num>('total_distance') ?? 0).toDouble();
+      }
+    }
+
+    // --- 最终数据组装 (对齐 Web 端) ---
+
+    // 舒适度排行门槛：只有总里程 >= 300km 的品牌/版本才参与“无负体验排行”
+    // 防止极小样本量导致的 MPI 数据失真 (例如 500米 0 负体验)
+    const double rankingThreshold = 300.0;
+
+    stats['ranking_brand'] = brandMap.values
+        .where((b) => (b['totalKm'] as num) >= rankingThreshold)
+        .map((b) => {
+              'label': b['name'],
+              'brand': b['name'],
+              'brandId': b['id'],
+              'logoUrl': b['logoUrl'], // 传给 UI
+              'totalKm': b['totalKm'],
+              'totalEvents': b['totalEvents'],
+              'kmPerEvent': b['totalEvents'] > 0
+                  ? b['totalKm'] / b['totalEvents']
+                  : b['totalKm']
+            })
+        .toList()
+      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_brand'] = (stats['ranking_brand'] as List).take(10).toList();
+
+    stats['ranking_version'] = versionMap.values
+        .where((v) => (v['totalKm'] as num) >= rankingThreshold)
+        .map((v) => {
+              'label': '${v['brandName']} ${v['version']}',
+              'brand': v['brandName'],
+              'brandId': v['brand'],
+              'logoUrl': v['logoUrl'],
+              'version': v['version'],
+              'totalKm': v['totalKm'],
+              'totalEvents': v['totalEvents'],
+              'kmPerEvent': v['totalEvents'] > 0
+                  ? v['totalKm'] / v['totalEvents']
+                  : v['totalKm']
+            })
+        .toList()
+      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_version'] = (stats['ranking_version'] as List).take(10).toList();
+
+    stats['ranking_city'] = brandCityMap.values
+        .where((b) => (b['km'] as num) >= (rankingThreshold / 2)) // 场景排行门槛减半
+        .map((b) => {
+              'label': b['name'],
+              'brand': b['name'],
+              'brandId': b['id'],
+              'logoUrl': b['logoUrl'],
+              'kmPerEvent': b['events'] > 0 ? b['km'] / b['events'] : b['km']
+            })
+        .toList()
+      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_city'] = (stats['ranking_city'] as List).take(10).toList();
+
+    stats['ranking_highway'] = brandHighwayMap.values
+        .where((b) => (b['km'] as num) >= (rankingThreshold / 2))
+        .map((b) => {
+              'label': b['name'],
+              'brand': b['name'],
+              'brandId': b['id'],
+              'logoUrl': b['logoUrl'],
+              'kmPerEvent': b['events'] > 0 ? b['km'] / b['events'] : b['km']
+            })
+        .toList()
+      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_highway'] = (stats['ranking_highway'] as List).take(10).toList();
+
+    stats['mileage'] = brandMap.values
+        .map((b) => {
+              'brand': b['name'],
+              'brandKey': b['id'],
+              'logoUrl': b['logoUrl'],
+              'totalKm': b['totalKm'],
+              'breakdown': {
+                'highway': b['mileage_buckets']['h80'],
+                'smooth': b['mileage_buckets']['m5080'],
+                'urban': b['mileage_buckets']['l2050'],
+                'congested': b['mileage_buckets']['c20']
+              }
+            })
+        .toList()
+      ..sort((a, b) => (b['totalKm'] as num).compareTo(a['totalKm'] as num));
+
+    stats['leaderboard_total'] = userTotalMap.values.toList()
+      ..sort((a, b) => (b['totalKm'] as num).compareTo(a['totalKm'] as num));
+    stats['leaderboard_total'] = (stats['leaderboard_total'] as List).take(10).toList();
+
+    stats['leaderboard_weekly'] = userWeeklyMap.values.toList()
+      ..sort((a, b) => (b['totalKm'] as num).compareTo(a['totalKm'] as num));
+    stats['leaderboard_weekly'] = (stats['leaderboard_weekly'] as List).take(10).toList();
+
+    stats['brand_options'] =
+        brandMap.values.map((b) => {'key': b['id'], 'name': b['name']}).toList();
+
+    // 注入全局汇总数据，用于计算贡献度、排名等
+    stats['global_summary'] = {
+      'globalTotalMileage': globalTotalMileage,
+      'totalUsers': uniqueUsers.length,
+    };
+
+    for (final b in brandMap.values) {
+      final brandId = b['id'];
+      final eventBreakdown = b['event_breakdown'] as Map<String, dynamic>;
+      final totalKm = b['totalKm'] as double;
+
+      stats['symptoms_$brandId'] = {
+        'details': {
+          'rapidAcceleration': eventBreakdown['rapidAcceleration'] > 0
+              ? totalKm / eventBreakdown['rapidAcceleration']
+              : 0.0,
+          'rapidDeceleration': eventBreakdown['rapidDeceleration'] > 0
+              ? totalKm / eventBreakdown['rapidDeceleration']
+              : 0.0,
+          'jerk': eventBreakdown['jerk'] > 0 ? totalKm / eventBreakdown['jerk'] : 0.0,
+          'bump': eventBreakdown['bump'] > 0 ? totalKm / eventBreakdown['bump'] : 0.0,
+          'wobble':
+              eventBreakdown['wobble'] > 0 ? totalKm / eventBreakdown['wobble'] : 0.0,
+        },
+        'counts': Map<String, int>.from(eventBreakdown),
+        'totalKm': totalKm,
+        'tripCount': b['tripCount']
+      };
+
+      stats['evolution_$brandId'] = versionMap.values
+          .where((v) => v['brand'] == brandId)
+          .map((v) => {
+                'version': v['version'],
+                'kmPerEvent': v['totalEvents'] > 0
+                    ? v['totalKm'] / v['totalEvents']
+                    : v['totalKm']
+              })
+          .toList()
+        ..sort(
+            (a, b) => (a['version'] as String).compareTo(b['version'] as String));
+    }
+
+    return stats;
+  }
+
+  // --- 辅助方法：依然使用本地基础库进行名称解析 (为了 UI 兼容) ---
   String getBrandName(String idOrName) {
     if (idOrName == 'Unknown') return 'Unknown';
-    // 优先匹配 cloudId，然后匹配 name (忽略大小写)
-    final brand = brands.firstWhere(
+    final brand = _mergedBrands.firstWhere(
       (b) =>
-          b.cloudId == idOrName ||
-          b.name.toLowerCase() == idOrName.toLowerCase(),
+          b.cloudId == idOrName || b.name.toLowerCase() == idOrName.toLowerCase(),
       orElse: () => Brand()..name = idOrName,
     );
     return brand.displayName ?? brand.name;
+  }
+
+  String? getBrandLogoUrl(String brandKey) {
+    final brand = _mergedBrands.firstWhere(
+      (b) =>
+          b.cloudId == brandKey ||
+          b.name.toLowerCase() == brandKey.toLowerCase(),
+      orElse: () => Brand()..name = brandKey,
+    );
+    return brand.logoUrl;
   }
 
   String getVersionName(String idOrString) {
@@ -121,556 +600,114 @@ class ArenaService {
     return version.versionString;
   }
 
-  // 卡片1: Top 10 平均无负面体验里程 (km/Event)
+  // --- 核心优化：直接从预计算快照中转换数据模型 ---
+
   List<BrandData> getTop10Data({bool groupByBrand = true}) {
-    return _calculateRanking(trips, groupByBrand: groupByBrand);
+    final list = _processedStats[groupByBrand ? 'ranking_brand' : 'ranking_version'] as List?;
+    if (list == null) return [];
+    
+    return list.map((item) => _mapToBrandData(item)).toList();
   }
 
-  // --- 深度同步 Web 端：分场景排行榜 (城市 < 50km/h, 高速 >= 50km/h) ---
-  List<BrandData> getScenarioRankingData(
-      {required String scenario, bool groupByBrand = true}) {
-    if (trips.isEmpty) return [];
+  List<BrandData> getScenarioRankingData({required String scenario, bool groupByBrand = true}) {
+    // 移动端目前不支持按版本的场景排行，仅支持按品牌
+    final list = _processedStats[scenario == 'city' ? 'ranking_city' : 'ranking_highway'] as List?;
+    if (list == null) return [];
 
-    final filteredTrips = trips.where((t) {
-      final avgSpeed = _calculateTripAvgSpeed(t);
-      if (avgSpeed < 0 || avgSpeed > 200) return false;
-      return scenario == 'city' ? avgSpeed < 50 : avgSpeed >= 50;
-    }).toList();
-
-    return _calculateRanking(filteredTrips, groupByBrand: groupByBrand);
+    return list.map((item) => _mapToBrandData(item)).toList();
   }
 
-  String getCanonicalBrandKey(Trip t) {
-    if (t.brand_ref != null && t.brand_ref!.isNotEmpty) return t.brand_ref!;
-    if (t.brand == null ||
-        t.brand!.isEmpty ||
-        t.brand!.toLowerCase() == 'unknown') {
-      return 'Unknown';
-    }
-    // 对于旧数据，尝试在本地品牌列表中查找匹配的名称
-    final brandObj = brands.firstWhere(
-      (b) => b.name.toLowerCase() == t.brand!.toLowerCase(),
-      orElse: () => Brand()..name = t.brand!,
+  BrandData _mapToBrandData(dynamic item) {
+    final map = item as Map<String, dynamic>;
+    final brandId = map['brandId'] ?? '';
+    final brandName = map['brand'] ?? '';
+    final versionName = map['version'] ?? '';
+
+    return BrandData(
+      brand: brandId.isNotEmpty ? brandId : brandName,
+      brandName: brandName,
+      logoUrl: map['logoUrl'],
+      version: versionName,
+      versionName: versionName, // 核心修复：直接透传处理好的 versionName，不再重新解析
+      kmPerEvent: (map['kmPerEvent'] as num?)?.toDouble(),
+      totalKm: (map['totalKm'] as num?)?.toDouble(),
+      totalEvents: (map['totalEvents'] as num?)?.toInt(),
     );
-    return brandObj.cloudId ?? brandObj.name;
-  }
-
-  String getCanonicalVersionKey(Trip t) {
-    if (t.software_version_ref != null && t.software_version_ref!.isNotEmpty) {
-      return t.software_version_ref!;
-    }
-    return t.softwareVersion ?? 'Unknown';
-  }
-
-  List<BrandData> _calculateRanking(List<Trip> sourceTrips,
-      {bool groupByBrand = true}) {
-    if (sourceTrips.isEmpty) return [];
-
-    final Map<String, List<Trip>> groups = {};
-
-    for (final trip in sourceTrips) {
-      final brandKey = getCanonicalBrandKey(trip);
-      if (brandKey == 'Unknown') continue;
-
-      String key;
-      if (groupByBrand) {
-        key = brandKey;
-      } else {
-        final versionKey = getCanonicalVersionKey(trip);
-        if (versionKey == 'Unknown') continue;
-        key = '$brandKey|$versionKey';
-      }
-
-      groups.putIfAbsent(key, () => []).add(trip);
-    }
-
-    final List<BrandData> result = [];
-    groups.forEach((key, groupTrips) {
-      double totalDist = 0;
-      int totalEvents = 0;
-      for (final t in groupTrips) {
-        totalDist += (t.distance / 1000.0);
-        totalEvents += _getFilteredEventCount(t);
-      }
-
-      final String brandKey = groupByBrand ? key : key.split('|')[0];
-      final String? versionKey = groupByBrand ? null : key.split('|')[1];
-
-      final bNameForDisplay = getBrandName(brandKey);
-      final vNameForDisplay =
-          versionKey != null ? getVersionName(versionKey) : null;
-
-      result.add(BrandData(
-        brand: brandKey,
-        brandName: bNameForDisplay,
-        version: versionKey,
-        versionName: vNameForDisplay, // 增加一个版本名字段（需要修改 BrandData 模型）
-        totalKm: totalDist,
-        totalEvents: totalEvents,
-        kmPerEvent: totalEvents == 0
-            ? (totalDist > 10 ? 10.0 : totalDist)
-            : totalDist / totalEvents,
-      ));
-    });
-
-    final filtered = result
-        .where((e) => (e.totalKm ?? 0) >= 100) // 完全对齐 Web 端：里程需满 100km
-        .toList();
-    filtered
-        .sort((a, b) => (b.kmPerEvent ?? 0.0).compareTo(a.kmPerEvent ?? 0.0));
-    return filtered.take(10).toList();
-  }
-
-  double _calculateTripAvgSpeed(Trip t) {
-    double durationHours = 0;
-    Map<String, dynamic>? metrics;
-    Map<String, dynamic>? metadata;
-
-    if (t.notes != null && t.notes!.contains('{')) {
-      try {
-        final data = jsonDecode(t.notes!);
-        metrics = data['metrics'] as Map<String, dynamic>?;
-        metadata = data['metadata'] as Map<String, dynamic>?;
-      } catch (_) {}
-    }
-
-    if (metadata != null || metrics != null) {
-      final source = {...(metrics ?? {}), ...(metadata ?? {})};
-      final startStr = source['start_time'];
-      final endStr = source['end_time'];
-      if (startStr != null && endStr != null) {
-        try {
-          final start = DateTime.parse(startStr.toString());
-          final end = DateTime.parse(endStr.toString());
-          if (end.isAfter(start)) {
-            durationHours = end.difference(start).inSeconds / 3600.0;
-          }
-        } catch (_) {}
-      }
-    }
-
-    if (durationHours <= 0 && t.endTime != null) {
-      durationHours = t.endTime!.difference(t.startTime).inSeconds / 3600.0;
-    }
-
-    if (durationHours <= 0) {
-      final source = {
-        ...(metrics ?? {}),
-        ...(metadata ?? {}),
-        'duration_seconds':
-            t.endTime != null ? t.endTime!.difference(t.startTime).inSeconds : 0
-      };
-
-      final seconds = double.tryParse((source['duration_seconds'] ??
-                  source['duration_sec'] ??
-                  source['duration_s'] ??
-                  '0')
-              .toString()) ??
-          0.0;
-      if (seconds > 0) {
-        durationHours = seconds / 3600.0;
-      } else {
-        final mins = double.tryParse(
-                (source['duration_minutes'] ?? source['duration_min'] ?? '0')
-                    .toString()) ??
-            0.0;
-        if (mins > 0) durationHours = mins / 60.0;
-      }
-    }
-
-    final km = t.distance / 1000.0;
-    return durationHours > 0.01 ? km / durationHours : -1.0;
   }
 
   VersionEvolutionData getEvolutionData(String brandKey) {
-    final brandTrips =
-        trips.where((t) => getCanonicalBrandKey(t) == brandKey).toList();
-    if (brandTrips.isEmpty) {
-      return VersionEvolutionData(brand: brandKey, evolution: []);
-    }
+    final list = _processedStats['evolution_$brandKey'] as List?;
+    if (list == null) return VersionEvolutionData(brand: brandKey, evolution: []);
 
-    final Map<String, List<Trip>> versionGroups = {};
-    for (final t in brandTrips) {
-      final v = getCanonicalVersionKey(t);
-      versionGroups.putIfAbsent(v, () => []).add(t);
-    }
-
-    final List<VersionPoint> points = [];
-    versionGroups.forEach((versionKey, group) {
-      double totalDist = 0;
-      int totalEvents = 0;
-      for (final t in group) {
-        totalDist += (t.distance / 1000.0);
-        totalEvents += _getFilteredEventCount(t);
-      }
-
-      // 尝试查找版本字符串供显示
-      String displayVersion = getVersionName(versionKey);
-
-      points.add(VersionPoint(
-        version: displayVersion,
-        // 关键改进：如果 evt 为 0，表示“完美舒适度”，将其上限限制在 10km (或公里数本身，取小者)
-        kmPerEvent: totalEvents == 0
-            ? (totalDist > 10 ? 10.0 : totalDist)
-            : totalDist / totalEvents,
-      ));
-    });
-
-    // 关键修复：使用自然排序法排列版本号，确保 5.8.10 在 5.8.6 之后，旧版永远在左侧
-    points.sort((a, b) {
-      // 定义一个简单的版本号自然比较器
-      return _compareVersions(a.version, b.version);
-    });
-
-    return VersionEvolutionData(brand: brandKey, evolution: points);
-  }
-
-  /// 版本号自然排序比较逻辑
-  int _compareVersions(String v1, String v2) {
-    if (v1 == 'Unknown') return -1;
-    if (v2 == 'Unknown') return 1;
-
-    final regExp = RegExp(r'(\d+)');
-    final nums1 =
-        regExp.allMatches(v1).map((m) => int.parse(m.group(0)!)).toList();
-    final nums2 =
-        regExp.allMatches(v2).map((m) => int.parse(m.group(0)!)).toList();
-
-    for (var i = 0; i < nums1.length && i < nums2.length; i++) {
-      if (nums1[i] != nums2[i]) return nums1[i].compareTo(nums2[i]);
-    }
-    return nums1.length.compareTo(nums2.length);
-  }
-
-  int _getFilteredEventCount(Trip t) {
-    final Map<String, dynamic> source = {};
-    source['event_count'] = t.eventCount;
-
-    Map<String, dynamic>? metrics;
-    if (t.notes != null && t.notes!.contains('"metrics":')) {
-      try {
-        final data = jsonDecode(t.notes!);
-        metrics = data['metrics'] as Map<String, dynamic>?;
-      } catch (_) {}
-    }
-
-    if (metrics != null) {
-      metrics.forEach((k, v) => source[k.toLowerCase()] = v);
-      final breakdown = metrics['event_breakdown'];
-      if (breakdown is Map<String, dynamic>) {
-        breakdown.forEach((k, v) => source[k.toLowerCase()] = v);
-      }
-    } else if (t.id != 0) {
-      for (final event in t.events) {
-        final type = event.type;
-        source[type.toLowerCase()] = (source[type.toLowerCase()] ?? 0) + 1;
-      }
-    }
-
-    final negativeKeysMap = {
-      'rapidAcceleration': [
-        'rapidacceleration',
-        'rapid_acceleration',
-        'accel',
-        'rapid_accel',
-        'acceleration'
-      ],
-      'rapidDeceleration': [
-        'rapiddeceleration',
-        'rapid_deceleration',
-        'brake',
-        'rapid_brake',
-        'deceleration',
-        'braking'
-      ],
-      'jerk': ['jerk', 'jerk_event', 'jerks', 'jerk_count'],
-      'wobble': ['wobble', 'wobble_event', 'wobbles', 'wobble_count']
-    };
-
-    int totalFiltered = 0;
-    negativeKeysMap.forEach((mainKey, possibleKeys) {
-      for (final k in possibleKeys) {
-        if (source[k] != null) {
-          final count = double.tryParse(source[k].toString())?.toInt() ?? 0;
-          if (count > 0) {
-            totalFiltered += count;
-            break;
-          }
-        }
-      }
-    });
-
-    return totalFiltered;
+    return VersionEvolutionData(
+      brand: brandKey,
+      evolution: list.map((item) {
+        final map = item as Map<String, dynamic>;
+        final vName = map['version'] ?? '';
+        return VersionPoint(
+          version: vName, // 核心修复：直接使用已解析的版本名称
+          kmPerEvent: (map['kmPerEvent'] as num?)?.toDouble() ?? 0.0,
+        );
+      }).toList(),
+    );
   }
 
   SymptomData getSymptomDetails(String brandKey, {String? version}) {
-    final filteredTrips = trips.where((t) {
-      if (getCanonicalBrandKey(t) != brandKey) return false;
-
-      if (version != null && version.isNotEmpty) {
-        if (getCanonicalVersionKey(t) != version) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-
-    double totalKm = 0;
-    final Map<String, int> typeCounts = {
-      'rapidAcceleration': 0,
-      'rapidDeceleration': 0,
-      'jerk': 0,
-      'bump': 0,
-      'wobble': 0,
-    };
-
-    final keyMap = {
-      'rapidAcceleration': [
-        'rapidacceleration',
-        'rapid_acceleration',
-        'accel',
-        'rapid_accel',
-        'acceleration'
-      ],
-      'rapidDeceleration': [
-        'rapiddeceleration',
-        'rapid_deceleration',
-        'brake',
-        'rapid_brake',
-        'deceleration',
-        'braking'
-      ],
-      'jerk': ['jerk', 'jerk_event', 'jerks', 'jerk_count'],
-      'bump': ['bump', 'bump_event', 'bumps', 'bump_count'],
-      'wobble': ['wobble', 'wobble_event', 'wobbles', 'wobble_count']
-    };
-
-    for (final t in filteredTrips) {
-      double tripDistKm = t.distance / 1000.0;
-      totalKm += tripDistKm;
-
-      final Map<String, dynamic> source = {};
-      source['brand'] = t.brand?.toLowerCase();
-      source['software_version'] = t.softwareVersion?.toLowerCase();
-
-      Map<String, dynamic>? metrics;
-      if (t.notes != null && t.notes!.contains('"metrics":')) {
-        try {
-          final data = jsonDecode(t.notes!);
-          metrics = data['metrics'] as Map<String, dynamic>?;
-        } catch (_) {}
-      } else if (t.notes != null && t.notes!.contains('"breakdown":')) {
-        try {
-          final data = jsonDecode(t.notes!);
-          final breakdown = data['breakdown'] as Map<String, dynamic>?;
-          if (breakdown != null) {
-            breakdown.forEach((k, v) => source[k.toLowerCase()] = v);
-          }
-        } catch (_) {}
-      }
-
-      if (metrics != null) {
-        metrics.forEach((k, v) => source[k.toLowerCase()] = v);
-        final breakdown = metrics['event_breakdown'];
-        if (breakdown is Map<String, dynamic>) {
-          breakdown.forEach((k, v) => source[k.toLowerCase()] = v);
-        }
-      } else if (t.id != 0) {
-        for (final event in t.events) {
-          final type = event.type;
-          source[type.toLowerCase()] = (source[type.toLowerCase()] ?? 0) + 1;
-        }
-      }
-
-      keyMap.forEach((mainKey, possibleKeys) {
-        for (final k in possibleKeys) {
-          if (source[k] != null) {
-            final count = double.tryParse(source[k].toString())?.toInt() ?? 0;
-            if (count > 0) {
-              typeCounts[mainKey] = (typeCounts[mainKey] ?? 0) + count;
-              break;
-            }
-          }
-        }
-      });
+    final data = _processedStats['symptoms_$brandKey'] as Map<String, dynamic>?;
+    if (data == null) {
+      return SymptomData(brand: brandKey, details: {}, counts: {}, totalKm: 0, tripCount: 0);
     }
 
-    final Map<String, double> details = {};
-    typeCounts.forEach((type, count) {
-      details[type] = count == 0 ? totalKm : totalKm / count;
-    });
+    final rawDetails = data['details'] as Map<String, dynamic>? ?? {};
+    final Map<String, double> details = rawDetails.map((k, v) => MapEntry(k, (v as num).toDouble()));
+
+    final rawCounts = data['counts'] as Map<String, dynamic>? ?? {};
+    final Map<String, int> counts = rawCounts.map((k, v) => MapEntry(k, (v as num).toInt()));
 
     return SymptomData(
       brand: brandKey,
       brandName: getBrandName(brandKey),
-      version: version,
-      versionName: version != null ? getVersionName(version) : null,
       details: details,
-      counts: typeCounts,
-      totalKm: totalKm,
-      tripCount: filteredTrips.length,
+      counts: counts,
+      totalKm: (data['totalKm'] as num?)?.toDouble() ?? 0.0,
+      tripCount: (data['tripCount'] as num?)?.toInt() ?? 0,
     );
   }
 
-  // --- 核心修复：深度同步 Web 端的精细化里程统计 ---
   List<BrandData> getTotalMileageData() {
-    const double speedCongestedThreshold = 20.0;
-    const double speedUrbanThreshold = 50.0;
-    const double speedSmoothThreshold = 80.0;
+    final list = _processedStats['mileage'] as List?;
+    if (list == null) return [];
 
-    final Map<String, _MileageRecord> mileageMap = {};
+    return list.map((item) {
+      final map = item as Map<String, dynamic>;
 
-    for (final t in trips) {
-      final brandKey = getCanonicalBrandKey(t);
-      if (brandKey == 'Unknown') continue;
+      final rawBreakdown = map['breakdown'] as Map<String, dynamic>? ?? {};
+      final Map<String, double> breakdown =
+          rawBreakdown.map((k, v) => MapEntry(k, (v as num).toDouble()));
 
-      final km = t.distance / 1000.0;
-      if (!mileageMap.containsKey(brandKey)) {
-        mileageMap[brandKey] = _MileageRecord(brandKey);
-      }
-      final record = mileageMap[brandKey]!;
-      record.totalKm += km;
-
-      // --- 贪婪时长解析 (完全对齐 Web 端 logic) ---
-      double durationHours = 0;
-      Map<String, dynamic>? metrics;
-      Map<String, dynamic>? metadata;
-
-      if (t.notes != null && t.notes!.contains('{')) {
-        try {
-          final data = jsonDecode(t.notes!);
-          metrics = data['metrics'] as Map<String, dynamic>?;
-          metadata = data['metadata'] as Map<String, dynamic>?;
-        } catch (_) {}
-      }
-
-      // 1. 优先尝试解析 metadata 中的物理时间差 (最准确)
-      if (metadata != null || metrics != null) {
-        final source = {...(metrics ?? {}), ...(metadata ?? {})};
-        final startStr = source['start_time'];
-        final endStr = source['end_time'];
-        if (startStr != null && endStr != null) {
-          try {
-            final start = DateTime.parse(startStr.toString());
-            final end = DateTime.parse(endStr.toString());
-            if (end.isAfter(start)) {
-              durationHours = end.difference(start).inSeconds / 3600.0;
-            }
-          } catch (_) {}
-        }
-      }
-
-      // 2. 如果时间戳解析失败且不是云端行程，用本地字段
-      if (durationHours <= 0 && t.endTime != null) {
-        durationHours = t.endTime!.difference(t.startTime).inSeconds / 3600.0;
-      }
-
-      // 3. 降级扫描各种时长秒数/分钟字段 (彻底兼容各品牌差异)
-      if (durationHours <= 0) {
-        final source = {
-          ...(metrics ?? {}),
-          ...(metadata ?? {}),
-          'duration_seconds': t.endTime != null
-              ? t.endTime!.difference(t.startTime).inSeconds
-              : 0
-        };
-
-        final seconds = double.tryParse((source['duration_seconds'] ??
-                    source['duration_sec'] ??
-                    source['duration_s'] ??
-                    '0')
-                .toString()) ??
-            0.0;
-        if (seconds > 0) {
-          durationHours = seconds / 3600.0;
-        } else {
-          final mins = double.tryParse(
-                  (source['duration_minutes'] ?? source['duration_min'] ?? '0')
-                      .toString()) ??
-              0.0;
-          if (mins > 0) durationHours = mins / 60.0;
-        }
-      }
-
-      // 计算该行程平均速度
-      final avgSpeed = durationHours > 0.01 ? km / durationHours : -1.0;
-
-      // 根据均速将整段里程归入对应的“桶”
-      if (avgSpeed < 0 || avgSpeed > 200) {
-        record.breakdown['urban'] = (record.breakdown['urban'] ?? 0) + km;
-      } else if (avgSpeed < speedCongestedThreshold) {
-        record.breakdown['congested'] =
-            (record.breakdown['congested'] ?? 0) + km;
-      } else if (avgSpeed < speedUrbanThreshold) {
-        record.breakdown['urban'] = (record.breakdown['urban'] ?? 0) + km;
-      } else if (avgSpeed < speedSmoothThreshold) {
-        record.breakdown['smooth'] = (record.breakdown['smooth'] ?? 0) + km;
-      } else {
-        record.breakdown['highway'] = (record.breakdown['highway'] ?? 0) + km;
-      }
-    }
-
-    final List<BrandData> result = mileageMap.values.map((e) {
-      final bNameForDisplay = getBrandName(e.brand);
       return BrandData(
-        brand: e.brand,
-        brandName: bNameForDisplay,
-        totalKm: e.totalKm,
-        breakdown: e.breakdown,
+        brand: map['brandKey'] ?? '',
+        brandName: map['brand'] ?? '',
+        logoUrl: map['logoUrl'],
+        totalKm: (map['totalKm'] as num?)?.toDouble(),
+        breakdown: breakdown,
       );
     }).toList();
-
-    result.sort((a, b) => (b.totalKm ?? 0.0).compareTo(a.totalKm ?? 0.0));
-    return result;
   }
 
-  // --- 用户里程贡献榜 ---
   List<UserLeaderboardData> getUserLeaderboard({bool weekly = false}) {
-    if (trips.isEmpty) return [];
+    final list = _processedStats[weekly ? 'leaderboard_weekly' : 'leaderboard_total'] as List?;
+    if (list == null) return [];
 
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
-
-    // 使用 userId 作为 Key 进行聚合，而不是用户名
-    final Map<String, _UserMileageRecord> userMap = {};
-
-    for (final t in trips) {
-      if (weekly && t.startTime.isBefore(sevenDaysAgo)) {
-        continue;
-      }
-
-      // 如果 userId 缺失，则使用 'unknown_user'，但这种情况理论上不应该发生
-      final uId = t.userId ?? 'unknown_user';
-
-      if (!userMap.containsKey(uId)) {
-        // 如果没有用户名，生成一个可读的临时名称，如 User-a1b2
-        String displayName = t.userName ?? '';
-        if (displayName.isEmpty) {
-          if (uId.length > 4) {
-            displayName = 'User-${uId.substring(uId.length - 4)}';
-          } else {
-            displayName = 'Anonymous';
-          }
-        }
-        userMap[uId] = _UserMileageRecord(displayName, t.userAvatar);
-      }
-
-      final record = userMap[uId]!;
-      record.totalKm += (t.distance / 1000.0);
-      record.tripCount += 1;
-    }
-
-    final List<UserLeaderboardData> result = userMap.values
-        .map((e) => UserLeaderboardData(
-              userName: e.userName,
-              avatarUrl: e.avatarUrl,
-              totalKm: e.totalKm,
-              tripCount: e.tripCount,
-            ))
-        .toList();
-
-    result.sort((a, b) => b.totalKm.compareTo(a.totalKm));
-    return result.take(10).toList(); // 只取前 10 名
+    return list.map((item) {
+      final map = item as Map<String, dynamic>;
+      return UserLeaderboardData(
+        userName: map['userName'] ?? 'Anonymous',
+        totalKm: (map['totalKm'] as num?)?.toDouble() ?? 0.0,
+        tripCount: (map['tripCount'] as num?)?.toInt() ?? 0,
+        avatarUrl: map['avatarUrl'],
+      );
+    }).toList();
   }
 
   String getDefaultBrand() {
@@ -680,14 +717,14 @@ class ArenaService {
     }
     if (settings.brand != null && settings.brand!.isNotEmpty) {
       // 尝试解析名称为 ID
-      final brandObj = brands.firstWhere(
+      final brandObj = _mergedBrands.firstWhere(
         (b) => b.name.toLowerCase() == settings.brand!.toLowerCase(),
         orElse: () => Brand()..name = settings.brand!,
       );
       return brandObj.cloudId ?? brandObj.name;
     }
-    if (availableBrands.isNotEmpty) {
-      return availableBrands.first.cloudId ?? availableBrands.first.name;
+    if (_mergedBrands.isNotEmpty) {
+      return _mergedBrands.first.cloudId ?? _mergedBrands.first.name;
     }
     return 'Tesla';
   }

@@ -291,6 +291,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   // Apple 风格：算法切换小 Tag
   Widget _buildAlgorithmToggle(BuildContext context, RecordingState state) {
     final isA = state.algorithmMode == AlgorithmMode.standard;
+    final i18n = ref.watch(i18nProvider);
     return ClipRRect(
       borderRadius: BorderRadius.circular(12), // 改为圆角方形
       child: BackdropFilter(
@@ -302,7 +303,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             HapticFeedback.lightImpact();
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            height: 32,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: (isA ? Colors.blueGrey : Colors.deepPurple)
                   .withValues(alpha: 0.6),
@@ -316,11 +319,12 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                 const Icon(Icons.psychology, size: 14, color: Colors.white),
                 const SizedBox(width: 4),
                 Text(
-                  isA ? "算法 A" : "算法 B",
+                  isA ? i18n.t('algo_a') : i18n.t('algo_b'),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
-                      fontWeight: FontWeight.bold),
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5),
                 ),
               ],
             ),
@@ -520,9 +524,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Center(
                             child: Text(
-                              i18n.locale.languageCode == 'zh'
-                                  ? "暂无记录"
-                                  : "No Records",
+                              i18n.t('no_records'),
                               style: TextStyle(
                                 color: isDark ? Colors.white38 : Colors.black38,
                                 fontSize: 13,
@@ -1161,10 +1163,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     // 状态文本：优先显示传感器假死或惯导状态，其次是 GPS 状态
     String displayText;
     if (state.isSensorFrozen) {
-      displayText = "SENSOR FROZEN";
+      displayText = i18n.t('sensor_frozen');
       statusColor = Colors.orange;
     } else if (state.isInsActive) {
-      displayText = "INS ACTIVE";
+      displayText = i18n.t('ins_active');
       statusColor = Colors.blue;
     } else {
       displayText = "$statusText (${accuracy.toStringAsFixed(0)}m)";
@@ -1175,7 +1177,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          height: 32,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(12),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,14 +74,23 @@ class PocketBaseService {
   final PocketBase pb;
   PocketBaseService(this.pb);
 
-  bool get isAuthenticated => pb.authStore.isValid;
+  bool get isAuthenticated {
+    final valid = pb.authStore.isValid;
+    if (!valid) {
+      debugPrint('[PocketBase] authStore.isValid is false. Token present: ${pb.authStore.token.isNotEmpty}');
+    }
+    return valid;
+  }
 
   /// 获取当前用户信息。
   /// 注意：在应用启动从本地加载时，record 可能暂时是一个 Map 而非 RecordModel，
   /// 这里做了兼容处理，确保业务层能通过 RecordModel 的接口读取数据。
   RecordModel? get currentUser {
     final dynamic record = pb.authStore.record;
-    if (record == null) return null;
+    if (record == null) {
+      debugPrint('[PocketBase] authStore.record is null');
+      return null;
+    }
 
     // 由于我们在 AuthStore.save 中做了强制转换，这里 record 理论上永远是 RecordModel
     if (record is RecordModel) return record;

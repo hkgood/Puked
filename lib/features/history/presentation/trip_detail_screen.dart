@@ -145,6 +145,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   }
 
   Widget _buildScreenshotHeader() {
+    final i18n = ref.read(i18nProvider);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
       width: double.infinity,
@@ -164,7 +165,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '量化自动驾驶行驶舒适度',
+            i18n.t('app_tagline'),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -193,6 +194,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(trip.startTime);
     final trajectory = trip.trajectory.toList();
     final events = trip.events.toList();
+
+    // 核心逻辑：判断是否为尚未下载详情的云端占位符
+    final isPlaceholder = trip.isLocalMissing;
 
     return Scaffold(
       appBar: AppBar(
@@ -278,12 +282,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           SnackBar(content: Text(i18n.t('uploading'))),
                         );
                         try {
-                          final cloudId = await ref
+                          final uploadResult = await ref
                               .read(cloudTripServiceProvider)
                               .uploadTrip(_currentTrip);
+                          
+                          final cloudId = uploadResult['id'] as String;
+                          final metrics = uploadResult['metrics'] as Map<String, dynamic>?;
+
                           await ref
                               .read(storageServiceProvider)
-                              .updateTripCloudId(_currentTrip.id, cloudId);
+                              .updateTripCloudId(_currentTrip.id, cloudId, metrics: metrics);
 
                           // 刷新本地状态
                           final updatedTrip = await ref
@@ -472,7 +480,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   Text(i18n.t('trip_summary'),
                                       style: _headerStyle(context)),
                                   Text(
-                                    "${(trip.distance / 1000).toStringAsFixed(2)} km",
+                                    trip.getDistanceDisplay(),
                                     style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
@@ -493,15 +501,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   value: "${trip.eventCount}"),
                               _StatItem(
                                 label: i18n.t('avg_speed'),
-                                value: trip.endTime != null && trip.distance > 0
-                                    ? "${(trip.distance / 1000 / (trip.endTime!.difference(trip.startTime).inSeconds / 3600)).toStringAsFixed(1)} km/h"
-                                    : "--",
+                                value: trip.getAvgSpeedDisplay("--"),
                               ),
                               _StatItem(
                                   label: i18n.t('duration'),
-                                  value: trip.endTime != null
-                                      ? "${trip.endTime!.difference(trip.startTime).inMinutes} ${i18n.t('min')}"
-                                      : "--"),
+                                  value: trip.getDurationDisplay(i18n.t('min'), "--")),
                             ],
                           ),
                           const SizedBox(height: 24),
@@ -624,9 +628,17 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                           magnitudes.length;
                                 }
 
-                                double finalG = e.type == 'manual'
-                                    ? 0
-                                    : (maxSmoothedVal / 9.80665);
+                                // 智能单位转换：
+                                // 如果最大值 > 3.0，基本确定单位是 m/s2 (因为 G 值很难持续达到 3G)
+                                // 否则，如果已经在 0-2 之间，很可能是 G 值单位
+                                double finalG;
+                                if (maxSmoothedVal > 3.0) {
+                                  finalG = maxSmoothedVal / 9.80665;
+                                } else {
+                                  finalG = maxSmoothedVal;
+                                }
+                                
+                                if (e.type == 'manual') finalG = 0;
                                 parameter = "${finalG.toStringAsFixed(2)} G";
                               }
 

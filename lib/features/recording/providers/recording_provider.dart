@@ -146,7 +146,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   final InertialNavigationEngine _insEngine = InertialNavigationEngine();
   final AmapService _amapService = AmapService();
   final AudioPlayer _audioPlayer = AudioPlayer();
-
+  
   StreamSubscription<Position>? _positionSub;
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
@@ -197,9 +197,17 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     });
 
     // 延迟启动定位初始化，避免 Android 12+ 启动时的前台服务限制
-    Future.microtask(() => _startLocationUpdates());
-    // 确保引擎启动，以便缓冲区开始填充数据
+    Future.microtask(() {
+      final lifecycleState = WidgetsBinding.instance.lifecycleState;
+      // 仅在 App 处于前台或初始状态未知时启动，后台启动由于权限和性能策略应被禁止
+      if (lifecycleState == AppLifecycleState.resumed ||
+          lifecycleState == null) {
+        _startLocationUpdates();
     _engine.start();
+      } else {
+        debugPrint('App started in background, skipping initial GPS/Sensor');
+      }
+    });
   }
 
   @override
@@ -207,21 +215,23 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     debugPrint('App lifecycle changed to: $state');
     // 当 App 回到前台时
     if (state == AppLifecycleState.resumed) {
-      // 无论是否在录制，回到前台都要开启定位，以便 UI 显示
+      // 无论是否在录制，回到前台都要开启定位和传感器，以便 UI 显示
       _startLocationUpdates();
+      _engine.start();
       if (this.state.isRecording) {
-        debugPrint('App resumed, re-enabling Wakelock');
-        WakelockPlus.enable();
+      debugPrint('App resumed, re-enabling Wakelock');
+      WakelockPlus.enable();
       }
     }
     // 当 App 进入后台（暂停或失去焦点）时
     else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      // 如果没有在录制行程，则停止定位流以省电
+      // 如果没有在录制行程，则停止定位流和传感器流以省电
       if (!this.state.isRecording) {
         debugPrint(
-            'App backgrounded and not recording, stopping location updates');
+            'App backgrounded and not recording, stopping location and sensor updates');
         _stopLocationUpdates();
+        _engine.stop();
       } else {
         debugPrint('App backgrounded but recording, keeping location updates');
       }
@@ -293,13 +303,13 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
         // 异步尝试获取更高精度的起始点 (仅在 stream 还没稳定时)
         if (state.locationUpdateCount == 0) {
-          Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-            ),
-          ).timeout(const Duration(seconds: 5)).then((pos) {
-            if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
-          }).catchError((_) {});
+        Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+          ),
+        ).timeout(const Duration(seconds: 5)).then((pos) {
+          if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
+        }).catchError((_) {});
         }
       }
     } catch (e) {
@@ -634,14 +644,14 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                           isInsActive: false, debugMessage: 'GPS SIGNAL LOST');
                     }
                   } else {
-                    if (!state.isInsActive) {
-                      state = state.copyWith(
-                        isInsActive: true,
+                  if (!state.isInsActive) {
+                    state = state.copyWith(
+                      isInsActive: true,
                         debugMessage: 'INS ACTIVE (Display Only)',
-                      );
-                    }
+                    );
+                  }
                     // 仅更新实时位置，用于小圆点平滑移动
-                    _handleInsTick();
+                  _handleInsTick();
                   }
                 } else {
                   // GPS 信号正常，强制关闭 INS，并清除稳定性计数器
@@ -670,7 +680,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               );
 
               // 统一使用专家级物理引擎，内部已针对跨平台和速度做了鲁棒性适配
-              _detectAutoEventsExpert(sensorData);
+                  _detectAutoEventsExpert(sensorData);
             }
           });
         },
@@ -724,10 +734,12 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       currentPosition: state.currentPosition,
     );
 
-    // 如果行程结束时 App 已经处于后台，则立即停止定位以省电
+    // 如果行程结束时 App 已经处于后台，则立即停止定位和传感器以省电
     if (!isResumed) {
-      debugPrint('Trip ended in background, stopping location updates');
+      debugPrint(
+          'Trip ended in background, stopping location and sensor updates');
       _stopLocationUpdates();
+      _engine.stop();
     }
   }
 
@@ -781,7 +793,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (_recordingStartTime != null) {
       final elapsed = now.difference(_recordingStartTime!);
       if (elapsed < _startProtectionDuration && currentSpeedKmh < 10.0) {
-        return;
+      return;
       }
     }
 
@@ -859,7 +871,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                   factor *
                   couplingSuppressionY *
                   turnCompensation))
-          .length;
+            .length;
       int accelCount = recentLongitudinal
           .where((e) =>
               e.value > (config.thresholdAccel * factor * couplingSuppressionY))
@@ -868,29 +880,29 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       bool isPitching = gyro.x.abs() > (config.thresholdPitch / 10.0);
 
       if (decelCount >= (recentLongitudinal.length * 0.75).floor() &&
-          !isDebounced('rapidDeceleration')) {
+        !isDebounced('rapidDeceleration')) {
         // 物理上限过滤
         final avgDecel =
             recentLongitudinal.map((e) => e.value).reduce((a, b) => a + b) /
                 recentLongitudinal.length;
         if (avgDecel.abs() < config.maxAccelAllowed) {
           if (!config.pitchValidationEnabled || isPitching) {
-            _lastTriggered['rapidDeceleration'] = now;
-            _enqueueEvent(EventType.rapidDeceleration, now);
-          }
+        _lastTriggered['rapidDeceleration'] = now;
+        _enqueueEvent(EventType.rapidDeceleration, now);
+      }
         }
       } else if (accelCount >= (recentLongitudinal.length * 0.75).floor() &&
-          !isDebounced('rapidAcceleration')) {
+        !isDebounced('rapidAcceleration')) {
         // 物理上限过滤
         final avgAccel =
             recentLongitudinal.map((e) => e.value).reduce((a, b) => a + b) /
                 recentLongitudinal.length;
         if (avgAccel.abs() < config.maxAccelAllowed) {
           if (!config.pitchValidationEnabled || isPitching) {
-            _lastTriggered['rapidAcceleration'] = now;
-            _enqueueEvent(EventType.rapidAcceleration, now);
-          }
-        }
+        _lastTriggered['rapidAcceleration'] = now;
+        _enqueueEvent(EventType.rapidAcceleration, now);
+      }
+    }
       }
     }
 
@@ -986,8 +998,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                 (config.thresholdWobbleSpan * factor * couplingSuppressionY) &&
             span < config.maxWobbleSpanAllowed &&
             yawSignSwitches >= 1) {
-          _lastTriggered['wobble'] = now;
-          _enqueueEvent(EventType.wobble, now);
+        _lastTriggered['wobble'] = now;
+        _enqueueEvent(EventType.wobble, now);
         }
       }
     }

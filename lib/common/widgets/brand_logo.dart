@@ -6,6 +6,7 @@ import 'package:puked/features/recording/providers/vehicle_provider.dart';
 
 class BrandLogo extends ConsumerWidget {
   final String? brandName;
+  final String? overrideLogoUrl; // 新增：支持传入外部指定的 Logo URL (如从 expand 中解析出的)
   final double size;
   final double padding;
   final Color? color;
@@ -37,6 +38,7 @@ class BrandLogo extends ConsumerWidget {
   const BrandLogo({
     super.key,
     required this.brandName,
+    this.overrideLogoUrl,
     this.size = 40,
     this.padding = 6,
     this.color,
@@ -52,7 +54,8 @@ class BrandLogo extends ConsumerWidget {
 
     final bool isInfinity = size == double.infinity;
 
-    if (brandName == null || brandName!.isEmpty) {
+    if ((brandName == null || brandName!.isEmpty) &&
+        (overrideLogoUrl == null || overrideLogoUrl!.isEmpty)) {
       return _wrapWithBackground(
         context,
         _buildEmptyBrand(context, isInfinity ? null : size),
@@ -60,29 +63,61 @@ class BrandLogo extends ConsumerWidget {
       );
     }
 
-    final brandsAsync = ref.watch(availableBrandsProvider);
+    final brandsAsync = ref.watch(allBrandsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // 如果没有传入 color，黑夜模式下默认使用白色，白天模式下保持原样（null）
     final effectiveColor = color ?? (isDark ? Colors.white : null);
+
+    // 优化：在等待数据库加载期间，如果 brandName 是已知本地品牌，优先尝试直接显示本地资产
+    // 这样可以避免在元数据同步期间出现大量问号图标
+    if (brandName != null && brandName!.isNotEmpty && _localBrands.contains(brandName)) {
+      final assetPath = 'assets/logos/$brandName.svg';
+      final localIcon = Padding(
+        padding: EdgeInsets.all(padding),
+        child: SvgPicture.asset(
+          assetPath,
+          fit: BoxFit.contain,
+          colorFilter: effectiveColor != null
+              ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+              : null,
+          placeholderBuilder: (context) =>
+              _buildFallback(context, isInfinity ? null : size),
+        ),
+      );
+      return _wrapWithBackground(context, localIcon, isInfinity);
+    }
 
     return brandsAsync.maybeWhen(
       data: (brands) {
         final brand = brands.firstWhere(
           (b) =>
               b.cloudId == brandName ||
-              b.name.toLowerCase() == brandName!.toLowerCase(),
-          orElse: () => Brand()..name = brandName!,
+              b.name.toLowerCase() == brandName?.toLowerCase(),
+          orElse: () => Brand()..name = brandName ?? '',
         );
 
-        // 构建图标 Widget (优先尝试本地，再尝试远程)
+        // 构建图标 Widget (优先尝试 overrideUrl -> 本地 -> 远程)
         Widget buildIcon() {
+          // 1. 优先使用传入的覆盖 URL (最高优先级，解决云端同步一致性)
+          if (overrideLogoUrl != null && overrideLogoUrl!.isNotEmpty) {
+            return SvgPicture.network(
+              overrideLogoUrl!,
+              fit: BoxFit.contain,
+              colorFilter: effectiveColor != null
+                  ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                  : null,
+              placeholderBuilder: (context) =>
+                  _buildFallback(context, isInfinity ? null : size),
+            );
+          }
+
           // 注意：如果 brandName 是 ID，我们需要使用查找到的 brand.name 来定位本地资源
           final String canonicalName = brand.name;
           final isLocal = _localBrands.contains(canonicalName);
           final assetPath = 'assets/logos/$canonicalName.svg';
 
-          // 1. 如果是已知本地品牌且处于黑夜模式，或者没有远程 URL
+          // 2. 如果是已知本地品牌且处于黑夜模式，或者没有远程 URL
           // 优先使用本地资产，因为本地资产的 colorFilter 适配通常更稳定
           if (isLocal &&
               (isDark || brand.logoUrl == null || brand.logoUrl!.isEmpty)) {
@@ -97,7 +132,7 @@ class BrandLogo extends ConsumerWidget {
             );
           }
 
-          // 2. 如果有远程 URL，尝试加载网络图片
+          // 3. 如果有远程 URL，尝试加载网络图片
           if (brand.logoUrl != null && brand.logoUrl!.isNotEmpty) {
             return SvgPicture.network(
               brand.logoUrl!,
@@ -117,7 +152,7 @@ class BrandLogo extends ConsumerWidget {
             );
           }
 
-          // 3. 最后的保底：如果是本地品牌尝试加载，否则直接显示问号
+          // 4. 最后的保底：如果是本地品牌尝试加载，否则直接显示问号
           if (isLocal) {
             return SvgPicture.asset(
               assetPath,
@@ -141,6 +176,26 @@ class BrandLogo extends ConsumerWidget {
         return _wrapWithBackground(context, iconWidget, isInfinity);
       },
       orElse: () {
+        // 在加载过程中，如果提供了 overrideLogoUrl，也可以先尝试显示它
+        if (overrideLogoUrl != null && overrideLogoUrl!.isNotEmpty) {
+          return _wrapWithBackground(
+            context,
+            Padding(
+              padding: EdgeInsets.all(padding),
+              child: SvgPicture.network(
+                overrideLogoUrl!,
+                fit: BoxFit.contain,
+                colorFilter: effectiveColor != null
+                    ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                    : null,
+                placeholderBuilder: (context) =>
+                    _buildFallback(context, isInfinity ? null : size),
+              ),
+            ),
+            isInfinity,
+          );
+        }
+
         final fallback = Padding(
           padding: EdgeInsets.all(padding),
           child: _buildFallback(context, isInfinity ? null : size),

@@ -77,33 +77,38 @@ const TripSchema = CollectionSchema(
       name: r'isUploaded',
       type: IsarType.bool,
     ),
-    r'notes': PropertySchema(
+    r'metricsJson': PropertySchema(
       id: 12,
+      name: r'metricsJson',
+      type: IsarType.string,
+    ),
+    r'notes': PropertySchema(
+      id: 13,
       name: r'notes',
       type: IsarType.string,
     ),
     r'platform': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'platform',
       type: IsarType.string,
     ),
     r'softwareVersion': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'softwareVersion',
       type: IsarType.string,
     ),
     r'software_version_ref': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'software_version_ref',
       type: IsarType.string,
     ),
     r'startTime': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'startTime',
       type: IsarType.dateTime,
     ),
     r'uuid': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -192,6 +197,12 @@ int _tripEstimateSize(
     }
   }
   {
+    final value = object.metricsJson;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.notes;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -237,12 +248,13 @@ void _tripSerialize(
   writer.writeBool(offsets[9], object.isDataSufficient);
   writer.writeBool(offsets[10], object.isLocalMissing);
   writer.writeBool(offsets[11], object.isUploaded);
-  writer.writeString(offsets[12], object.notes);
-  writer.writeString(offsets[13], object.platform);
-  writer.writeString(offsets[14], object.softwareVersion);
-  writer.writeString(offsets[15], object.software_version_ref);
-  writer.writeDateTime(offsets[16], object.startTime);
-  writer.writeString(offsets[17], object.uuid);
+  writer.writeString(offsets[12], object.metricsJson);
+  writer.writeString(offsets[13], object.notes);
+  writer.writeString(offsets[14], object.platform);
+  writer.writeString(offsets[15], object.softwareVersion);
+  writer.writeString(offsets[16], object.software_version_ref);
+  writer.writeDateTime(offsets[17], object.startTime);
+  writer.writeString(offsets[18], object.uuid);
 }
 
 Trip _tripDeserialize(
@@ -264,12 +276,13 @@ Trip _tripDeserialize(
   object.id = id;
   object.isLocalMissing = reader.readBool(offsets[10]);
   object.isUploaded = reader.readBool(offsets[11]);
-  object.notes = reader.readStringOrNull(offsets[12]);
-  object.platform = reader.readStringOrNull(offsets[13]);
-  object.softwareVersion = reader.readStringOrNull(offsets[14]);
-  object.software_version_ref = reader.readStringOrNull(offsets[15]);
-  object.startTime = reader.readDateTime(offsets[16]);
-  object.uuid = reader.readString(offsets[17]);
+  object.metricsJson = reader.readStringOrNull(offsets[12]);
+  object.notes = reader.readStringOrNull(offsets[13]);
+  object.platform = reader.readStringOrNull(offsets[14]);
+  object.softwareVersion = reader.readStringOrNull(offsets[15]);
+  object.software_version_ref = reader.readStringOrNull(offsets[16]);
+  object.startTime = reader.readDateTime(offsets[17]);
+  object.uuid = reader.readString(offsets[18]);
   return object;
 }
 
@@ -313,8 +326,10 @@ P _tripDeserializeProp<P>(
     case 15:
       return (reader.readStringOrNull(offset)) as P;
     case 16:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 17:
+      return (reader.readDateTime(offset)) as P;
+    case 18:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1646,6 +1661,152 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'metricsJson',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'metricsJson',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'metricsJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'metricsJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'metricsJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'metricsJson',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'metricsJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'metricsJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'metricsJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'metricsJson',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'metricsJson',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> metricsJsonIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'metricsJson',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> notesIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -2675,6 +2836,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByMetricsJson() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'metricsJson', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByMetricsJsonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'metricsJson', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByNotes() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notes', Sort.asc);
@@ -2905,6 +3078,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByMetricsJson() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'metricsJson', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByMetricsJsonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'metricsJson', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByNotes() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'notes', Sort.asc);
@@ -3057,6 +3242,13 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
     });
   }
 
+  QueryBuilder<Trip, Trip, QDistinct> distinctByMetricsJson(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'metricsJson', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByNotes(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -3177,6 +3369,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
   QueryBuilder<Trip, bool, QQueryOperations> isUploadedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isUploaded');
+    });
+  }
+
+  QueryBuilder<Trip, String?, QQueryOperations> metricsJsonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'metricsJson');
     });
   }
 
@@ -6600,49 +6798,54 @@ const RecordedEventSchema = CollectionSchema(
   name: r'RecordedEvent',
   id: -4127872194806281009,
   properties: {
-    r'lat': PropertySchema(
+    r'gForce': PropertySchema(
       id: 0,
+      name: r'gForce',
+      type: IsarType.double,
+    ),
+    r'lat': PropertySchema(
+      id: 1,
       name: r'lat',
       type: IsarType.double,
     ),
     r'lng': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'lng',
       type: IsarType.double,
     ),
     r'notes': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'notes',
       type: IsarType.string,
     ),
     r'sensorData': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'sensorData',
       type: IsarType.objectList,
       target: r'SensorPointEmbedded',
     ),
     r'source': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'source',
       type: IsarType.string,
     ),
     r'speed': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'speed',
       type: IsarType.double,
     ),
     r'timestamp': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'timestamp',
       type: IsarType.dateTime,
     ),
     r'type': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'type',
       type: IsarType.string,
     ),
     r'uuid': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -6694,20 +6897,21 @@ void _recordedEventSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDouble(offsets[0], object.lat);
-  writer.writeDouble(offsets[1], object.lng);
-  writer.writeString(offsets[2], object.notes);
+  writer.writeDouble(offsets[0], object.gForce);
+  writer.writeDouble(offsets[1], object.lat);
+  writer.writeDouble(offsets[2], object.lng);
+  writer.writeString(offsets[3], object.notes);
   writer.writeObjectList<SensorPointEmbedded>(
-    offsets[3],
+    offsets[4],
     allOffsets,
     SensorPointEmbeddedSchema.serialize,
     object.sensorData,
   );
-  writer.writeString(offsets[4], object.source);
-  writer.writeDouble(offsets[5], object.speed);
-  writer.writeDateTime(offsets[6], object.timestamp);
-  writer.writeString(offsets[7], object.type);
-  writer.writeString(offsets[8], object.uuid);
+  writer.writeString(offsets[5], object.source);
+  writer.writeDouble(offsets[6], object.speed);
+  writer.writeDateTime(offsets[7], object.timestamp);
+  writer.writeString(offsets[8], object.type);
+  writer.writeString(offsets[9], object.uuid);
 }
 
 RecordedEvent _recordedEventDeserialize(
@@ -6717,22 +6921,23 @@ RecordedEvent _recordedEventDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = RecordedEvent();
+  object.gForce = reader.readDoubleOrNull(offsets[0]);
   object.id = id;
-  object.lat = reader.readDoubleOrNull(offsets[0]);
-  object.lng = reader.readDoubleOrNull(offsets[1]);
-  object.notes = reader.readStringOrNull(offsets[2]);
+  object.lat = reader.readDoubleOrNull(offsets[1]);
+  object.lng = reader.readDoubleOrNull(offsets[2]);
+  object.notes = reader.readStringOrNull(offsets[3]);
   object.sensorData = reader.readObjectList<SensorPointEmbedded>(
-        offsets[3],
+        offsets[4],
         SensorPointEmbeddedSchema.deserialize,
         allOffsets,
         SensorPointEmbedded(),
       ) ??
       [];
-  object.source = reader.readString(offsets[4]);
-  object.speed = reader.readDoubleOrNull(offsets[5]);
-  object.timestamp = reader.readDateTime(offsets[6]);
-  object.type = reader.readString(offsets[7]);
-  object.uuid = reader.readString(offsets[8]);
+  object.source = reader.readString(offsets[5]);
+  object.speed = reader.readDoubleOrNull(offsets[6]);
+  object.timestamp = reader.readDateTime(offsets[7]);
+  object.type = reader.readString(offsets[8]);
+  object.uuid = reader.readString(offsets[9]);
   return object;
 }
 
@@ -6748,8 +6953,10 @@ P _recordedEventDeserializeProp<P>(
     case 1:
       return (reader.readDoubleOrNull(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 3:
+      return (reader.readStringOrNull(offset)) as P;
+    case 4:
       return (reader.readObjectList<SensorPointEmbedded>(
             offset,
             SensorPointEmbeddedSchema.deserialize,
@@ -6757,15 +6964,15 @@ P _recordedEventDeserializeProp<P>(
             SensorPointEmbedded(),
           ) ??
           []) as P;
-    case 4:
-      return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 6:
-      return (reader.readDateTime(offset)) as P;
-    case 7:
       return (reader.readString(offset)) as P;
+    case 6:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 7:
+      return (reader.readDateTime(offset)) as P;
     case 8:
+      return (reader.readString(offset)) as P;
+    case 9:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -6868,6 +7075,90 @@ extension RecordedEventQueryWhere
 
 extension RecordedEventQueryFilter
     on QueryBuilder<RecordedEvent, RecordedEvent, QFilterCondition> {
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      gForceIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'gForce',
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      gForceIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'gForce',
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      gForceEqualTo(
+    double? value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'gForce',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      gForceGreaterThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'gForce',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      gForceLessThan(
+    double? value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'gForce',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition>
+      gForceBetween(
+    double? lower,
+    double? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'gForce',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
   QueryBuilder<RecordedEvent, RecordedEvent, QAfterFilterCondition> idEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -7889,6 +8180,18 @@ extension RecordedEventQueryLinks
 
 extension RecordedEventQuerySortBy
     on QueryBuilder<RecordedEvent, RecordedEvent, QSortBy> {
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> sortByGForce() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gForce', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> sortByGForceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gForce', Sort.desc);
+    });
+  }
+
   QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> sortByLat() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lat', Sort.asc);
@@ -7989,6 +8292,18 @@ extension RecordedEventQuerySortBy
 
 extension RecordedEventQuerySortThenBy
     on QueryBuilder<RecordedEvent, RecordedEvent, QSortThenBy> {
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> thenByGForce() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gForce', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> thenByGForceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gForce', Sort.desc);
+    });
+  }
+
   QueryBuilder<RecordedEvent, RecordedEvent, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -8101,6 +8416,12 @@ extension RecordedEventQuerySortThenBy
 
 extension RecordedEventQueryWhereDistinct
     on QueryBuilder<RecordedEvent, RecordedEvent, QDistinct> {
+  QueryBuilder<RecordedEvent, RecordedEvent, QDistinct> distinctByGForce() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'gForce');
+    });
+  }
+
   QueryBuilder<RecordedEvent, RecordedEvent, QDistinct> distinctByLat() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lat');
@@ -8159,6 +8480,12 @@ extension RecordedEventQueryProperty
   QueryBuilder<RecordedEvent, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<RecordedEvent, double?, QQueryOperations> gForceProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'gForce');
     });
   }
 

@@ -63,32 +63,46 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    final storage = ref.read(storageServiceProvider);
+    try {
+      final storage = ref.read(storageServiceProvider);
+      // 核心修复：确保 Isar 初始化完成后再查询
+      await storage.init();
 
-    if (widget.isSettingsMode) {
-      final settings = ref.read(settingsProvider);
-      _modelController.text = settings.carModel ?? '';
-      _versionController.text = settings.softwareVersion ?? '';
-      _selectedBrand = settings.brand;
-      _selectedBrandRef = settings.brandRef;
-      _selectedVersionRef = settings.softwareVersionRef;
-    } else if (widget.tripId != null) {
-      final trips = await storage.getAllTrips();
-      final trip = trips.firstWhere((t) => t.id == widget.tripId);
-      final settings = ref.read(settingsProvider);
+      if (widget.isSettingsMode) {
+        final settings = ref.read(settingsProvider);
+        _modelController.text = settings.carModel ?? '';
+        _versionController.text = settings.softwareVersion ?? '';
+        _selectedBrand = settings.brand;
+        _selectedBrandRef = settings.brandRef;
+        _selectedVersionRef = settings.softwareVersionRef;
+      } else if (widget.tripId != null) {
+        final trips = await storage.getAllTrips();
+        final trip = trips.firstWhere(
+          (t) => t.id == widget.tripId,
+          orElse: () => throw Exception('Trip not found'),
+        );
+        final settings = ref.read(settingsProvider);
 
-      _modelController.text = trip.carModel ?? settings.carModel ?? '';
-      _versionController.text =
-          trip.softwareVersion ?? settings.softwareVersion ?? '';
-      _selectedBrand = trip.brand ?? settings.brand;
-      _selectedBrandRef = trip.brand_ref ?? settings.brandRef;
-      _selectedVersionRef =
-          trip.software_version_ref ?? settings.softwareVersionRef;
+        _modelController.text = trip.carModel ?? settings.carModel ?? '';
+        _versionController.text =
+            trip.softwareVersion ?? settings.softwareVersion ?? '';
+        _selectedBrand = trip.brand ?? settings.brand;
+        _selectedBrandRef = trip.brand_ref ?? settings.brandRef;
+        _selectedVersionRef =
+            trip.software_version_ref ?? settings.softwareVersionRef;
+      }
+    } catch (e) {
+      debugPrint('[VehicleInfo] Error loading initial data: $e');
+      // 如果报错，尽量从 settings 恢复一些基础显示，而不是显示错误页
+      final settings = ref.read(settingsProvider);
+      _selectedBrand ??= settings.brand;
     }
 
-    setState(() {
-      _isInitialized = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
   // 选择图片
@@ -381,7 +395,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   @override
   Widget build(BuildContext context) {
     final i18n = ref.watch(i18nProvider);
-    final brandsAsync = ref.watch(availableBrandsProvider);
+    final brandsAsync = ref.watch(allBrandsProvider);
 
     if (!_isInitialized) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));

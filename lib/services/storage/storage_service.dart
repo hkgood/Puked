@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:isar/isar.dart';
@@ -15,591 +17,473 @@ class StorageService {
   Isar? _isar;
   Future<void>? _initFuture;
 
+  // 使用唯一的实例名称，防止与其他插件冲突
+  static const String _instanceName = 'puked_master_v2_db';
+
   Future<void> init() async {
-    if (_isar != null) return;
-    if (_initFuture != null) return _initFuture;
+    if (_isar != null && _isar!.isOpen) return;
+
+    if (_initFuture != null) {
+      await _initFuture;
+      if (_isar != null && _isar!.isOpen) return;
+    }
 
     _initFuture = _doInit();
-    return _initFuture;
+    try {
+      await _initFuture;
+    } finally {
+      _initFuture = null;
+    }
   }
 
   Future<void> _doInit() async {
     try {
-      final existing = Isar.getInstance();
-      if (existing != null) {
-        _isar = existing;
-        return;
+      debugPrint('[Storage] 🟢 Initializing Isar (Instance: $_instanceName)...');
+      
+      var isar = Isar.getInstance(_instanceName);
+      
+      if (isar != null && isar.isOpen) {
+        try {
+          await isar.brands.count();
+          _isar = isar;
+          debugPrint('[Storage] 🟡 Existing instance is healthy.');
+          return;
+        } catch (e) {
+          debugPrint('[Storage] ⚠️ Existing instance is a ZOMBIE: $e. Closing it...');
+          try {
+            await isar.close();
+          } catch (_) {}
+          isar = null;
+        }
       }
 
       final dir = await getApplicationDocumentsDirectory();
-      _isar = await Isar.open(
-        [
-          TripSchema,
-          TrajectoryPointSchema,
-          RecordedEventSchema,
-          BrandSchema,
-          SoftwareVersionSchema
-        ],
-        directory: dir.path,
-      );
+      
+      try {
+        isar = await Isar.open(
+          [
+            TripSchema,
+            TrajectoryPointSchema,
+            RecordedEventSchema,
+            BrandSchema,
+            SoftwareVersionSchema
+          ],
+          directory: dir.path,
+          name: _instanceName,
+        );
+      } catch (e) {
+        debugPrint('[Storage] 🚨 Isar.open failed: $e');
+        rethrow;
+      }
+      
+      _isar = isar;
+      debugPrint('[Storage] ✅ Isar opened successfully.');
       await seedInitialData();
-    } catch (e) {
-      _initFuture = null;
+    } catch (e, stack) {
+      debugPrint('[Storage] ❌ Critical initialization error: $e');
+      debugPrint(stack.toString());
       rethrow;
     }
   }
 
+  Isar get _db {
+    if (_isar == null || !_isar!.isOpen) {
+      throw StateError('StorageService: Isar is not ready.');
+    }
+    return _isar!;
+  }
+
   Future<void> seedInitialData() async {
-    final count = await _isar!.brands.count();
+    final count = await _db.brands.count();
     if (count > 0) return;
 
     final initialBrands = [
-      'Tesla',
-      'Xpeng',
-      'LiAuto',
-      'Nio',
-      'Xiaomi',
-      'Huawei',
-      'Zeekr',
-      'Onvo',
-      'ApolloGo',
-      'PONYai',
-      'WeRide',
-      'Waymo',
-      'Zoox',
-      'Wayve',
-      'Momenta',
-      'Nvidia',
-      'Horizon',
-      'Deeproute',
-      'Leapmotor',
-      'Others'
+      'Tesla', 'Xpeng', 'LiAuto', 'Nio', 'Xiaomi', 'Huawei', 'Zeekr', 'Onvo', 'Others'
     ];
 
-    await _isar!.writeTxn(() async {
+    await _db.writeTxn(() async {
       for (var i = 0; i < initialBrands.length; i++) {
         final name = initialBrands[i];
         final brand = Brand()
           ..name = name
           ..displayName = name
-          ..logoUrl = null // 初始使用本地资产逻辑，后续同步更新为远程 URL
           ..order = i
-          ..isCustom = false;
-        await _isar!.brands.put(brand);
+          ..isEnabled = true;
+        await _db.brands.put(brand);
       }
     });
   }
 
+  // --- 品牌与版本 ---
+
   Future<List<Brand>> getAllBrands() async {
     await init();
-    return await _isar!.brands
-        .filter()
-        .isEnabledEqualTo(true)
-        .sortByOrder()
-        .findAll();
+    return await _db.brands.where().sortByOrder().findAll();
   }
 
-  /// 监听品牌表的变化
+  Stream<List<Brand>> watchAllBrands() async* {
+    await init();
+    yield* _db.brands.where().sortByOrder().watch(fireImmediately: true);
+  }
+
   Stream<List<Brand>> watchBrands() async* {
     await init();
-    yield* _isar!.brands
-        .filter()
-        .isEnabledEqualTo(true)
-        .sortByOrder()
-        .watch(fireImmediately: true);
-  }
-
-  /// 监听所有版本表的变化
-  Stream<List<SoftwareVersion>> watchAllVersions() async* {
-    await init();
-    yield* _isar!.softwareVersions
-        .filter()
-        .isEnabledEqualTo(true)
-        .watch(fireImmediately: true);
+    yield* _db.brands.filter().isEnabledEqualTo(true).sortByOrder().watch(fireImmediately: true);
   }
 
   Future<List<SoftwareVersion>> getVersionsForBrand(String brandName) async {
     await init();
-    final brand =
-        await _isar!.brands.filter().nameEqualTo(brandName).findFirst();
-    if (brand == null) return [];
-
-    return await _isar!.softwareVersions
+    return await _db.softwareVersions
         .filter()
         .brand((q) => q.nameEqualTo(brandName))
-        .and()
-        .isEnabledEqualTo(true)
         .findAll();
   }
 
-  Future<void> addBrand(Brand brand) async {
+  Stream<List<SoftwareVersion>> watchAllVersions() async* {
     await init();
-    await _isar!.writeTxn(() async {
-      await _isar!.brands.put(brand);
-    });
+    yield* _db.softwareVersions.where().watch(fireImmediately: true);
   }
 
-  /// 【核心修复】深度清理本地数据库中的“脏数据”
-  /// 删除那些版本名称或品牌名称看起来像 PocketBase ID 的残留记录
-  Future<void> cleanupDirtyMetadata() async {
+  Future<void> addVersion(String brandName, String versionString, {String? cloudId, bool isCustom = true}) async {
     await init();
-    final isar = _isar!;
-
-    await isar.writeTxn(() async {
-      // 1. 查找并删除版本名称字段中存入 ID 的脏记录
-      // 修复：Isar 3 不支持直接 Length 过滤，改为内存过滤
-      final allVersions = await isar.softwareVersions.where().findAll();
-      final dirtyVersions =
-          allVersions.where((v) => v.versionString.length == 15).toList();
-
-      final actualDirtyVersionIds = dirtyVersions
-          .where((v) =>
-              !v.versionString.contains('.') &&
-              RegExp(r'^[a-z0-9]+$').hasMatch(v.versionString))
-          .map((v) => v.id)
-          .toList();
-
-      if (actualDirtyVersionIds.isNotEmpty) {
-        debugPrint(
-            '[Storage] Cleaning up ${actualDirtyVersionIds.length} dirty version records...');
-        await isar.softwareVersions.deleteAll(actualDirtyVersionIds);
-      }
-
-      // 2. 查找并删除品牌名称字段中存入 ID 的脏记录
-      // 修复：同上，改为内存过滤
-      final allBrands = await isar.brands.where().findAll();
-      final dirtyBrands = allBrands.where((b) => b.name.length == 15).toList();
-
-      final actualDirtyBrandIds = dirtyBrands
-          .where((b) =>
-              !b.name.contains(' ') && RegExp(r'^[a-z0-9]+$').hasMatch(b.name))
-          .map((b) => b.id)
-          .toList();
-
-      if (actualDirtyBrandIds.isNotEmpty) {
-        debugPrint(
-            '[Storage] Cleaning up ${actualDirtyBrandIds.length} dirty brand records...');
-        await isar.brands.deleteAll(actualDirtyBrandIds);
-      }
-    });
-  }
-
-  Future<void> addVersion(String brandName, String versionString,
-      {String? cloudId, bool isCustom = true}) async {
-    await init();
-    final brand =
-        await _isar!.brands.filter().nameEqualTo(brandName).findFirst();
+    final brand = await _db.brands.filter().nameEqualTo(brandName).findFirst();
     if (brand == null) return;
-
-    // 检查版本是否已存在，防止重复
-    final existing = await _isar!.softwareVersions
-        .filter()
-        .versionStringEqualTo(versionString)
-        .and()
-        .brand((q) => q.nameEqualTo(brandName))
-        .findFirst();
-
+    final existing = await _db.softwareVersions.filter().versionStringEqualTo(versionString).and().brand((q) => q.nameEqualTo(brandName)).findFirst();
     if (existing != null) {
-      // 如果云端 ID 有更新，则同步更新
       if (cloudId != null && existing.cloudId != cloudId) {
-        await _isar!.writeTxn(() async {
-          existing.cloudId = cloudId;
-          await _isar!.softwareVersions.put(existing);
-        });
+        await _db.writeTxn(() async { existing.cloudId = cloudId; await _db.softwareVersions.put(existing); });
       }
       return;
     }
-
-    await _isar!.writeTxn(() async {
-      final version = SoftwareVersion()
-        ..versionString = versionString
-        ..cloudId = cloudId
-        ..isCustom = isCustom;
+    await _db.writeTxn(() async {
+      final version = SoftwareVersion()..versionString = versionString..cloudId = cloudId..isCustom = isCustom;
       version.brand.value = brand;
-      await _isar!.softwareVersions.put(version);
+      await _db.softwareVersions.put(version);
       await version.brand.save();
     });
   }
 
-  /// 从远程同步更新品牌数据（全量对齐）
   Future<void> updateBrandsFromRemote(List<Brand> remoteBrands) async {
     await init();
-    await _isar!.writeTxn(() async {
-      final remoteNames = remoteBrands.map((e) => e.name).toSet();
-
-      // 1. 更新或新增云端返回的品牌
+    await _db.writeTxn(() async {
+      final remoteNames = remoteBrands.map((e) => e.name.toLowerCase().trim()).toSet();
       for (var remote in remoteBrands) {
-        final local =
-            await _isar!.brands.filter().nameEqualTo(remote.name).findFirst();
-
+        final cleanName = remote.name.trim();
+        final local = await _db.brands.filter().cloudIdEqualTo(remote.cloudId).or().nameEqualTo(cleanName, caseSensitive: false).findFirst();
         if (local != null) {
-          local.cloudId = remote.cloudId;
-          local.displayName = remote.displayName;
-          local.logoUrl = remote.logoUrl;
-          local.order = remote.order;
-          local.isEnabled = remote.isEnabled;
-          local.isCustom = remote.isCustom;
-          local.updatedAt = remote.updatedAt;
-          await _isar!.brands.put(local);
+          local.name = cleanName; local.cloudId = remote.cloudId; local.displayName = remote.displayName;
+          local.logoUrl = remote.logoUrl; local.order = remote.order; local.isEnabled = remote.isEnabled;
+          local.isCustom = remote.isCustom; local.updatedAt = remote.updatedAt;
+          await _db.brands.put(local);
         } else {
-          await _isar!.brands.put(remote);
-        }
-      }
-
-      // 2. 【关键】处理本地多余的旧数据
-      // 如果本地品牌在云端不存在，且不是用户自定义的，则将其设为禁用
-      final allLocalBrands = await _isar!.brands.where().findAll();
-      for (var local in allLocalBrands) {
-        if (!remoteNames.contains(local.name) && !local.isCustom) {
-          local.isEnabled = false;
-          await _isar!.brands.put(local);
+          remote.name = cleanName; await _db.brands.put(remote);
         }
       }
     });
   }
 
-  Future<Trip> startTrip(
-      {String? carModel, String? notes, String? algorithm}) async {
+  Future<void> cleanupDirtyMetadata() async {
+    await init();
+    await _db.writeTxn(() async {
+      final allVersions = await _db.softwareVersions.where().findAll();
+      final dirtyVersionIds = allVersions.where((v) => v.versionString.length == 15 && RegExp(r'^[a-z0-9]+$').hasMatch(v.versionString)).map((v) => v.id).toList();
+      if (dirtyVersionIds.isNotEmpty) await _db.softwareVersions.deleteAll(dirtyVersionIds);
+
+      final allBrands = await _db.brands.where().findAll();
+      final dirtyBrandIds = allBrands.where((b) => b.name.length == 15 && RegExp(r'^[a-z0-9]+$').hasMatch(b.name)).map((b) => b.id).toList();
+      if (dirtyBrandIds.isNotEmpty) await _db.brands.deleteAll(dirtyBrandIds);
+    });
+  }
+
+  // --- 行程记录 ---
+
+  Future<Trip> startTrip({String? carModel, String? notes, String? algorithm}) async {
     await init();
     final packageInfo = await PackageInfo.fromPlatform();
-    final trip = Trip()
-      ..uuid = const Uuid().v4()
-      ..startTime = DateTime.now()
-      ..carModel = carModel
-      ..notes = notes
-      ..appVersion = packageInfo.version
-      ..platform = Platform.operatingSystem
-      ..algorithm = algorithm;
-
-    await _isar!.writeTxn(() async {
-      await _isar!.trips.put(trip);
-    });
+    final trip = Trip()..uuid = const Uuid().v4()..startTime = DateTime.now()..carModel = carModel..notes = notes..appVersion = packageInfo.version..platform = Platform.operatingSystem..algorithm = algorithm;
+    await _db.writeTxn(() async { await _db.trips.put(trip); });
     return trip;
   }
 
-  Future<void> addTrajectoryPoint(int tripId, TrajectoryPoint point,
-      {double? distance}) async {
-    final isar = _isar;
-    if (isar == null) return;
-    // 使用非阻塞事务并减少频繁写入带来的 UI 抖动
-    await isar.writeTxn(() async {
-      await isar.trajectoryPoints.put(point);
-      final trip = await isar.trips.get(tripId);
+  Future<void> addTrajectoryPoint(int tripId, TrajectoryPoint point, {double? distance}) async {
+    await init();
+    await _db.writeTxn(() async {
+      await _db.trajectoryPoints.put(point);
+      final trip = await _db.trips.get(tripId);
       if (trip != null) {
         trip.trajectory.add(point);
-        if (distance != null) {
-          trip.distance = distance;
-          await isar.trips.put(trip);
-        }
+        if (distance != null) { trip.distance = distance; await _db.trips.put(trip); }
         await trip.trajectory.save();
       }
     }, silent: true);
   }
 
   Future<void> saveEvent(int tripId, RecordedEvent event) async {
-    final isar = _isar;
-    if (isar == null) return;
-    await isar.writeTxn(() async {
-      await isar.recordedEvents.put(event);
-      final trip = await isar.trips.get(tripId);
-      if (trip != null) {
-        trip.events.add(event);
-        trip.eventCount++;
-        await isar.trips.put(trip);
-        await trip.events.save();
-      }
+    await init();
+    await _db.writeTxn(() async {
+      await _db.recordedEvents.put(event);
+      final trip = await _db.trips.get(tripId);
+      if (trip != null) { trip.events.add(event); trip.eventCount++; await _db.trips.put(trip); await trip.events.save(); }
     });
   }
 
   Future<void> endTrip(int tripId) async {
-    final isar = _isar;
-    if (isar == null) return;
-    await isar.writeTxn(() async {
-      final trip = await isar.trips.get(tripId);
+    await init();
+    await _db.writeTxn(() async {
+      final trip = await _db.trips.get(tripId);
       if (trip != null) {
         trip.endTime = DateTime.now();
-        await isar.trips.put(trip);
-      }
-    });
-  }
-
-  Future<void> updateTripCloudId(int tripId, String cloudId) async {
-    final isar = _isar;
-    if (isar == null) return;
-    await isar.writeTxn(() async {
-      final trip = await isar.trips.get(tripId);
-      if (trip != null) {
-        trip.cloudId = cloudId;
-        trip.isUploaded = true;
-        await isar.trips.put(trip);
-      }
-    });
-  }
-
-  /// 批量根据云端 UUID 列表同步本地上传状态
-  /// [cloudUuids] 云端存在的 UUID 列表
-  /// 返回本地状态发生变化的行程数量
-  Future<int> syncTripsStatus(List<String> cloudUuids) async {
-    final isar = _isar;
-    if (isar == null) return 0;
-    int changeCount = 0;
-
-    final cloudSet = cloudUuids.toSet();
-
-    await isar.writeTxn(() async {
-      final allTrips = await isar.trips.where().findAll();
-
-      for (final trip in allTrips) {
-        final shouldBeUploaded = cloudSet.contains(trip.uuid);
-
-        if (trip.isUploaded != shouldBeUploaded) {
-          trip.isUploaded = shouldBeUploaded;
-          // 如果云端不存在了，也清理掉本地存储的 cloudId
-          if (!shouldBeUploaded) {
-            trip.cloudId = null;
-          }
-          await isar.trips.put(trip);
-          changeCount++;
-        }
-      }
-    });
-    return changeCount;
-  }
-
-  Future<void> updateTripVehicleInfo(int tripId,
-      {String? brand,
-      String? brandRef,
-      String? carModel,
-      String? softwareVersion,
-      String? softwareVersionRef}) async {
-    final isar = _isar;
-    if (isar == null) return;
-    await isar.writeTxn(() async {
-      final trip = await isar.trips.get(tripId);
-      if (trip != null) {
-        trip.brand = brand;
-        trip.brand_ref = brandRef;
-        trip.carModel = carModel;
-        trip.softwareVersion = softwareVersion;
-        trip.software_version_ref = softwareVersionRef;
-        await isar.trips.put(trip);
+        // 行程结束时立即计算并缓存初步的 metrics
+        trip.metricsJson = jsonEncode(trip.generateMetrics());
+        await _db.trips.put(trip);
       }
     });
   }
 
   Future<List<Trip>> getAllTrips() async {
     await init();
-    final trips = await _isar!.trips.where().sortByStartTimeDesc().findAll();
-    // 预加载关联数据（如果需要）
-    for (final trip in trips) {
-      await trip.events.load();
-    }
+    final trips = await _db.trips.where().sortByStartTimeDesc().findAll();
+    for (final trip in trips) await trip.events.load();
     return trips;
   }
 
-  /// 监听所有行程变化
   Stream<List<Trip>> watchTrips() async* {
-    await init();
-    // 监听 trips 集合的变化
-    yield* _isar!.trips
-        .where()
-        .sortByStartTimeDesc()
-        .watch(fireImmediately: true)
-        .asyncMap((trips) async {
-      // 加载每个行程的关联事件，以便进行统计
-      for (final trip in trips) {
-        await trip.events.load();
-      }
-      return trips;
-    });
+    try {
+      await init();
+      yield* _db.trips.where().sortByStartTimeDesc().watch(fireImmediately: true);
+    } catch (e) {
+      debugPrint('[Storage] Error in watchTrips: $e');
+      yield [];
+    }
   }
 
   Future<Trip?> getTripById(int id) async {
     await init();
-    final trip = await _isar!.trips.get(id);
-    if (trip != null) {
-      await trip.trajectory.load();
-      await trip.events.load();
-    }
+    final trip = await _db.trips.get(id);
+    if (trip != null) { await trip.trajectory.load(); await trip.events.load(); }
     return trip;
   }
 
   Future<Trip?> getTripByUuid(String uuid) async {
     await init();
-    final trip = await _isar!.trips.filter().uuidEqualTo(uuid).findFirst();
-    if (trip != null) {
-      await trip.trajectory.load();
-      await trip.events.load();
-    }
+    final trip = await _db.trips.filter().uuidEqualTo(uuid).findFirst();
+    if (trip != null) { await trip.trajectory.load(); await trip.events.load(); }
     return trip;
   }
 
-  /// 保存一个占位行程（仅元数据）
-  Future<void> savePlaceholderTrip(Trip trip) async {
+  Future<void> updateTripCloudId(int tripId, String cloudId, {Map<String, dynamic>? metrics}) async {
     await init();
-    await _isar!.writeTxn(() async {
-      await _isar!.trips.put(trip);
-    });
-  }
-
-  /// 将占位行程补充完整数据
-  Future<void> completePlaceholderTrip(
-      int tripId, Map<String, dynamic> data) async {
-    debugPrint('[PukedSync] Starting to complete placeholder trip: $tripId');
-    await init();
-    final isar = _isar!;
-
-    try {
-      await isar.writeTxn(() async {
-        final trip = await isar.trips.get(tripId);
-        if (trip == null) {
-          debugPrint('[PukedSync] Error: Trip not found in DB: $tripId');
-          return;
-        }
-
-        final metadata = data['metadata'] as Map<String, dynamic>?;
-        if (metadata != null) {
-          trip.endTime = metadata['end_time'] != null
-              ? DateTime.parse(metadata['end_time'])
-              : null;
-          trip.appVersion = metadata['app_version'] as String?;
-          trip.platform = metadata['platform'] as String?;
-          trip.algorithm = metadata['algorithm'] as String?;
-          trip.notes = metadata['notes'] as String?;
-        }
-
-        // 1. 轨迹点解析 (增加 num 转换 double 的安全性)
-        final trajectoryData = data['trajectory'] as List<dynamic>?;
-        if (trajectoryData != null) {
-          final List<TrajectoryPoint> points = [];
-          for (final p in trajectoryData) {
-            final point = TrajectoryPoint()
-              ..timestamp =
-                  DateTime.fromMillisecondsSinceEpoch((p['ts'] * 1000).toInt())
-              ..lat = (p['lat'] as num).toDouble()
-              ..lng = (p['lng'] as num).toDouble()
-              ..altitude =
-                  (p['alt'] as num? ?? 0.0).toDouble() // 修复：必须赋初值，否则 late 变量会崩溃
-              ..speed = (p['speed'] as num? ?? 0.0).toDouble() // 增加：防御性处理
-              ..isLowConfidence = p['low_conf'] as bool?;
-            points.add(point);
-          }
-          await isar.trajectoryPoints.putAll(points);
-          trip.trajectory.addAll(points);
-          debugPrint('[PukedSync] Restored ${points.length} trajectory points');
-        }
-
-        // 2. 事件解析
-        final eventsData = data['events'] as List<dynamic>?;
-        if (eventsData != null) {
-          final List<RecordedEvent> events = [];
-          for (final e in eventsData) {
-            final location = e['location'] as Map<String, dynamic>?;
-            final sensorFragment =
-                e['sensor_fragment'] as Map<String, dynamic>?;
-            final sensorData = sensorFragment?['data'] as List<dynamic>?;
-
-            final event = RecordedEvent()
-              ..uuid = e['event_id'] as String
-              ..timestamp = DateTime.fromMillisecondsSinceEpoch(
-                  (e['timestamp'] * 1000).toInt())
-              ..type = e['type'] as String
-              ..source = e['source'] as String
-              ..lat = (location?['lat'] as num?)?.toDouble()
-              ..lng = (location?['lng'] as num?)?.toDouble()
-              ..sensorData = sensorData?.map((s) {
-                    final accel = s['accel'] as List<dynamic>?;
-                    final gyro = s['gyro'] as List<dynamic>?;
-                    final mag = s['mag'] as List<dynamic>?;
-                    return SensorPointEmbedded()
-                      ..offsetMs = s['offset_ms'] as int?
-                      ..ax = accel != null && accel.length >= 3
-                          ? (accel[0] as num).toDouble()
-                          : null
-                      ..ay = accel != null && accel.length >= 3
-                          ? (accel[1] as num).toDouble()
-                          : null
-                      ..az = accel != null && accel.length >= 3
-                          ? (accel[2] as num).toDouble()
-                          : null
-                      ..gx = gyro != null && gyro.length >= 3
-                          ? (gyro[0] as num).toDouble()
-                          : null
-                      ..gy = gyro != null && gyro.length >= 3
-                          ? (gyro[1] as num).toDouble()
-                          : null
-                      ..gz = gyro != null && gyro.length >= 3
-                          ? (gyro[2] as num).toDouble()
-                          : null
-                      ..mx = mag != null && mag.length >= 3
-                          ? (mag[0] as num).toDouble()
-                          : null
-                      ..my = mag != null && mag.length >= 3
-                          ? (mag[1] as num).toDouble()
-                          : null
-                      ..mz = mag != null && mag.length >= 3
-                          ? (mag[2] as num).toDouble()
-                          : null;
-                  }).toList() ??
-                  [];
-            events.add(event);
-          }
-          await isar.recordedEvents.putAll(events);
-          trip.events.addAll(events);
-          debugPrint('[PukedSync] Restored ${events.length} events');
-        }
-
-        // 3. 状态翻转 (核心：清除 [CLOUD_ONLY] 标记)
-        trip.isLocalMissing = false;
+    await _db.writeTxn(() async {
+      final trip = await _db.trips.get(tripId);
+      if (trip != null) {
+        trip.cloudId = cloudId;
         trip.isUploaded = true;
-        // 如果云端没有备注，则设为空字符串，确保不再是 [CLOUD_ONLY]
-        trip.notes = (metadata?['notes'] as String?) ?? "";
-
-        await isar.trips.put(trip);
-        await trip.trajectory.save();
-        await trip.events.save();
-        debugPrint('[PukedSync] Placeholder trip completed and persisted.');
-      });
-    } catch (e) {
-      debugPrint('[PukedSync] Critical error in completePlaceholderTrip: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> deleteEvent(int tripId, int eventId) async {
-    final isar = _isar;
-    if (isar == null) return;
-    await isar.writeTxn(() async {
-      final trip = await isar.trips.get(tripId);
-      final event = await isar.recordedEvents.get(eventId);
-
-      if (trip != null && event != null) {
-        // 从行程关联中移除
-        trip.events.remove(event);
-        if (trip.eventCount > 0) trip.eventCount--;
-
-        await isar.trips.put(trip);
-        await isar.recordedEvents.delete(eventId);
-        await trip.events.save();
+        if (metrics != null) {
+          trip.metricsJson = jsonEncode(metrics);
+        }
+        await _db.trips.put(trip);
       }
     });
   }
 
+  Future<void> updateTripVehicleInfo(int tripId, {String? brand, String? brandRef, String? carModel, String? softwareVersion, String? softwareVersionRef}) async {
+    await init();
+    await _db.writeTxn(() async {
+      final trip = await _db.trips.get(tripId);
+      if (trip != null) {
+        trip.brand = brand; trip.brand_ref = brandRef; trip.carModel = carModel;
+        trip.softwareVersion = softwareVersion; trip.software_version_ref = softwareVersionRef;
+        await _db.trips.put(trip);
+      }
+    });
+  }
+
+  Future<void> savePlaceholderTrip(Trip trip) async {
+    await init();
+    await _db.writeTxn(() async { await _db.trips.put(trip); });
+  }
+
+  Future<void> completePlaceholderTrip(int tripId, Map<String, dynamic> data) async {
+    await init();
+    debugPrint('[PukedSync] Entering completePlaceholderTrip for ID: $tripId');
+    await _db.writeTxn(() async {
+      debugPrint('[PukedSync] Started Isar Write Transaction for ID: $tripId');
+      final trip = await _db.trips.get(tripId);
+      if (trip == null) {
+        debugPrint('[PukedSync] ERROR: Trip with ID $tripId not found in DB');
+        return;
+      }
+
+      final metadata = data['metadata'] as Map<String, dynamic>?;
+      if (metadata != null) {
+        debugPrint('[PukedSync] Parsing metadata...');
+        trip.endTime = metadata['end_time'] != null ? DateTime.parse(metadata['end_time']).toLocal() : null;
+        trip.appVersion = metadata['app_version'] as String?;
+        trip.platform = metadata['platform'] as String?;
+        trip.algorithm = metadata['algorithm'] as String?;
+        trip.notes = metadata['notes'] as String?;
+      }
+
+      // 1. 轨迹点解析 (增加防御性类型检查)
+      final dynamic trajectoryRaw = data['trajectory'];
+      debugPrint('[PukedSync] Parsing trajectory (type: ${trajectoryRaw.runtimeType})...');
+      List<dynamic>? trajectoryData;
+      if (trajectoryRaw is List) {
+        trajectoryData = trajectoryRaw;
+      } else if (trajectoryRaw is Map) {
+        trajectoryData = (trajectoryRaw as Map).values.toList();
+      }
+
+      if (trajectoryData != null) {
+        final List<TrajectoryPoint> points = [];
+        for (final p in trajectoryData) {
+          if (p is! Map) continue;
+          points.add(TrajectoryPoint()
+            ..timestamp = DateTime.fromMillisecondsSinceEpoch(((p['ts'] ?? 0) * 1000).toInt())
+            ..lat = (p['lat'] as num? ?? 0).toDouble()
+            ..lng = (p['lng'] as num? ?? 0).toDouble()
+            ..altitude = (p['alt'] as num? ?? 0.0).toDouble()
+            ..speed = (p['speed'] as num? ?? 0.0).toDouble()
+            ..isLowConfidence = p['low_conf'] as bool?);
+        }
+        debugPrint('[PukedSync] Inserting ${points.length} trajectory points...');
+        await _db.trajectoryPoints.putAll(points);
+        trip.trajectory.addAll(points);
+      }
+
+      // 2. 事件解析 (增加防御性类型检查)
+      final dynamic eventsRaw = data['events'];
+      debugPrint('[PukedSync] Parsing events (type: ${eventsRaw.runtimeType})...');
+      List<dynamic>? eventsData;
+      if (eventsRaw is List) {
+        eventsData = eventsRaw;
+      } else if (eventsRaw is Map) {
+        eventsData = (eventsRaw as Map).values.toList();
+      }
+
+      if (eventsData != null) {
+        final List<RecordedEvent> events = [];
+        for (final e in eventsData) {
+          if (e is! Map) continue;
+          final loc = e['location'] as Map<String, dynamic>?;
+          final sensorFragment = e['sensor_fragment'] as Map<String, dynamic>?;
+          
+          final dynamic sensorDataRaw = sensorFragment?['data'];
+          List<dynamic>? sensorDataList;
+          if (sensorDataRaw is List) {
+            sensorDataList = sensorDataRaw;
+          } else if (sensorDataRaw is Map) {
+            sensorDataList = (sensorDataRaw as Map).values.toList();
+          }
+
+          final event = RecordedEvent()
+            ..uuid = (e['event_id'] ?? e['uuid'] ?? "") as String
+            ..timestamp = DateTime.fromMillisecondsSinceEpoch(((e['timestamp'] ?? 0) * 1000).toInt())
+            ..type = (e['type'] ?? "unknown") as String
+            ..source = (e['source'] ?? "AUTO") as String
+            ..lat = (loc?['lat'] as num?)?.toDouble()
+            ..lng = (loc?['lng'] as num?)?.toDouble();
+
+          if (sensorDataList != null) {
+            event.sensorData = sensorDataList.map((s) {
+              if (s is! Map) return SensorPointEmbedded();
+              
+              // 关键修复：防御性地处理 accel 和 gyro (防止 Map/List 混淆)
+              final dynamic accelRaw = s['accel'];
+              List<dynamic>? accel;
+              if (accelRaw is List) {
+                accel = accelRaw;
+              } else if (accelRaw is Map) {
+                accel = accelRaw.values.toList();
+              }
+
+              final dynamic gyroRaw = s['gyro'];
+              List<dynamic>? gyro;
+              if (gyroRaw is List) {
+                gyro = gyroRaw;
+              } else if (gyroRaw is Map) {
+                gyro = gyroRaw.values.toList();
+              }
+
+              return SensorPointEmbedded()
+                ..offsetMs = s['offset_ms'] as int?
+                ..ax = (accel != null && accel.length >= 1) ? (accel[0] as num).toDouble() : (s['ax'] as num?)?.toDouble()
+                ..ay = (accel != null && accel.length >= 2) ? (accel[1] as num).toDouble() : (s['ay'] as num?)?.toDouble()
+                ..az = (accel != null && accel.length >= 3) ? (accel[2] as num).toDouble() : (s['az'] as num?)?.toDouble()
+                ..gx = (gyro != null && gyro.length >= 1) ? (gyro[0] as num).toDouble() : (s['gx'] as num?)?.toDouble()
+                ..gy = (gyro != null && gyro.length >= 2) ? (gyro[1] as num).toDouble() : (s['gy'] as num?)?.toDouble()
+                ..gz = (gyro != null && gyro.length >= 3) ? (gyro[2] as num).toDouble() : (s['gz'] as num?)?.toDouble();
+            }).toList();
+          } else {
+            event.sensorData = [];
+          }
+          events.add(event);
+        }
+        debugPrint('[PukedSync] Inserting ${events.length} events...');
+        await _db.recordedEvents.putAll(events);
+        trip.events.addAll(events);
+      }
+
+      trip.isLocalMissing = false;
+      trip.isUploaded = true;
+      
+      // 如果本地还没有统计信息，或者需要从元数据中恢复备注
+      if (trip.metricsJson == null) {
+        trip.metricsJson = jsonEncode(trip.generateMetrics());
+      }
+      
+      if (trip.notes == null || trip.notes!.isEmpty) {
+        trip.notes = (metadata?['notes'] as String?) ?? "";
+      }
+
+      debugPrint('[PukedSync] Persisting trip object...');
+      await _db.trips.put(trip);
+      debugPrint('[PukedSync] Saving links...');
+      await trip.trajectory.save();
+      await trip.events.save();
+      debugPrint('[PukedSync] Placeholder trip completed and persisted.');
+    });
+  }
+
+  Future<void> deleteEvent(int tripId, int eventId) async {
+    await init();
+    await _db.writeTxn(() async {
+      final trip = await _db.trips.get(tripId);
+      final event = await _db.recordedEvents.get(eventId);
+      if (trip != null && event != null) { trip.events.remove(event); if (trip.eventCount > 0) trip.eventCount--; await _db.trips.put(trip); await _db.recordedEvents.delete(eventId); await trip.events.save(); }
+    });
+  }
+
   Future<void> deleteTrips(List<int> ids) async {
-    final isar = _isar;
-    if (isar == null) return;
-    await isar.writeTxn(() async {
+    await init();
+    await _db.writeTxn(() async {
       for (final id in ids) {
-        final trip = await isar.trips.get(id);
+        final trip = await _db.trips.get(id);
         if (trip != null) {
-          // 清理关联的轨迹点和事件
-          await trip.trajectory.load();
-          await trip.events.load();
-          await isar.trajectoryPoints
-              .deleteAll(trip.trajectory.map((e) => e.id).toList());
-          await isar.recordedEvents
-              .deleteAll(trip.events.map((e) => e.id).toList());
-          await isar.trips.delete(id);
+          // 核心逻辑：如果已经上传到云端，删除本地时将其转为占位符，而不是彻底删除
+          if (trip.isUploaded && trip.cloudId != null) {
+            await trip.trajectory.load();
+            await trip.events.load();
+            
+            // 删除关联的详细数据
+            await _db.trajectoryPoints.deleteAll(trip.trajectory.map((e) => e.id).toList());
+            await _db.recordedEvents.deleteAll(trip.events.map((e) => e.id).toList());
+            
+            // 重置行程为占位状态
+            trip.isLocalMissing = true;
+            await _db.trips.put(trip);
+            await trip.trajectory.save();
+            await trip.events.save();
+            debugPrint('[Storage] Trip $id converted to placeholder instead of deletion.');
+          } else {
+            // 未上传或没云端 ID，执行彻底删除
+            await trip.trajectory.load();
+            await trip.events.load();
+            await _db.trajectoryPoints.deleteAll(trip.trajectory.map((e) => e.id).toList());
+            await _db.recordedEvents.deleteAll(trip.events.map((e) => e.id).toList());
+            await _db.trips.delete(id);
+            debugPrint('[Storage] Trip $id deleted permanently.');
+          }
         }
       }
     });

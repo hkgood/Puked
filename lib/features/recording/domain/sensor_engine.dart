@@ -92,6 +92,20 @@ class SensorEngine {
     }
   }
 
+  void stop() {
+    if (!_isRunning) return;
+    _isRunning = false;
+    _accelSub?.cancel();
+    _accelSub = null;
+    _gyroSub?.cancel();
+    _gyroSub = null;
+    _magSub?.cancel();
+    _magSub = null;
+    _samplingTimer?.cancel();
+    _samplingTimer = null;
+    debugPrint('SensorEngine stopped');
+  }
+
   void _processTick(DateTime timestamp) {
     final now = timestamp;
 
@@ -192,8 +206,8 @@ class SensorEngine {
 
   /// 顶级校准逻辑：增加状态重置、方差校验和陀螺仪守卫，确保校准是绝对干净的
   Future<void> calibrate({double currentSpeedMs = 0.0}) async {
-    // 0. 车辆静止守卫：通过 GPS 速度判定
-    if (currentSpeedMs > 0.1) {
+    // 0. 车辆静止守卫：通过 GPS 速度判定 (放宽到 0.5m/s = 1.8km/h)
+    if (currentSpeedMs > 0.5) {
       throw Exception(
           "校准失败：请在车辆完全停稳后进行 (当前车速: ${(currentSpeedMs * 3.6).toStringAsFixed(1)} km/h)");
     }
@@ -223,8 +237,8 @@ class SensorEngine {
 
     // 2. 陀螺仪守卫：检测校准期间是否有任何晃动
     final maxGyro = gyroMagnitudes.reduce(math.max);
-    if (maxGyro > 0.1) {
-      // 稍微放宽到 0.1，适配 Android 硬件基底噪声
+    if (maxGyro > 0.3) {
+      // 进一步放宽到 0.3，适配 Android 硬件基底噪声
       throw Exception("校准失败：请确保手机完全静止（检测到晃动: ${maxGyro.toStringAsFixed(3)}）");
     }
 
@@ -244,7 +258,8 @@ class SensorEngine {
     }
     variance /= accelSamples.length;
 
-    if (variance > 0.05) {
+    if (variance > 0.15) {
+      // 从 0.05 放宽到 0.15
       throw Exception("校准失败：请确保手机完全静止（检测到震动: ${variance.toStringAsFixed(3)}）");
     }
 

@@ -1,4 +1,19 @@
-source 'https://mirrors.tuna.tsinghua.edu.cn/git/CocoaPods/Specs.git'
+# 动态获取 Flutter SDK 路径，避免硬编码绝对路径
+def find_flutter_root
+  generated_xconfig = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  if File.exist?(generated_xconfig)
+    File.foreach(generated_xconfig) do |line|
+      matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
+      return matches[1] if matches
+    end
+  end
+  # 回退方案：从环境变量获取或报错
+  ENV['FLUTTER_ROOT'] || raise("Error: FLUTTER_ROOT not found. Please run 'flutter pub get' or set FLUTTER_ROOT environment variable.")
+end
+
+flutter_root = find_flutter_root
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
 platform :ios, '13.0'
 
@@ -7,12 +22,6 @@ project 'Runner', {
   'Profile' => :release,
   'Release' => :release,
 }
-
-def flutter_root
-  "/Users/maxliu/development/flutter"
-end
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
 target 'Runner' do
   use_frameworks!
@@ -45,6 +54,10 @@ post_install do |installer|
       # 核心修复：禁用 Xcode 16 的模块验证器（解决 could not build module 问题）
       config.build_settings['CLANG_ENABLE_MODULE_VERIFIER'] = 'NO'
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+      # 忽略第三方库的警告转错误（解决 audioplayers 等废弃 API 导致的编译错误）
+      config.build_settings['SWIFT_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+      config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
     end
   end
 end

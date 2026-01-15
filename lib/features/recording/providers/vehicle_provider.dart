@@ -2,16 +2,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/services/storage/storage_service.dart';
 
-/// 监听所有可用品牌的 StreamProvider
+/// 监听所有可用品牌的 StreamProvider (仅限已启用的)
 final availableBrandsProvider = StreamProvider<List<Brand>>((ref) {
   final storage = ref.watch(storageServiceProvider);
   return storage.watchBrands();
-});
+}, name: 'availableBrandsProvider');
+
+/// 监听所有品牌 (包含禁用的，用于 Arena 展示)
+final allBrandsProvider = StreamProvider<List<Brand>>((ref) {
+  final storage = ref.watch(storageServiceProvider);
+  return storage.watchAllBrands();
+}, name: 'allBrandsProvider');
 
 /// 根据品牌 ID 或名称获取显示名称的 Provider
 final brandNameProvider = Provider.family<String, String>((ref, idOrNameRaw) {
   final idOrName = idOrNameRaw.trim();
-  final brandsAsync = ref.watch(availableBrandsProvider);
+  // 核心修复：名称解析必须使用全量品牌库 (allBrandsProvider)
+  final brandsAsync = ref.watch(allBrandsProvider);
   return brandsAsync.maybeWhen(
     data: (brands) {
       if (idOrName.isEmpty || idOrName.toLowerCase() == 'unknown') {

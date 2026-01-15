@@ -9,31 +9,25 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Puked';
-
-  @override
   String get settings => 'Settings';
 
   @override
-  String get history => 'History';
-
-  @override
-  String get arena => 'Arena';
-
-  @override
-  String get language => 'Language';
+  String get preferences => 'Preferences';
 
   @override
   String get theme => 'Theme';
 
   @override
-  String get themeAuto => 'System';
+  String get themeAuto => 'AUTO';
 
   @override
-  String get themeLight => 'Light';
+  String get themeLight => 'LIGHT';
 
   @override
-  String get themeDark => 'Dark';
+  String get themeDark => 'DARK';
+
+  @override
+  String get language => 'Language';
 
   @override
   String get chinese => 'Chinese';
@@ -42,71 +36,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get english => 'English';
 
   @override
-  String get sensitivity => 'Auto-tagging Sensitivity';
+  String get event_sound => 'Event Sound';
 
   @override
-  String get sensitivityLow => 'Low';
+  String get event_sound_desc => 'Play sound when negative event detected';
 
   @override
-  String get sensitivityMedium => 'Medium (Sensitive)';
+  String get current_version => 'Current Version';
 
   @override
-  String get sensitivityHigh => 'High (Most Sensitive - Default)';
+  String get algorithm_version => 'Algorithm Version';
 
   @override
-  String get sensitivityLowDesc => 'Accel > 3.0m/s², Brake > 3.5m/s²';
+  String get check_update => 'Check for Update';
 
   @override
-  String get sensitivityMediumDesc => 'Accel > 2.4m/s², Brake > 2.8m/s²';
+  String get privacy_policy => 'Privacy Policy';
 
   @override
-  String get sensitivityHighDesc => 'Accel > 1.8m/s², Brake > 2.1m/s²';
+  String get unknown => 'Unknown';
 
   @override
-  String get sensitivityTip =>
-      'Higher sensitivity means lower acceleration thresholds for auto-tagging events.';
+  String get user => 'User';
 
   @override
-  String get rapidAcceleration => 'Rapid Acceleration';
+  String get logout => 'Logout';
 
   @override
-  String get rapidDeceleration => 'Rapid Deceleration';
+  String get login => 'Login';
 
   @override
-  String get jerk => 'Jerk';
-
-  @override
-  String get bump => 'Bump';
-
-  @override
-  String get wobble => 'Wobble';
-
-  @override
-  String get start_trip => 'START TRIP';
-
-  @override
-  String get stop_trip => 'STOP TRIP';
-
-  @override
-  String get calibrating => 'Calibrating...';
-
-  @override
-  String get calibration_tip => 'Keep the phone stable for vehicle alignment';
-
-  @override
-  String get edit => 'Edit';
-
-  @override
-  String get modify_vehicle_info => 'Modify Vehicle Info';
-
-  @override
-  String get vehicle_info => 'Vehicle Info';
-
-  @override
-  String get car_model => 'Car Model';
-
-  @override
-  String get software_version => 'Software Version';
+  String get login_to_sync => 'Login to sync data and share trips';
 
   @override
   String get model_hint => 'Enter model (e.g. Model 3)';
@@ -115,120 +75,218 @@ class AppLocalizationsEn extends AppLocalizations {
   String get version_hint => 'Enter version (e.g. v12.5)';
 
   @override
-  String get skip => 'Skip';
-
-  @override
-  String get save => 'Save';
-
-  @override
-  String get about => 'About';
-
-  @override
-  String get current_version => 'Current Version';
-
-  @override
-  String get check_update => 'Check for Update';
-
-  @override
-  String get account => 'Account';
-
-  @override
-  String get login => 'Login';
-
-  @override
-  String get logout => 'Logout';
-
-  @override
-  String get sync_data => 'Sync Data';
-
-  @override
-  String get login_to_sync => 'Login to sync data and share trips';
-
-  @override
-  String connected_as(Object name) {
-    return 'Connected as: $name';
-  }
-
-  @override
-  String get brand => 'My ADAS';
-
-  @override
-  String get my_car => 'My Car';
-
-  @override
-  String get password => 'Password';
-
-  @override
-  String get name => 'Nickname';
-
-  @override
-  String get register => 'Register';
-
-  @override
-  String get no_account => 'Don\'t have an account? Register';
-
-  @override
-  String get has_account => 'Already have an account? Login';
-
-  @override
-  String get login_failed => 'Login failed';
-
-  @override
-  String get register_failed => 'Registration failed';
-
-  @override
-  String get forgot_password => 'Forgot Password?';
-
-  @override
-  String get reset_email_sent => 'Reset email sent, please check your inbox';
-
-  @override
-  String get verify_email => 'Verify Email';
-
-  @override
   String get verification_sent => 'Verification email sent';
-
-  @override
-  String get not_verified => 'Not verified (Tap to verify)';
-
-  @override
-  String get error_email_taken => 'Email already registered';
-
-  @override
-  String get error_invalid_credentials => 'Invalid email or password';
-
-  @override
-  String get error_password_too_short =>
-      'Password must be at least 8 characters';
 
   @override
   String get verification_success => 'Verification successful!';
 
   @override
-  String get syncing => 'Syncing cloud status...';
+  String get not_verified => 'Not verified (Tap to verify)';
 
   @override
-  String sync_complete(Object count) {
-    return 'Sync complete, marked $count trips';
+  String get approved => 'Approved';
+
+  @override
+  String get pending => 'Pending';
+
+  @override
+  String get rejected => 'Rejected';
+
+  @override
+  String get unverified => 'Unverified';
+
+  @override
+  String get my_car => 'My Car';
+
+  @override
+  String get my_data_uploaded => 'My Data (Uploaded)';
+
+  @override
+  String get uploaded_mileage => 'Uploaded Mileage';
+
+  @override
+  String get mileage_contribution => 'Mileage Contribution';
+
+  @override
+  String get my_puked_rank => 'My PUKED Rank';
+
+  @override
+  String get my_puked_value => 'My PUKED Value';
+
+  @override
+  String get brand_distribution_desc => 'Dist.';
+
+  @override
+  String uploaded_mileage_val(Object value) {
+    return '$value KM';
   }
 
   @override
-  String get no_cloud_records => 'No matching cloud records found';
+  String mileage_contribution_val(Object value) {
+    return '$value%';
+  }
 
   @override
-  String get sync_cloud_status => 'Sync upload status';
+  String my_puked_rank_val(Object rank, Object total) {
+    return 'Rank $rank / $total';
+  }
+
+  @override
+  String my_puked_value_val(Object value) {
+    return '$value km/Evt';
+  }
+
+  @override
+  String get account_and_car => 'Account & Car';
+
+  @override
+  String get realtime_g => 'Real-time G';
+
+  @override
+  String get peak_g => 'Peak G';
+
+  @override
+  String get longitudinal => 'LONGITUDINAL';
+
+  @override
+  String get lateral => 'LATERAL';
+
+  @override
+  String get trip_summary => 'Trip Summary';
+
+  @override
+  String get total_events => 'Total Events';
+
+  @override
+  String get duration => 'Duration';
+
+  @override
+  String get distance => 'Distance';
+
+  @override
+  String get avg_speed => 'Avg Speed';
+
+  @override
+  String get calibrate => 'Calibrate';
+
+  @override
+  String get recorded_msg => 'Recorded (Last 10s data)';
+
+  @override
+  String get no_trips => 'No trip records';
+
+  @override
+  String get exporting => 'Exporting data...';
+
+  @override
+  String get pro => 'Pro';
+
+  @override
+  String get submit_trip => 'Submit Trip';
+
+  @override
+  String get uploading => 'Uploading...';
+
+  @override
+  String get upload_success => 'Upload successful';
+
+  @override
+  String get upload_failed => 'Upload failed';
+
+  @override
+  String get neg_exp => 'Negative Exp.';
+
+  @override
+  String get gps_strong => 'Strong';
+
+  @override
+  String get gps_fair => 'Fair';
+
+  @override
+  String get gps_weak => 'Weak';
+
+  @override
+  String get gps_no_signal => 'No Signal';
+
+  @override
+  String get share_card => 'Share Card';
+
+  @override
+  String get trip_analysis => 'Trip Analysis';
+
+  @override
+  String get event_breakdown => 'Event Breakdown';
+
+  @override
+  String get trigger_sensitivity => 'Trigger Sensitivity';
+
+  @override
+  String get trigger_duration => 'Trigger Duration';
+
+  @override
+  String get false_positive_suppression => 'False Positive Suppression';
+
+  @override
+  String get download => 'Download';
+
+  @override
+  String get downloading => 'Syncing & Downloading...';
+
+  @override
+  String get download_success => 'Sync download successful';
+
+  @override
+  String get download_failed => 'Sync download failed';
+
+  @override
+  String get cloud_trip => 'Cloud Trip';
+
+  @override
+  String get pulling_cloud_trips => 'Fetching cloud records...';
+
+  @override
+  String cloud_sync_result(Object count) {
+    return 'Sync complete, found $count new trips';
+  }
+
+  @override
+  String get select_version => 'Select Version';
+
+  @override
+  String get custom_version_input => 'Manual Input';
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get skip => 'Skip';
+
+  @override
+  String get software_version => 'Software Version';
+
+  @override
+  String get car_model => 'Car Model';
+
+  @override
+  String get vehicle_info => 'Vehicle Info';
+
+  @override
+  String get modify_vehicle_info => 'Modify Vehicle Info';
 
   @override
   String get arena_top10_title => 'Safe Driving Top 10';
-
-  @override
-  String get km_per_event_long => 'KM per Negative Event (Higher is better)';
-
-  @override
-  String get by_brand => 'By Brand';
-
-  @override
-  String get by_version => 'By Version';
 
   @override
   String get arena_total_mileage_title => 'Mileage Leaderboard';
@@ -242,14 +300,56 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get km_per_version_event_long =>
-      'Comfort performance across software versions';
-
-  @override
   String get arena_details_title => 'Negative Experience Breakdown';
 
   @override
+  String get arena_leaderboard_title => 'Mileage Contributors';
+
+  @override
+  String get low_speed_ranking => 'Urban Comfort Ranking';
+
+  @override
+  String get high_speed_ranking => 'Highway Comfort Ranking';
+
+  @override
+  String get low_speed_desc =>
+      'Events for trips < 50 km/h, km/evt, total mileage > 300';
+
+  @override
+  String get high_speed_desc =>
+      'Events for trips >= 50 km/h, km/evt, total mileage > 300';
+
+  @override
+  String get city => 'Urban';
+
+  @override
+  String get highway => 'Highway';
+
+  @override
+  String get weekly_rank => 'Weekly';
+
+  @override
+  String get total_rank => 'Total';
+
+  @override
+  String get user_mileage_unit => 'km';
+
+  @override
   String get km_per_event => 'km/Event';
+
+  @override
+  String get km_per_event_long =>
+      'Km between negative experiences, total mileage > 300';
+
+  @override
+  String get km_per_version_event_long =>
+      'Average km per negative experience by version';
+
+  @override
+  String get by_brand => 'By Brand';
+
+  @override
+  String get by_version => 'By Version';
 
   @override
   String get all_versions => 'All Versions';
@@ -258,16 +358,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get select_brand => 'Select Brand';
 
   @override
-  String get no_trips_yet =>
-      'No trip data recorded yet. Start a trip to see statistics!';
-
-  @override
-  String get no_data_for_brand => 'No Data';
-
-  @override
-  String events_count(Object count) {
-    return '$count Events';
-  }
+  String get mileage_label => 'Mileage';
 
   @override
   String trips_count(Object count) {
@@ -275,7 +366,75 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get mileage_label => 'Mileage';
+  String events_count(Object count) {
+    return '$count Events';
+  }
+
+  @override
+  String get app_name => 'Puked';
+
+  @override
+  String get history => 'History';
+
+  @override
+  String get arena => 'Arena';
+
+  @override
+  String get start_trip => 'START TRIP';
+
+  @override
+  String get stop_trip => 'STOP TRIP';
+
+  @override
+  String get calibrating => 'Calibrating...';
+
+  @override
+  String get calibrated => 'Calibrated!';
+
+  @override
+  String get calibration_failed => 'Calibration Failed';
+
+  @override
+  String get calibration_failed_desc =>
+      'Please ensure the vehicle and phone are stationary.';
+
+  @override
+  String get rapid_accel => 'Rapid Accel';
+
+  @override
+  String get rapid_decel => 'Rapid Decel';
+
+  @override
+  String get jerk => 'Jerk';
+
+  @override
+  String get rapidAcceleration => 'Rapid Acceleration';
+
+  @override
+  String get rapidDeceleration => 'Rapid Deceleration';
+
+  @override
+  String get jerk_event => 'Jerk';
+
+  @override
+  String get bump => 'Bump';
+
+  @override
+  String get wobble => 'Wobble';
+
+  @override
+  String get manual => 'Manual Mark';
+
+  @override
+  String get calibration_tip => 'Keep the phone stable for vehicle alignment';
+
+  @override
+  String get no_data_for_brand => 'No Data';
+
+  @override
+  String connected_as(Object name) {
+    return 'Connected as: $name';
+  }
 
   @override
   String get car_cert_banner => 'Verify your car to enable trip uploads';
@@ -285,7 +444,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get upload_hint =>
-      'Please upload a photo showing your car model and VIN (usually found on the lower driver-side windshield or door pillar).';
+      'Please upload a photo showing your car model and VIN';
 
   @override
   String get file_limit_hint => 'Up to 3 photos (JPG/PNG, < 5MB each)';
@@ -294,8 +453,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get submit_for_audit => 'Submit for Verification';
 
   @override
-  String get submit_success_tip =>
-      'Verification details submitted! We\'ll review them shortly.';
+  String get submit_success_tip => 'Verification details submitted!';
 
   @override
   String get error_image_limit => 'Please select up to 3 photos.';
@@ -312,19 +470,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get delete_event_desc =>
       'Deleted events cannot be recovered. Are you sure?';
-
-  @override
-  String get insufficient_data_title => 'Insufficient Trip Data';
-
-  @override
-  String get insufficient_data_message =>
-      'The trip data is too short, please upload trip data with longer mileage';
-
-  @override
-  String get upload => 'Upload';
-
-  @override
-  String get privacy_policy => 'Privacy Policy';
 
   @override
   String agree_privacy_link(Object policy) {
@@ -367,9 +512,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_no_photo_permission =>
       'Please grant photo gallery permission';
-
-  @override
-  String get algorithm_version => 'Algorithm Version';
 
   @override
   String algorithm_update_success(Object version) {
@@ -443,6 +585,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get max_bump_allowed_label => 'Max Bump Limit';
 
   @override
+  String get min_accel_for_jerk_label => 'Jerk Min Accel';
+
+  @override
   String get threshold_accel_hint =>
       'Min acceleration to trigger \'Rapid Acceleration\'';
 
@@ -495,12 +640,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Max bump limit to filter out non-road impacts';
 
   @override
+  String get min_accel_for_jerk_hint =>
+      'Only calculate jerk if acceleration exceeds this';
+
+  @override
   String get zy_interference_threshold_hint =>
       'Z-axis activity level to suppress Y-axis';
 
   @override
   String get zx_interference_threshold_hint =>
-      'Z-axis activity level to suppress X-axis (Jerk) detection';
+      'Z-axis activity level to suppress X-axis';
 
   @override
   String get pitch_validation_enabled_hint =>
@@ -518,38 +667,170 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sync_now => 'Sync Now';
 
   @override
-  String get download => 'Download';
+  String get error_invalid_credentials => 'Invalid email or password';
 
   @override
-  String get downloading => 'Syncing & Downloading...';
+  String get login_failed => 'Login failed';
 
   @override
-  String get download_success => 'Sync download successful';
+  String get forgot_password => 'Forgot Password';
 
   @override
-  String get download_failed => 'Sync download failed';
+  String get reset_email_sent => 'Reset email sent';
 
   @override
-  String get cloud_trip => 'Cloud Trip';
+  String get password => 'Password';
 
   @override
-  String get pulling_cloud_trips => 'Fetching cloud records...';
+  String get no_account => 'No account? Register now';
 
   @override
-  String cloud_sync_result(Object count) {
-    return 'Sync complete, found $count new trips';
+  String get error_email_taken => 'Email already taken';
+
+  @override
+  String get error_password_too_short => 'Password too short (min 8)';
+
+  @override
+  String get register_failed => 'Register failed';
+
+  @override
+  String get register => 'Register';
+
+  @override
+  String get name => 'Name';
+
+  @override
+  String get has_account => 'Already have an account? Login';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get delete_trips => 'Delete Trips';
+
+  @override
+  String delete_trips_confirm(Object count) {
+    return 'Are you sure you want to delete these $count trips?';
   }
 
   @override
-  String get custom_version_input =>
-      'Manual Input (Format: x.x.x, no sub-versions)';
+  String get delete => 'Delete';
 
   @override
-  String get confirm => 'Confirm';
+  String get select_items => 'Select Items';
 
   @override
-  String get cancel => 'Cancel';
+  String get sync_cloud_status => 'Sync Status';
 
   @override
-  String get select_version => 'Select Version';
+  String bulk_upload_confirm(Object count) {
+    return 'Are you sure you want to upload these $count trips?';
+  }
+
+  @override
+  String get upload => 'Upload';
+
+  @override
+  String get insufficient_data_title => 'Insufficient Data';
+
+  @override
+  String get insufficient_data_message =>
+      'Some trips have insufficient data (mileage too short). We suggest driving further before submitting.';
+
+  @override
+  String get syncing => 'Syncing...';
+
+  @override
+  String get no_trips_yet => 'No History Trips';
+
+  @override
+  String get submit_trip_confirm =>
+      'Are you sure you want to submit this trip to the Arena?';
+
+  @override
+  String get car_cert_banner_approved => 'Car Verified';
+
+  @override
+  String get car_cert_banner_pending => 'Car Verifying';
+
+  @override
+  String get car_cert_banner_rejected => 'Car Verification Rejected';
+
+  @override
+  String get upload_cert_photos_new => 'Re-upload Certification';
+
+  @override
+  String get upload_cert_photos_submitted => 'Certification Submitted';
+
+  @override
+  String get upload_hint_new =>
+      'Please re-upload photos showing your license plate or VIN';
+
+  @override
+  String get event_list => 'Event Details';
+
+  @override
+  String get min => 'min';
+
+  @override
+  String get value => 'Value';
+
+  @override
+  String get app_tagline => 'Quantifying AD Comfort';
+
+  @override
+  String get algo_a => 'ALGO A';
+
+  @override
+  String get algo_b => 'ALGO B';
+
+  @override
+  String get sensor_frozen => 'SENSOR FROZEN';
+
+  @override
+  String get ins_active => 'INS ACTIVE';
+
+  @override
+  String get fetching_arena_data => 'Fetching Arena Data...';
+
+  @override
+  String get no_records => 'No Records';
+
+  @override
+  String get arena_mileage_requirement =>
+      'Ranking brand mileage must be greater than 300 km';
+
+  @override
+  String get share_failed => 'Share failed';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get avatar_updated => 'Avatar updated';
+
+  @override
+  String get passwords_not_match => 'Passwords do not match';
+
+  @override
+  String get required => 'Required';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get invalid_email => 'Invalid email format';
+
+  @override
+  String get password_too_short_hint =>
+      'Password must be at least 8 characters';
+
+  @override
+  String get repeat_password => 'Repeat password';
+
+  @override
+  String get crop_avatar => 'Crop Avatar';
+
+  @override
+  String get update_avatar_failed => 'Failed to update avatar';
 }

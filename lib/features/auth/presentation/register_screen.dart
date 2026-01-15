@@ -43,6 +43,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     if (image == null) return;
 
+    if (!mounted) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
     final toolbarColor = isDark
@@ -59,14 +60,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       compressQuality: 85,
       uiSettings: [
         AndroidUiSettings(
-          toolbarTitle: 'Crop Avatar',
+          toolbarTitle: AppLocalizations.of(context)!.crop_avatar,
           toolbarColor: toolbarColor,
           statusBarColor: toolbarColor,
           backgroundColor: backgroundColor,
           toolbarWidgetColor: Colors.white,
-          activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          activeControlsWidgetColor: isDark
+              ? const Color(0xFF1A1A1A)
+              : Theme.of(context).colorScheme.primary,
           dimmedLayerColor: isDark ? Colors.black.withValues(alpha: 0.8) : null,
-          cropFrameColor: Theme.of(context).colorScheme.primary,
+          cropFrameColor: isDark
+              ? const Color(0xFF1A1A1A)
+              : Theme.of(context).colorScheme.primary,
           cropGridColor: Colors.white.withValues(alpha: 0.5),
           initAspectRatio: CropAspectRatioPreset.square,
           lockAspectRatio: true,
@@ -74,7 +79,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           showCropGrid: true,
         ),
         IOSUiSettings(
-          title: 'Crop Avatar',
+          title: AppLocalizations.of(context)!.crop_avatar,
           aspectRatioLockEnabled: true,
           resetAspectRatioEnabled: false,
           hidesNavigationBar: false,
@@ -90,14 +95,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Passwords do not match'),
+        SnackBar(
+            content: Text(l10n.passwords_not_match),
             backgroundColor: Colors.red),
       );
       return;
@@ -240,18 +246,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   decoration:
                       _buildInputDecoration(l10n.name, Icons.person_outline),
                   validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Required' : null,
+                      (v == null || v.isEmpty) ? l10n.required : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _emailController,
                   style: const TextStyle(),
                   decoration: _buildInputDecoration(
-                      'Email', Icons.email_outlined,
+                      l10n.email, Icons.email_outlined,
                       hint: 'example@email.com'),
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) =>
-                      (v == null || !v.contains('@')) ? 'Invalid email' : null,
+                      (v == null || !v.contains('@')) ? l10n.invalid_email : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -261,7 +267,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       _buildInputDecoration(l10n.password, Icons.lock_outline),
                   obscureText: true,
                   validator: (v) =>
-                      (v == null || v.length < 8) ? 'Min 8 characters' : null,
+                      (v == null || v.length < 8) ? l10n.password_too_short_hint : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -269,10 +275,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   style: const TextStyle(),
                   decoration: _buildInputDecoration(
                       l10n.password, Icons.lock_reset_outlined,
-                      hint: 'Repeat password'),
+                      hint: l10n.repeat_password),
                   obscureText: true,
                   validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Required' : null,
+                      (v == null || v.isEmpty) ? l10n.required : null,
                 ),
                 const SizedBox(height: 24),
                 Row(

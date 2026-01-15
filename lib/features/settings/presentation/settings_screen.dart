@@ -28,10 +28,12 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 页面构建时静默刷新用户信息，确保认证状态（如 audit_status）是最新的
+    // 页面构建时静默刷新用户信息和统计数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (ref.read(authProvider).isAuthenticated) {
         ref.read(authProvider.notifier).refreshUserFromServer();
+        // 核心修复：打开设置页面时也刷新一次统计快照，确保“我的数据”是最新的
+        ref.read(arenaStatsProvider.notifier).refresh(force: false);
       }
     });
 
@@ -46,9 +48,21 @@ class SettingsScreen extends ConsumerWidget {
         title: Text(i18n.t('settings')),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          child: Column(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            // 触发全量数据同步和快照刷新
+            await Future.wait([
+              ref.read(authProvider.notifier).refreshUserFromServer(),
+              ref.read(arenaStatsProvider.notifier).refresh(force: true),
+            ]);
+            
+            // 给 UI 一点反馈时间
+            await Future.delayed(const Duration(milliseconds: 500));
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(), // 确保内容不足时也能触发下拉刷新
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. 账号与车辆卡片

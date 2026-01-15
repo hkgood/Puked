@@ -86,7 +86,42 @@ final myStatsProvider = Provider<AsyncValue<MyStats>>((ref) {
 
 final _userStatsEntryProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, userId) async {
   final cloudService = ref.read(cloudTripServiceProvider);
-  return await cloudService.fetchUserStats(userId);
+  
+  // 1. 尝试从 user_stats 获取快照 (如果是后端 cron 任务更新)
+  final snapshot = await cloudService.fetchUserStats(userId);
+  if (snapshot != null) return snapshot;
+
+  // 2. 核心兜底：如果后端没有 hook/cron 刷新快照，前端直接从明细表聚合
+  // 这能解决用户提到的“不使用 hooks”导致数据不更新的问题
+  debugPrint('[MyStats] No user_stats snapshot, falling back to real-time aggregation...');
+  final arenaStats = await ref.read(arenaStatsProvider.future);
+  final allSummary = arenaStats['all_summary'] as List<RecordModel>? ?? [];
+  
+  double totalMileage = 0;
+  int totalEvents = 0;
+  Map<String, double> brandDist = {};
+  
+  for (final s in allSummary) {
+    if (s.getStringValue('user') == userId) {
+      final dist = (s.get<num>('total_distance') ?? 0).toDouble();
+      totalMileage += dist;
+      totalEvents += (s.get<num>('total_events') ?? 0).toInt();
+      
+      final brandRecord = s.expand['brand']?.firstOrNull;
+      final brandName = brandRecord?.getStringValue('name') ?? 'Others';
+      brandDist[brandName] = (brandDist[brandName] ?? 0) + dist;
+    }
+  }
+
+  if (totalMileage == 0) return null;
+
+  return {
+    'totalMileage': totalMileage,
+    'brandDistribution': brandDist,
+    'rank': 0, // 实时聚合难以计算排名，显示为 0
+    'totalUsers': 0,
+    'pukedValue': totalEvents > 0 ? totalMileage / totalEvents : totalMileage,
+  };
 });
 
 int _getFilteredEventCount(Trip t) {

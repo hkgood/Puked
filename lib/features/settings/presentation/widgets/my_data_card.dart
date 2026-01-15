@@ -23,7 +23,7 @@ class MyDataCard extends ConsumerStatefulWidget {
 class _MyDataCardState extends ConsumerState<MyDataCard> {
   final ScreenshotController _screenshotController = ScreenshotController();
 
-  Future<void> _shareStatsCard(MyStats stats, I18n i18n) async {
+  Future<void> _shareStatsCard(MyStats stats, I18n i18n, Rect? sharePositionOrigin) async {
     final auth = ref.read(authProvider);
     final pb = ref.read(pbServiceProvider);
     final container = ProviderScope.containerOf(context);
@@ -229,7 +229,11 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
         final imageFile = File(imagePath);
         await imageFile.writeAsBytes(imageBytes);
 
-        await Share.shareXFiles([XFile(imagePath)], text: 'My ADAS driving stats on PUKED!');
+        await Share.shareXFiles(
+          [XFile(imagePath)],
+          text: 'My ADAS driving stats on PUKED!',
+          sharePositionOrigin: sharePositionOrigin,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -340,9 +344,17 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                   ),
                 ),
                 const Spacer(),
-                IconButton(
-                  icon: Icon(Icons.share_rounded, size: 20, color: colorScheme.primary),
-                  onPressed: () => _shareStatsCard(stats, i18n),
+                Builder(
+                  builder: (context) => IconButton(
+                    icon: Icon(Icons.share_rounded, size: 20, color: colorScheme.primary),
+                    onPressed: () {
+                      final RenderBox? box = context.findRenderObject() as RenderBox?;
+                      final Rect? rect = box != null
+                          ? box.localToGlobal(Offset.zero) & box.size
+                          : null;
+                      _shareStatsCard(stats, i18n, rect);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -543,7 +555,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
         value: entry.value,
         radius: 22,
         showTitle: false,
-        badgeWidget: percentage > 0.05 ? _buildBrandBadge(entry.key, entry.value, forceLight: forceLight, fontFallback: systemFallback) : null,
+        // 移除 5% 的过滤门槛，让所有品牌都显示 badge
+        badgeWidget: _buildBrandBadge(entry.key, entry.value, forceLight: forceLight, fontFallback: systemFallback),
         badgePositionPercentageOffset: 1.6,
       );
     }).toList();

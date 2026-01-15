@@ -433,9 +433,9 @@ class ArenaService {
 
     // --- 最终数据组装 (对齐 Web 端) ---
 
-    // 舒适度排行门槛：只有总里程 >= 300km 的品牌/版本才参与“无负体验排行”
-    // 防止极小样本量导致的 MPI 数据失真 (例如 500米 0 负体验)
-    const double rankingThreshold = 300.0;
+    // 舒适度排行门槛：移除 300km 限制，让所有品牌都能显示
+    // 设定一个极小的阈值 (0.1km) 防止除以零
+    const double rankingThreshold = 0.1;
 
     stats['ranking_brand'] = brandMap.values
         .where((b) => (b['totalKm'] as num) >= rankingThreshold)

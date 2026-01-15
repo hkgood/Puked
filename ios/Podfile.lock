@@ -56,7 +56,7 @@ DEPENDENCIES:
   - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
 
 SPEC REPOS:
-  https://mirrors.tuna.tsinghua.edu.cn/git/CocoaPods/Specs.git:
+  trunk:
     - TOCropViewController
 
 EXTERNAL SOURCES:
@@ -112,6 +112,6 @@ SPEC CHECKSUMS:
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
 
-PODFILE CHECKSUM: 698592492ffb318b6c2def5bfce42b30ebb1fe78
+PODFILE CHECKSUM: 70a8c9bb4ae9948ed9d09926c831702f027b53ea
 
 COCOAPODS: 1.16.2

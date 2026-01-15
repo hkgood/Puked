@@ -1,6 +1,6 @@
 name: puked
 description: A sophisticated tool for autonomous driving PMs to record ride comfort.
-version: 2.3.3+233
+version: 2.3.4+234
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

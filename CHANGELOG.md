@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.4] - 2026-01-14
+### Fixed
+- **Android 编译兼容性升级**：解决了 AGP 8.x 环境下 Isar 等老旧插件 `AndroidManifest.xml` 中 `package` 属性导致的编译失败问题。
+- **自动化补丁增强**：优化了 Manifest 自动修复脚本，支持对所有依赖插件进行命名空间 (Namespace) 的注入与校验。
+
 ## [2.3.3] - 2026-01-14
 ### Fixed
 - **流水线链路修复**：全面解决了代码格式不规范导致的 GitHub Action 编译中断问题。

@@ -77,7 +77,7 @@ subprojects {
 }
 
 // 针对 Isar 3.x 等老旧插件的 Manifest 兼容性补丁
-// 采用更温和的方式：仅在发现 package 属性时进行处理，并添加详细日志
+// 采用更稳健的正则匹配与任务挂载方式
 tasks.register("patchOldPluginsManifests") {
     doLast {
         subprojects.forEach { p ->
@@ -85,21 +85,30 @@ tasks.register("patchOldPluginsManifests") {
             if (manifestFile.exists()) {
                 val content = manifestFile.readText()
                 if (content.contains("package=")) {
-                    logger.lifecycle("--- AGP Compatibility: Patching manifest for plugin '${p.name}'")
-                    val updatedContent = content.replace(Regex("""\s+package="[^"]*""""), "")
-                    manifestFile.writeText(updatedContent)
+                    logger.lifecycle("--- AGP Compatibility: Patching manifest for plugin '${p.name}' at ${manifestFile.absolutePath}")
+                    // 更稳健的正则，匹配 package="..." 及其可选的前置空白符
+                    val updatedContent = content.replace(Regex("""\s*package="[^"]*""""), "")
+                    try {
+                        manifestFile.writeText(updatedContent)
+                    } catch (e: Exception) {
+                        logger.error("--- AGP Compatibility: Failed to patch manifest for ${p.name}: ${e.message}")
+                    }
                 }
             }
         }
     }
 }
 
-// 确保在编译前执行补丁
+// 确保在所有编译任务前执行补丁
 subprojects {
     afterEvaluate {
-        if (plugins.hasPlugin("com.android.library") || plugins.hasPlugin("com.android.application")) {
-            tasks.matching { it.name.contains("PreBuild") }.configureEach {
-                dependsOn(":patchOldPluginsManifests")
+        val p = this
+        if (p.plugins.hasPlugin("com.android.library") || p.plugins.hasPlugin("com.android.application")) {
+            p.tasks.configureEach {
+                // 匹配 preBuild 任务（注意大小写敏感度）
+                if (name.contains("preBuild", ignoreCase = true)) {
+                    dependsOn(":patchOldPluginsManifests")
+                }
             }
         }
     }

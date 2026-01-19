@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
+import 'package:puked/features/settings/providers/my_stats_provider.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/cloud_trip_service.dart';
 import 'package:puked/services/pocketbase_service.dart';
@@ -30,39 +32,132 @@ final arenaStatsProvider =
 class ArenaStatsNotifier
     extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
   final Ref ref;
-  ArenaStatsNotifier(this.ref) : super(const AsyncValue.loading());
+  static const String _cacheKey = 'puked_arena_stats_cache';
+  bool _isRefreshing = false; // 真正追踪网络任务的标志
 
-  Future<void> refresh({bool force = false}) async {
-    // 核心追踪：只要进入 refresh，无论是否强制，都先打一行 log
-    debugPrint('[Arena] Refresh called. force: $force, hasValue: ${state.hasValue}');
+  ArenaStatsNotifier(this.ref) : super(const AsyncValue.loading()) {
+    _init();
+  }
 
-    if (!state.hasValue || force) {
-      state = const AsyncValue.loading();
+  Future<void> _init() async {
+    // 1. 先尝试加载本地缓存
+    await _loadCache();
+
+    // 2. 无论是否有缓存，都在后台发起一次轻量刷新 (非强制)
+    // 这样用户一打开 App，数据就是最新的
+    refresh(force: false, isSilent: true);
+  }
+
+  Future<void> _loadCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedStr = prefs.getString(_cacheKey);
+      if (cachedStr != null && cachedStr.isNotEmpty) {
+        final Map<String, dynamic> rawJson = jsonDecode(cachedStr);
+
+        // 将 Map 还原为 RecordModel 列表，并显式指定泛型以确保 iOS 编译成功
+        final List<RecordModel> allSummary = (rawJson['all_summary'] as List)
+            .map<RecordModel>((item) => RecordModel(
+                Map<String, dynamic>.from(item as Map<String, dynamic>)))
+            .toList();
+        final List<RecordModel> weeklySummary =
+            (rawJson['weekly_summary'] as List)
+                .map<RecordModel>((item) => RecordModel(
+                    Map<String, dynamic>.from(item as Map<String, dynamic>)))
+                .toList();
+
+        final data = {
+          'all_summary': allSummary,
+          'weekly_summary': weeklySummary,
+        };
+
+        // 如果当前是加载状态，将其设为数据状态（即使是旧数据）
+        if (state.isLoading) {
+          state = AsyncValue.data(data);
+          debugPrint('[Arena] Local cache loaded and reconstructed.');
+        }
+      }
+    } catch (e) {
+      debugPrint('[Arena] Failed to load/reconstruct cache: $e');
+    }
+  }
+
+  Future<void> _saveCache(Map<String, dynamic> data) async {
+    try {
+      if (data.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+
+      // RecordModel 自带 toJson，但我们需要处理列表
+      final allSummary = (data['all_summary'] as List<RecordModel>)
+          .map((r) => r.toJson())
+          .toList();
+      final weeklySummary = (data['weekly_summary'] as List<RecordModel>)
+          .map((r) => r.toJson())
+          .toList();
+
+      final serializableData = {
+        'all_summary': allSummary,
+        'weekly_summary': weeklySummary,
+      };
+
+      await prefs.setString(_cacheKey, jsonEncode(serializableData));
+    } catch (e) {
+      debugPrint('[Arena] Failed to save cache: $e');
+    }
+  }
+
+  Future<void> refresh({bool force = false, bool isSilent = false}) async {
+    // 核心防御：只有当真正的网络任务在运行时才跳过
+    if (_isRefreshing && !force) {
+      debugPrint(
+          '[Arena] Refresh skipped: network task already in progress...');
+      return;
+    }
+
+    debugPrint(
+        '[Arena] Refresh called. force: $force, isSilent: $isSilent, hasValue: ${state.hasValue}');
+
+    _isRefreshing = true;
+
+    // 如果不是静默刷新，或者当前完全没数据，则显示加载状态
+    if (!isSilent || !state.hasValue) {
+      state = AsyncLoading<Map<String, dynamic>>().copyWithPrevious(state);
     }
 
     try {
       final cloudService = ref.read(cloudTripServiceProvider);
+      // ... 其余逻辑保持不变 ...
       final metadataService = ref.read(metadataSyncServiceProvider);
 
-      // 只要进入 Arena 页面就尝试同步一次元数据 (不再受 force 限制)
-      // 这样即便后台开启了新品牌，用户一进来就能同步到
-      debugPrint('[MetadataSync] Starting background metadata sync...');
+      // 同步元数据
       await metadataService.syncBrandsFromCloud();
-      
-      // 给数据库写入留一点缓冲
       await Future.delayed(const Duration(milliseconds: 200));
 
-      // 如果是强制刷新，先触发云端重新计算统计数据
       if (force) {
         debugPrint('[Arena] Triggering cloud stats recalculation...');
+        ref.read(myStatsForceRefreshProvider.notifier).state =
+            DateTime.now().millisecondsSinceEpoch;
         await cloudService.triggerArenaSync();
       }
 
       final stats = await cloudService.fetchArenaStats();
+
+      // 保存到本地缓存
+      await _saveCache(stats);
+
+      _isRefreshing = false;
       state = AsyncValue.data(stats);
+      debugPrint('[Arena] Refresh success.');
     } catch (e, stack) {
+      _isRefreshing = false;
       debugPrint('[Arena] Error in refresh: $e');
-      state = AsyncValue.error(e, stack);
+      // 出错时，如果有旧数据，则保留旧数据并打日志，不显示大报错界面
+      if (state.hasValue) {
+        debugPrint('[Arena] Keeping stale data due to error.');
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, stack);
+      }
     }
   }
 }
@@ -143,7 +238,7 @@ class ArenaService {
         final local = brandMap[lowerName]!;
         // 核心修复：如果在统计数据中发现了该品牌，强制将其设为启用，确保 UI 显示
         local.isEnabled = true;
-        
+
         if (local.logoUrl == null || local.logoUrl!.isEmpty) {
           local.logoUrl = cloudLogoUrl;
         }
@@ -215,11 +310,11 @@ class ArenaService {
     for (final s in allSummary) {
       final brandId = s.getStringValue('brand');
       final brandRecord = s.expand['brand']?.firstOrNull;
-      
+
       // 累加全局里程
       final dist = (s.get<num>('total_distance') ?? 0).toDouble();
       globalTotalMileage += dist;
-      
+
       final userId = s.getStringValue('user');
       if (userId.isNotEmpty) uniqueUsers.add(userId);
 
@@ -239,9 +334,9 @@ class ArenaService {
 
       final versionId = s.getStringValue('software_version');
       // 兼容性修复：尝试多种可能的 expand key
-      final versionRecord = s.expand['software_version']?.firstOrNull ?? 
-                           s.expand['software_versions']?.firstOrNull;
-      
+      final versionRecord = s.expand['software_version']?.firstOrNull ??
+          s.expand['software_versions']?.firstOrNull;
+
       // 核心修复：极致增强版本号解析。
       // 优先级 1: 统计数据中的 software_version 关联记录 (处理空字符串 fallback)
       final vn = versionRecord?.getStringValue('version_name') ?? '';
@@ -264,13 +359,14 @@ class ArenaService {
           // 如果第二部分不全是小写字母数字（即含有点、横杠等版本特征），则认为是版本号
           // 或者如果它虽然是小写字母数字但不是 15 位（PB ID 的特征），也认为是版本号
           final part = keyParts[1];
-          final isPbId = part.length == 15 && RegExp(r'^[a-z0-9]+$').hasMatch(part);
+          final isPbId =
+              part.length == 15 && RegExp(r'^[a-z0-9]+$').hasMatch(part);
           if (!isPbId) {
             versionName = part;
           }
         }
       }
-      
+
       if (versionName.isEmpty) {
         versionName = 'Unknown';
       }
@@ -389,8 +485,10 @@ class ArenaService {
       v['totalEvents'] += totalEvents;
 
       if (userId.isNotEmpty) {
-        userTotalMap.putIfAbsent(userId,
-            () => {'userName': userName, 'avatarUrl': avatarUrl, 'totalKm': 0.0});
+        userTotalMap.putIfAbsent(
+            userId,
+            () =>
+                {'userName': userName, 'avatarUrl': avatarUrl, 'totalKm': 0.0});
         userTotalMap[userId]['totalKm'] += totalDistance;
       }
     }
@@ -411,7 +509,8 @@ class ArenaService {
 
         final userRecord = s.expand['user']?.firstOrNull;
         String userName = userRecord?.getStringValue('username') ?? '';
-        if (userName.isEmpty) userName = userRecord?.getStringValue('name') ?? '';
+        if (userName.isEmpty)
+          userName = userRecord?.getStringValue('name') ?? '';
         if (userName.isEmpty) userName = 'Anonymous';
 
         final avatar = userRecord?.getStringValue('avatar') ?? '';
@@ -424,8 +523,10 @@ class ArenaService {
                 .toString()
             : null;
 
-        userWeeklyMap.putIfAbsent(userId,
-            () => {'userName': userName, 'avatarUrl': avatarUrl, 'totalKm': 0.0});
+        userWeeklyMap.putIfAbsent(
+            userId,
+            () =>
+                {'userName': userName, 'avatarUrl': avatarUrl, 'totalKm': 0.0});
         userWeeklyMap[userId]['totalKm'] +=
             (s.get<num>('total_distance') ?? 0).toDouble();
       }
@@ -451,7 +552,8 @@ class ArenaService {
                   : b['totalKm']
             })
         .toList()
-      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+      ..sort(
+          (a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
     stats['ranking_brand'] = (stats['ranking_brand'] as List).take(10).toList();
 
     stats['ranking_version'] = versionMap.values
@@ -469,8 +571,10 @@ class ArenaService {
                   : v['totalKm']
             })
         .toList()
-      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
-    stats['ranking_version'] = (stats['ranking_version'] as List).take(10).toList();
+      ..sort(
+          (a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_version'] =
+        (stats['ranking_version'] as List).take(10).toList();
 
     stats['ranking_city'] = brandCityMap.values
         .where((b) => (b['km'] as num) >= (rankingThreshold / 2)) // 场景排行门槛减半
@@ -482,7 +586,8 @@ class ArenaService {
               'kmPerEvent': b['events'] > 0 ? b['km'] / b['events'] : b['km']
             })
         .toList()
-      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+      ..sort(
+          (a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
     stats['ranking_city'] = (stats['ranking_city'] as List).take(10).toList();
 
     stats['ranking_highway'] = brandHighwayMap.values
@@ -495,8 +600,10 @@ class ArenaService {
               'kmPerEvent': b['events'] > 0 ? b['km'] / b['events'] : b['km']
             })
         .toList()
-      ..sort((a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
-    stats['ranking_highway'] = (stats['ranking_highway'] as List).take(10).toList();
+      ..sort(
+          (a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_highway'] =
+        (stats['ranking_highway'] as List).take(10).toList();
 
     stats['mileage'] = brandMap.values
         .map((b) => {
@@ -516,14 +623,17 @@ class ArenaService {
 
     stats['leaderboard_total'] = userTotalMap.values.toList()
       ..sort((a, b) => (b['totalKm'] as num).compareTo(a['totalKm'] as num));
-    stats['leaderboard_total'] = (stats['leaderboard_total'] as List).take(10).toList();
+    stats['leaderboard_total'] =
+        (stats['leaderboard_total'] as List).take(10).toList();
 
     stats['leaderboard_weekly'] = userWeeklyMap.values.toList()
       ..sort((a, b) => (b['totalKm'] as num).compareTo(a['totalKm'] as num));
-    stats['leaderboard_weekly'] = (stats['leaderboard_weekly'] as List).take(10).toList();
+    stats['leaderboard_weekly'] =
+        (stats['leaderboard_weekly'] as List).take(10).toList();
 
-    stats['brand_options'] =
-        brandMap.values.map((b) => {'key': b['id'], 'name': b['name']}).toList();
+    stats['brand_options'] = brandMap.values
+        .map((b) => {'key': b['id'], 'name': b['name']})
+        .toList();
 
     // 注入全局汇总数据，用于计算贡献度、排名等
     stats['global_summary'] = {
@@ -544,10 +654,15 @@ class ArenaService {
           'rapidDeceleration': eventBreakdown['rapidDeceleration'] > 0
               ? totalKm / eventBreakdown['rapidDeceleration']
               : 0.0,
-          'jerk': eventBreakdown['jerk'] > 0 ? totalKm / eventBreakdown['jerk'] : 0.0,
-          'bump': eventBreakdown['bump'] > 0 ? totalKm / eventBreakdown['bump'] : 0.0,
-          'wobble':
-              eventBreakdown['wobble'] > 0 ? totalKm / eventBreakdown['wobble'] : 0.0,
+          'jerk': eventBreakdown['jerk'] > 0
+              ? totalKm / eventBreakdown['jerk']
+              : 0.0,
+          'bump': eventBreakdown['bump'] > 0
+              ? totalKm / eventBreakdown['bump']
+              : 0.0,
+          'wobble': eventBreakdown['wobble'] > 0
+              ? totalKm / eventBreakdown['wobble']
+              : 0.0,
         },
         'counts': Map<String, int>.from(eventBreakdown),
         'totalKm': totalKm,
@@ -563,8 +678,8 @@ class ArenaService {
                     : v['totalKm']
               })
           .toList()
-        ..sort(
-            (a, b) => (a['version'] as String).compareTo(b['version'] as String));
+        ..sort((a, b) =>
+            (a['version'] as String).compareTo(b['version'] as String));
     }
 
     return stats;
@@ -575,7 +690,8 @@ class ArenaService {
     if (idOrName == 'Unknown') return 'Unknown';
     final brand = _mergedBrands.firstWhere(
       (b) =>
-          b.cloudId == idOrName || b.name.toLowerCase() == idOrName.toLowerCase(),
+          b.cloudId == idOrName ||
+          b.name.toLowerCase() == idOrName.toLowerCase(),
       orElse: () => Brand()..name = idOrName,
     );
     return brand.displayName ?? brand.name;
@@ -603,15 +719,20 @@ class ArenaService {
   // --- 核心优化：直接从预计算快照中转换数据模型 ---
 
   List<BrandData> getTop10Data({bool groupByBrand = true}) {
-    final list = _processedStats[groupByBrand ? 'ranking_brand' : 'ranking_version'] as List?;
+    final list =
+        _processedStats[groupByBrand ? 'ranking_brand' : 'ranking_version']
+            as List?;
     if (list == null) return [];
-    
+
     return list.map((item) => _mapToBrandData(item)).toList();
   }
 
-  List<BrandData> getScenarioRankingData({required String scenario, bool groupByBrand = true}) {
+  List<BrandData> getScenarioRankingData(
+      {required String scenario, bool groupByBrand = true}) {
     // 移动端目前不支持按版本的场景排行，仅支持按品牌
-    final list = _processedStats[scenario == 'city' ? 'ranking_city' : 'ranking_highway'] as List?;
+    final list =
+        _processedStats[scenario == 'city' ? 'ranking_city' : 'ranking_highway']
+            as List?;
     if (list == null) return [];
 
     return list.map((item) => _mapToBrandData(item)).toList();
@@ -637,7 +758,8 @@ class ArenaService {
 
   VersionEvolutionData getEvolutionData(String brandKey) {
     final list = _processedStats['evolution_$brandKey'] as List?;
-    if (list == null) return VersionEvolutionData(brand: brandKey, evolution: []);
+    if (list == null)
+      return VersionEvolutionData(brand: brandKey, evolution: []);
 
     return VersionEvolutionData(
       brand: brandKey,
@@ -655,14 +777,17 @@ class ArenaService {
   SymptomData getSymptomDetails(String brandKey, {String? version}) {
     final data = _processedStats['symptoms_$brandKey'] as Map<String, dynamic>?;
     if (data == null) {
-      return SymptomData(brand: brandKey, details: {}, counts: {}, totalKm: 0, tripCount: 0);
+      return SymptomData(
+          brand: brandKey, details: {}, counts: {}, totalKm: 0, tripCount: 0);
     }
 
     final rawDetails = data['details'] as Map<String, dynamic>? ?? {};
-    final Map<String, double> details = rawDetails.map((k, v) => MapEntry(k, (v as num).toDouble()));
+    final Map<String, double> details =
+        rawDetails.map((k, v) => MapEntry(k, (v as num).toDouble()));
 
     final rawCounts = data['counts'] as Map<String, dynamic>? ?? {};
-    final Map<String, int> counts = rawCounts.map((k, v) => MapEntry(k, (v as num).toInt()));
+    final Map<String, int> counts =
+        rawCounts.map((k, v) => MapEntry(k, (v as num).toInt()));
 
     return SymptomData(
       brand: brandKey,
@@ -696,7 +821,9 @@ class ArenaService {
   }
 
   List<UserLeaderboardData> getUserLeaderboard({bool weekly = false}) {
-    final list = _processedStats[weekly ? 'leaderboard_weekly' : 'leaderboard_total'] as List?;
+    final list =
+        _processedStats[weekly ? 'leaderboard_weekly' : 'leaderboard_total']
+            as List?;
     if (list == null) return [];
 
     return list.map((item) {

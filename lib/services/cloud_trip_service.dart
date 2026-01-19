@@ -138,7 +138,7 @@ class CloudTripService {
   Future<int> syncCloudToLocal(dynamic storage) async {
     final userId = _pbService.currentUserId;
     final isAuth = _pbService.isAuthenticated;
-    
+
     if (!isAuth || userId == null) {
       debugPrint('[PukedSync] Skip sync: isAuth=$isAuth, userId=$userId');
       return 0;
@@ -148,66 +148,73 @@ class CloudTripService {
       debugPrint('[PukedSync] Starting sync for user: $userId');
       final cloudRecords = await fetchUserCloudTrips();
       debugPrint('[PukedSync] Cloud returned ${cloudRecords.length} records');
-      
+
       int newPlaceholders = 0;
       int updatedCount = 0;
 
       for (final record in cloudRecords) {
         final uuid = record.getStringValue('local_uuid');
         if (uuid.isEmpty) {
-          debugPrint('[PukedSync] Warning: Cloud record ${record.id} has no local_uuid');
+          debugPrint(
+              '[PukedSync] Warning: Cloud record ${record.id} has no local_uuid');
           continue;
         }
 
         final localTrip = await storage.getTripByUuid(uuid);
         if (localTrip == null) {
-          debugPrint('[PukedSync] Creating placeholder for missing trip: $uuid');
-          
+          debugPrint(
+              '[PukedSync] Creating placeholder for missing trip: $uuid');
+
           final metricsRaw = record.get('metrics');
-          final Map<String, dynamic> metrics = metricsRaw is Map<String, dynamic> 
-              ? metricsRaw 
-              : {};
-          
-          final distanceKm = double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
+          final Map<String, dynamic> metrics =
+              metricsRaw is Map<String, dynamic> ? metricsRaw : {};
+
+          final distanceKm =
+              double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
           final eventCount = metrics['event_count'] as int? ?? 0;
 
           // 核心修复：将云端完整的 metrics 序列化存入专门的 metricsJson 字段
           final String metricsJson = jsonEncode(metrics);
 
-            final placeholder = Trip()
-              ..uuid = uuid
-              ..cloudId = record.id
-              // 关键修复：使用业务上的 start_time 字段
-              ..startTime = DateTime.parse(record.getStringValue('start_time').isNotEmpty 
-                  ? record.getStringValue('start_time') 
-                  : record.get<String>('created')).toLocal()
-              ..brand = record.getStringValue('brand')
-              ..brand_ref = record.getStringValue('brand_ref')
-              ..carModel = record.getStringValue('car_model')
-              ..softwareVersion = record.getStringValue('software_version')
-              ..software_version_ref =
-                  record.getStringValue('software_version_ref')
-              ..distance = distanceKm * 1000
-              ..eventCount = eventCount
-              ..isUploaded = true
-              ..isLocalMissing = true // 核心修复：显式标记为本地缺失详情
-              ..metricsJson = metricsJson;
+          final placeholder = Trip()
+            ..uuid = uuid
+            ..cloudId = record.id
+            // 关键修复：使用业务上的 start_time 字段
+            ..startTime = DateTime.parse(
+                    record.getStringValue('start_time').isNotEmpty
+                        ? record.getStringValue('start_time')
+                        : record.get<String>('created'))
+                .toLocal()
+            ..brand = record.getStringValue('brand')
+            ..brand_ref = record.getStringValue('brand_ref')
+            ..carModel = record.getStringValue('car_model')
+            ..softwareVersion = record.getStringValue('software_version')
+            ..software_version_ref =
+                record.getStringValue('software_version_ref')
+            ..distance = distanceKm * 1000
+            ..eventCount = eventCount
+            ..isUploaded = true
+            ..isLocalMissing = true // 核心修复：显式标记为本地缺失详情
+            ..metricsJson = metricsJson;
 
           await storage.savePlaceholderTrip(placeholder);
           newPlaceholders++;
         } else {
           // 本地有，同步更新状态
-          if (!localTrip.isUploaded || localTrip.cloudId != record.id || localTrip.metricsJson == null) {
+          if (!localTrip.isUploaded ||
+              localTrip.cloudId != record.id ||
+              localTrip.metricsJson == null) {
             final metricsRaw = record.get('metrics');
-            final Map<String, dynamic> metrics = metricsRaw is Map<String, dynamic> 
-                ? metricsRaw 
-                : {};
-            await storage.updateTripCloudId(localTrip.id, record.id, metrics: metrics);
+            final Map<String, dynamic> metrics =
+                metricsRaw is Map<String, dynamic> ? metricsRaw : {};
+            await storage.updateTripCloudId(localTrip.id, record.id,
+                metrics: metrics);
             updatedCount++;
           }
         }
       }
-      debugPrint('[PukedSync] Sync completed. New: $newPlaceholders, Updated: $updatedCount');
+      debugPrint(
+          '[PukedSync] Sync completed. New: $newPlaceholders, Updated: $updatedCount');
       return newPlaceholders;
     } catch (e) {
       debugPrint('[PukedSync] Sync cloud to local failed: $e');
@@ -234,7 +241,7 @@ class CloudTripService {
       // 并且在 PocketBase 中，Token 通常不需要 Bearer 前缀，但为了保险我们做个判定
       final String token = _pbService.pb.authStore.token;
       debugPrint('[PukedSync] Starting download from URL: $url');
-      
+
       final response = await http.get(
         url,
         headers: {
@@ -244,19 +251,20 @@ class CloudTripService {
 
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
-        debugPrint(
-            '[PukedSync] Download success. Size: ${bytes.length} bytes');
+        debugPrint('[PukedSync] Download success. Size: ${bytes.length} bytes');
 
         Map<String, dynamic> data;
         // 优化：针对小文件 (< 100KB) 直接在主线程解析，避免 compute (Isolate) 的启动和通信开销
         if (bytes.length < 100 * 1024) {
-          debugPrint('[PukedSync] Small file detected, parsing on main thread...');
+          debugPrint(
+              '[PukedSync] Small file detected, parsing on main thread...');
           data = _parseJson(bytes);
         } else {
-          debugPrint('[PukedSync] Large file detected, starting JSON parse (compute)...');
+          debugPrint(
+              '[PukedSync] Large file detected, starting JSON parse (compute)...');
           data = await compute(_parseJson, bytes);
         }
-        
+
         debugPrint('[PukedSync] JSON parse returned ${data.length} keys');
 
         debugPrint(

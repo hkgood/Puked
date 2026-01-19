@@ -26,6 +26,9 @@ class AuthState {
   // 超级用户判定
   bool get isSuperUser => user?.getBoolValue('is_superuser') == true;
 
+  // KOL 判定
+  bool get isKOL => user?.getBoolValue('KOL') == true;
+
   AuthState copyWith({
     bool? isLoading,
     String? error,
@@ -209,12 +212,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,
       );
-    } catch (_) {
+    } on ClientException catch (e) {
+      // 如果服务器返回 401 或 404，说明账号可能已被删除或 Token 已彻底失效
+      if (e.statusCode == 401 || e.statusCode == 404) {
+        logout();
+        return;
+      }
+
       // 再次检查
       if (_isLoggingOut) return;
 
       // 刷新失败（如网络问题）时，只要本地 Token 还没过期，就保持登录状态
       // 这样用户在离线状态下仍然可以看到自己的账号信息
+      state = state.copyWith(
+        user: _pbService.currentUser,
+        isTokenValid: _pbService.isAuthenticated,
+      );
+    } catch (_) {
+      // 再次检查
+      if (_isLoggingOut) return;
+
       state = state.copyWith(
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,

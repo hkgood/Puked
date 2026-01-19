@@ -198,8 +198,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Email', Icons.email_outlined,
                       hint: 'example@email.com'),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) =>
-                      (v == null || !v.contains('@')) ? 'Invalid email' : null,
+                  validator: (v) => (v == null || !v.contains('@'))
+                      ? l10n.invalid_email_format
+                      : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -208,8 +209,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   decoration:
                       _buildInputDecoration(l10n.password, Icons.lock_outline),
                   obscureText: true,
-                  validator: (v) =>
-                      (v == null || v.length < 8) ? 'Min 8 characters' : null,
+                  validator: (v) => (v == null || v.length < 8)
+                      ? l10n.password_too_short
+                      : null,
                 ),
                 const SizedBox(height: 8),
                 Align(

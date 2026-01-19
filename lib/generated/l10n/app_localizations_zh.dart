@@ -42,6 +42,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get event_sound_desc => '发生急加速、急减速等事件时播放提示音';
 
   @override
+  String get high_frame_rate => '高帧率数据记录';
+
+  @override
+  String get high_frame_rate_desc => 'KOL 专属：记录 10Hz 传感器数据以提升记录细节';
+
+  @override
   String get current_version => '当前版本';
 
   @override
@@ -162,6 +168,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get distance => '行驶里程';
+
+  @override
+  String get speed => '行驶速度';
 
   @override
   String get avg_speed => '平均车速';
@@ -802,4 +811,267 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get update_avatar_failed => '更新头像失败';
+
+  @override
+  String get delete_account => '销毁账号';
+
+  @override
+  String get new_version_found => '发现新版本';
+
+  @override
+  String get changelog => '更新内容';
+
+  @override
+  String get update_now => '立即更新';
+
+  @override
+  String get downloading_update => '正在下载更新';
+
+  @override
+  String get permission_not_granted => '缺少安装权限';
+
+  @override
+  String get network_error => '网络连接异常';
+
+  @override
+  String get calibration_failed_stationary => '校准失败：请在车辆完全停稳后进行';
+
+  @override
+  String get calibration_failed_motion => '校准失败：请确保手机完全静止';
+
+  @override
+  String get sensor_error => '传感器读数异常';
+
+  @override
+  String get recording_notification_content => 'Puked 正在记录行程中';
+
+  @override
+  String get recording_notification_title => '实时记录中';
+
+  @override
+  String get logic_section => '核心逻辑 (Logic)';
+
+  @override
+  String get please_login_first => '请先登录';
+
+  @override
+  String get network_unavailable => '网络不可用，请检查设置';
+
+  @override
+  String get uploading_trip => '正在上传行程...';
+
+  @override
+  String get trip_submitted_success => '行程已成功提交到竞技场';
+
+  @override
+  String get image_upload_success => '图片上传成功';
+
+  @override
+  String get network_restored => '已恢复网络连接';
+
+  @override
+  String get calibration_success_start => '校准成功，开始记录';
+
+  @override
+  String get select_or_input_version => '请选择或输入版本号';
+
+  @override
+  String get confirm_delete_account => '确定要销毁账号吗？';
+
+  @override
+  String get exit_app => '退出应用';
+
+  @override
+  String get exit_app_confirm => '确定要退出吐槽吗？';
+
+  @override
+  String get ignore_this_version => '忽略此版本';
+
+  @override
+  String get recalibrate => '重新校准';
+
+  @override
+  String get invalid_verification_code => '验证码错误，请检查邮箱';
+
+  @override
+  String speed_unit(Object value) {
+    return '$value km/h';
+  }
+
+  @override
+  String g_unit(Object value) {
+    return '$value G';
+  }
+
+  @override
+  String distance_unit(Object value) {
+    return '$value km';
+  }
+
+  @override
+  String duration_unit(Object value) {
+    return '$value min';
+  }
+
+  @override
+  String get update_failed => '更新失败';
+
+  @override
+  String get processing => '处理中...';
+
+  @override
+  String get later => '稍后再说';
+
+  @override
+  String get back => '返回';
+
+  @override
+  String get ensure_network_tip => '请确保网络连接正常后重试';
+
+  @override
+  String get invalid_email_format => '无效的邮箱格式';
+
+  @override
+  String get password_too_short => '密码至少需要 8 位';
+
+  @override
+  String get field_required => '此栏必填';
+
+  @override
+  String get coupling_curve_index_label => '抑制曲线指数';
+
+  @override
+  String get coupling_curve_index_hint => '控制 Z 轴抑制力随能量增长的非线性速度 (1.0 为线性)';
+
+  @override
+  String get coupling_strength_y_label => '纵向抑制强度 (Y)';
+
+  @override
+  String get coupling_strength_y_hint => 'Z 轴能量对急加减速检测的抑制权重';
+
+  @override
+  String get coupling_strength_x_label => '横向抑制强度 (X)';
+
+  @override
+  String get coupling_strength_x_hint => 'Z 轴能量对顿挫/摆动检测的抑制权重';
+
+  @override
+  String get turn_comp_multiplier_label => '转向补偿倍率';
+
+  @override
+  String get turn_comp_multiplier_hint => '转向角速度对急减速阈值的提升比例';
+
+  @override
+  String get turn_comp_max_label => '转向补偿上限';
+
+  @override
+  String get turn_comp_max_hint => '转向时阈值提升的最大天花板倍数';
+
+  @override
+  String get event_window_coverage_label => '窗口判定占比';
+
+  @override
+  String get event_window_coverage_hint => '滑动窗口内满足阈值的采样点百分比要求';
+
+  @override
+  String get low_speed_jerk_limit_label => '低速降级门槛';
+
+  @override
+  String get low_speed_jerk_limit_hint => '低于此车速 (km/h) 时，急刹车将强制降级为顿挫记录';
+
+  @override
+  String get recording_voice => '正在录音...';
+
+  @override
+  String get pro_on => '语音 ON';
+
+  @override
+  String get pro_off => '语音 OFF';
+
+  @override
+  String get voice_tutorial_title => '语音记录功能指引';
+
+  @override
+  String get voice_tutorial_step1 => '1. 点击右上角“语音 ON”按钮并等待模型下载完成';
+
+  @override
+  String get voice_tutorial_step2 => '2. 点击“开始行程”并保持手机静止完成校准';
+
+  @override
+  String get voice_tutorial_step3 => '3. 行驶中长按地图或按压蓝牙耳机播放键记录事件';
+
+  @override
+  String get voice_tutorial_step4 => '4. 语音支持的详细事件可在设置中随时查看';
+
+  @override
+  String get got_it => '我知道了';
+
+  @override
+  String get voice_engine_config_failed => '语音引擎配置失败';
+
+  @override
+  String get voice_engine_not_ready => '语音引擎尚未就绪，请等待下载完成';
+
+  @override
+  String get recording_active_debug => '正在记录中';
+
+  @override
+  String get gps_signal_lost => 'GPS 信号丢失';
+
+  @override
+  String get ins_active_display => '惯导已激活 (仅显示)';
+
+  @override
+  String get trip_report_title => '行程报告';
+
+  @override
+  String share_msg_body(Object time) {
+    return 'Puked 行程报告: $time';
+  }
+
+  @override
+  String get pts_unit => '次';
+
+  @override
+  String get fail => '失败';
+
+  @override
+  String get error => '错误';
+
+  @override
+  String get proDisengagement => '智驾接管';
+
+  @override
+  String get proViolation => '法规违章';
+
+  @override
+  String get proExperience => '智驾体验';
+
+  @override
+  String get voice_recording => '语音记录';
+
+  @override
+  String get voice_recording_desc => '查看支持语音记录的事件列表';
+
+  @override
+  String get voice_recording_title => '语音记录说明';
+
+  @override
+  String get voice_recording_intro => '以下智驾相关事件在行程记录中被触发时，支持长按“录音键”进行语音描述记录：';
+
+  @override
+  String get voice_recording_manual_desc =>
+      '在任何时刻长按录制键，可以直接进行手动语音记录，用于反馈当前智驾状态或路况。';
+
+  @override
+  String get edit_event => '编辑事件';
+
+  @override
+  String get event_type => '事件类型';
+
+  @override
+  String get event_description => '事件描述';
+
+  @override
+  String get save_changes => '保存修改';
 }

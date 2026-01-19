@@ -1,0 +1,9 @@
+NSLocationAlwaysAndWhenInUseUsageDescription = "Puked needs access to your location to continuously record your driving trajectory and speed even in the background.";
+NSLocationAlwaysUsageDescription = "Puked needs access to your location to continuously record your driving trajectory.";
+NSLocationWhenInUseUsageDescription = "Puked needs access to your location to record your driving trajectory.";
+NSMotionUsageDescription = "Puked needs access to motion sensor data to measure acceleration (G-force) and passenger comfort during driving.";
+NSPhotoLibraryUsageDescription = "Puked needs access to your photo library so you can upload vehicle or road photos for your recorded trips.";
+NSPhotoLibraryAddUsageDescription = "Puked needs access to your photo library so you can save screenshots of trip details.";
+NSCameraUsageDescription = "Puked needs access to your camera so you can take and upload vehicle or road photos.";
+NSMicrophoneUsageDescription = "Puked needs access to your microphone to record sound when capturing videos.";
+CFBundleDisplayName = "Puked";

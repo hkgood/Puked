@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:puked/common/utils/i18n.dart';
+import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/settings/providers/my_stats_provider.dart';
+import 'package:puked/features/arena/providers/arena_provider.dart';
 import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/services/pocketbase_service.dart';
@@ -23,28 +25,29 @@ class MyDataCard extends ConsumerStatefulWidget {
 class _MyDataCardState extends ConsumerState<MyDataCard> {
   final ScreenshotController _screenshotController = ScreenshotController();
 
-  Future<void> _shareStatsCard(MyStats stats, I18n i18n, Rect? sharePositionOrigin) async {
+  Future<void> _shareStatsCard(
+      MyStats stats, I18n i18n, Rect? sharePositionOrigin) async {
     final auth = ref.read(authProvider);
     final pb = ref.read(pbServiceProvider);
     final container = ProviderScope.containerOf(context);
-    
+
     // --- 终极全厂商黑体兼容栈 (Android & iOS) ---
     // 1. sans-serif: 安卓最通用的黑体关键字，映射各家定制字体 (OPPO Sans, MiSans, HarmonyOS Sans)
     // 2. sans-serif-medium: 解决安卓部分系统 bold 回退异常的专用关键字
     // 3. 显式列出各大厂商字体名，应对部分系统的离线渲染隔离
-    final List<String> universalBlackStack = Platform.isIOS 
-      ? ['.AppleSystemUIFont', 'PingFang SC', 'Heiti SC'] 
-      : [
-          'sans-serif', 
-          'sans-serif-medium', 
-          'Roboto', 
-          'Noto Sans CJK SC', 
-          'Source Han Sans SC', 
-          'MiSans', 
-          'OPPOSans', 
-          'HarmonyOS Sans', 
-          'vivo Sans'
-        ];
+    final List<String> universalBlackStack = Platform.isIOS
+        ? ['.AppleSystemUIFont', 'PingFang SC', 'Heiti SC']
+        : [
+            'sans-serif',
+            'sans-serif-medium',
+            'Roboto',
+            'Noto Sans CJK SC',
+            'Source Han Sans SC',
+            'MiSans',
+            'OPPOSans',
+            'HarmonyOS Sans',
+            'vivo Sans'
+          ];
 
     final Widget poster = ProviderScope(
       parent: container,
@@ -86,7 +89,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                   // 1. PUKED Logo & 文字 (垂直排布)
                   Column(
                     children: [
-                      Image.asset('assets/images/logo.png', width: 64, height: 60),
+                      Image.asset('assets/images/logo.png',
+                          width: 64, height: 60),
                       const SizedBox(height: 12),
                       const Text(
                         'PUKED',
@@ -100,7 +104,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // 2. 白色圆角内容卡片
                   Container(
                     width: double.infinity,
@@ -124,12 +128,20 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                           children: [
                             CircleAvatar(
                               radius: 22,
-                              backgroundColor: Theme.of(context).colorScheme.primaryContainer, // 添加背景色
-                              backgroundImage: pb.currentAvatarUrl != null ? NetworkImage(pb.currentAvatarUrl!) : null,
-                              child: pb.currentAvatarUrl == null ? Icon(
-                                Icons.person, // 换成实心图标
-                                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                              ) : null,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer, // 添加背景色
+                              backgroundImage: pb.currentAvatarUrl != null
+                                  ? NetworkImage(pb.currentAvatarUrl!)
+                                  : null,
+                              child: pb.currentAvatarUrl == null
+                                  ? Icon(
+                                      Icons.person, // 换成实心图标
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer,
+                                    )
+                                  : null,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -148,7 +160,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.black.withValues(alpha: 0.4),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.4),
                                       letterSpacing: 0.5,
                                     ),
                                   ),
@@ -158,7 +171,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                           ],
                         ),
                         const SizedBox(height: 32),
-                        
+
                         // 核心图表
                         SizedBox(
                           height: 160,
@@ -168,36 +181,60 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                                 PieChartData(
                                   sectionsSpace: 4,
                                   centerSpaceRadius: 50,
-                                  sections: _buildChartSections(stats, context, forceLight: true),
+                                  sections: _buildChartSections(stats, context,
+                                      forceLight: true),
                                 ),
                               ),
                               const Center(
-                                child: Icon(Icons.auto_awesome_motion_rounded, size: 24, color: Colors.blue),
+                                child: Icon(Icons.auto_awesome_motion_rounded,
+                                    size: 24, color: Colors.blue),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 32),
-                        
+
                         Row(
                           children: [
-                            Expanded(child: _buildPosterStatGrid(i18n.t('uploaded_mileage'), i18n.t('uploaded_mileage_val', args: [stats.totalMileage.toStringAsFixed(1)]))),
+                            Expanded(
+                                child: _buildPosterStatGrid(
+                                    i18n.t('uploaded_mileage'),
+                                    i18n.t('uploaded_mileage_val', args: [
+                                      stats.totalMileage.toStringAsFixed(1)
+                                    ]))),
                             const SizedBox(width: 12),
-                            Expanded(child: _buildPosterStatGrid(i18n.t('mileage_contribution'), i18n.t('mileage_contribution_val', args: [(stats.contribution * 100).toStringAsFixed(1)]))),
+                            Expanded(
+                                child: _buildPosterStatGrid(
+                                    i18n.t('mileage_contribution'),
+                                    i18n.t('mileage_contribution_val', args: [
+                                      (stats.contribution * 100)
+                                          .toStringAsFixed(1)
+                                    ]))),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            Expanded(child: _buildPosterStatGrid(i18n.t('my_puked_rank'), i18n.t('my_puked_rank_val', args: [stats.rank.toString(), stats.totalUsers.toString()]))),
+                            Expanded(
+                                child: _buildPosterStatGrid(
+                                    i18n.t('my_puked_rank'),
+                                    i18n.t('my_puked_rank_val', args: [
+                                      stats.rank.toString(),
+                                      stats.totalUsers.toString()
+                                    ]))),
                             const SizedBox(width: 12),
-                            Expanded(child: _buildPosterStatGrid(i18n.t('my_puked_value'), i18n.t('my_puked_value_val', args: [stats.pukedValue.toStringAsFixed(1)]))),
+                            Expanded(
+                                child: _buildPosterStatGrid(
+                                    i18n.t('my_puked_value'),
+                                    i18n.t('my_puked_value_val', args: [
+                                      stats.pukedValue.toStringAsFixed(1)
+                                    ]))),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 32),
                   Text(
                     'join the global autonomous driving community',
@@ -217,7 +254,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     );
 
     try {
-      final Uint8List? imageBytes = await _screenshotController.captureFromWidget(
+      final Uint8List? imageBytes =
+          await _screenshotController.captureFromWidget(
         poster, // 直接传递 poster，因为它已经包含了 ProviderScope 和 Material
         context: context,
         delay: const Duration(milliseconds: 400), // 增加延迟，确保网络头像和图标加载
@@ -280,14 +318,25 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final i18n = ref.watch(i18nProvider);
     final statsAsync = ref.watch(myStatsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return statsAsync.when(
-      data: (stats) => _buildCard(context, stats, i18n, isDark),
+      data: (stats) {
+        // 核心修复：即使 stats 是 null（理论上 provider 现在不会返回 null 了），
+        // 也要显示卡片，避免在 Android 等平台上突然消失。
+        if (stats == null) {
+          return const SizedBox.shrink(); // 保险起见
+        }
+        return _buildCard(context, stats, i18n, l10n, isDark);
+      },
       loading: () => _buildLoading(context),
-      error: (err, _) => const SizedBox.shrink(),
+      error: (err, stack) {
+        debugPrint('[MyDataCard] Error: $err');
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -296,25 +345,29 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
       margin: EdgeInsets.zero,
       height: 200,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(24),
       ),
       child: const Center(child: CircularProgressIndicator()),
     );
   }
 
-  Widget _buildCard(BuildContext context, MyStats stats, I18n i18n, bool isDark) {
+  Widget _buildCard(BuildContext context, MyStats stats, I18n i18n,
+      AppLocalizations l10n, bool isDark) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Container(
       margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDark 
-            ? [const Color(0xFF2C2C2E), const Color(0xFF1C1C1E)]
-            : [Colors.white, const Color(0xFFF2F2F7)],
+          colors: isDark
+              ? [const Color(0xFF2C2C2E), const Color(0xFF1C1C1E)]
+              : [Colors.white, const Color(0xFFF2F2F7)],
         ),
         borderRadius: BorderRadius.circular(24),
       ),
@@ -331,7 +384,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                     color: colorScheme.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.analytics_rounded, size: 18, color: colorScheme.primary),
+                  child: Icon(Icons.analytics_rounded,
+                      size: 18, color: colorScheme.primary),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -344,11 +398,29 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                   ),
                 ),
                 const Spacer(),
+                // 刷新按钮 (直接失效缓存，强制重新拉取 user_stats)
+                IconButton(
+                  icon: Icon(Icons.refresh_rounded,
+                      size: 20, color: colorScheme.primary),
+                  onPressed: () {
+                    final auth = ref.read(authProvider);
+                    if (auth.user != null) {
+                      // 1. 失效个人的快照 Provider
+                      ref.invalidate(userStatsEntryProvider(auth.user!.id));
+                      // 2. 失效全局汇总 Provider
+                      ref.invalidate(arenaStatsProvider);
+                      // 3. 静默刷新用户信息
+                      ref.read(authProvider.notifier).refreshUserFromServer();
+                    }
+                  },
+                ),
                 Builder(
                   builder: (context) => IconButton(
-                    icon: Icon(Icons.share_rounded, size: 20, color: colorScheme.primary),
+                    icon: Icon(Icons.share_rounded,
+                        size: 20, color: colorScheme.primary),
                     onPressed: () {
-                      final RenderBox? box = context.findRenderObject() as RenderBox?;
+                      final RenderBox? box =
+                          context.findRenderObject() as RenderBox?;
                       final Rect? rect = box != null
                           ? box.localToGlobal(Offset.zero) & box.size
                           : null;
@@ -359,18 +431,19 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
               ],
             ),
           ),
-          
+
           // 中部：大图表区域
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24), // Increased padding
+            padding:
+                const EdgeInsets.symmetric(vertical: 24), // Increased padding
             child: SizedBox(
-              height: 180, // Increased height
+              height: 240, // Increased height
               child: Stack(
                 children: [
                   PieChart(
                     PieChartData(
                       sectionsSpace: 4,
-                      centerSpaceRadius: 55, // Slightly larger
+                      centerSpaceRadius: 70, // Slightly larger
                       sections: _buildChartSections(stats, context),
                     ),
                   ),
@@ -388,7 +461,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Icon(Icons.auto_awesome_motion_rounded, size: 20, color: colorScheme.primary),
+                        Icon(Icons.auto_awesome_motion_rounded,
+                            size: 24, color: colorScheme.primary),
                       ],
                     ),
                   ),
@@ -396,7 +470,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
               ),
             ),
           ),
-          
+
           // 底部：2x2 网格指标
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -411,28 +485,34 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                 _buildStatGridItem(
                   context,
                   i18n.t('uploaded_mileage'),
-                  i18n.t('uploaded_mileage_val', args: [stats.totalMileage.toStringAsFixed(1)]),
+                  i18n.t('uploaded_mileage_val',
+                      args: [stats.totalMileage.toStringAsFixed(1)]),
                   Icons.route_rounded,
                   Colors.blue,
                 ),
                 _buildStatGridItem(
                   context,
                   i18n.t('mileage_contribution'),
-                  i18n.t('mileage_contribution_val', args: [(stats.contribution * 100).toStringAsFixed(1)]),
+                  i18n.t('mileage_contribution_val',
+                      args: [(stats.contribution * 100).toStringAsFixed(1)]),
                   Icons.pie_chart_outline_rounded,
                   Colors.teal,
                 ),
                 _buildStatGridItem(
                   context,
                   i18n.t('my_puked_rank'),
-                  i18n.t('my_puked_rank_val', args: [stats.rank.toString(), stats.totalUsers.toString()]),
+                  i18n.t('my_puked_rank_val', args: [
+                    stats.rank.toString(),
+                    stats.totalUsers.toString()
+                  ]),
                   Icons.workspace_premium_rounded,
                   Colors.orange,
                 ),
                 _buildStatGridItem(
                   context,
                   i18n.t('my_puked_value'),
-                  i18n.t('my_puked_value_val', args: [stats.pukedValue.toStringAsFixed(1)]),
+                  i18n.t('my_puked_value_val',
+                      args: [stats.pukedValue.toStringAsFixed(1)]),
                   Icons.speed_rounded,
                   Colors.purple,
                 ),
@@ -444,15 +524,10 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     );
   }
 
-  Widget _buildStatGridItem(
-    BuildContext context, 
-    String label, 
-    String formattedValue, 
-    IconData icon, 
-    Color color
-  ) {
+  Widget _buildStatGridItem(BuildContext context, String label,
+      String formattedValue, IconData icon, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -503,10 +578,13 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     );
   }
 
-  List<PieChartSectionData> _buildChartSections(MyStats stats, BuildContext context, {bool forceLight = false}) {
+  List<PieChartSectionData> _buildChartSections(
+      MyStats stats, BuildContext context,
+      {bool forceLight = false}) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = !forceLight && Theme.of(context).brightness == Brightness.dark;
-    
+    final isDark =
+        !forceLight && Theme.of(context).brightness == Brightness.dark;
+
     // 强制使用系统黑体系列
     const List<String> systemFallback = [
       '.SF UI Text',
@@ -530,7 +608,9 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     if (stats.brandDistribution.isEmpty) {
       return [
         PieChartSectionData(
-          color: isDark ? colorScheme.surfaceContainerHighest : const Color(0xFFE5E5EA),
+          color: isDark
+              ? colorScheme.surfaceContainerHighest
+              : const Color(0xFFE5E5EA),
           value: 1,
           radius: 18,
           showTitle: false,
@@ -540,31 +620,37 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
 
     final total = stats.totalMileage;
     int colorIndex = 0;
-    
+
     final sortedEntries = stats.brandDistribution.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     return sortedEntries.map((entry) {
       final color = chartColors[colorIndex % chartColors.length];
       colorIndex++;
-      
+
       final percentage = entry.value / total;
-      
+
       return PieChartSectionData(
         color: color,
         value: entry.value,
-        radius: 22,
+        radius: 28,
         showTitle: false,
         // 移除 5% 的过滤门槛，让所有品牌都显示 badge
-        badgeWidget: _buildBrandBadge(entry.key, entry.value, forceLight: forceLight, fontFallback: systemFallback),
-        badgePositionPercentageOffset: 1.6,
+        badgeWidget: _buildBrandBadge(
+            entry.key, entry.value, AppLocalizations.of(context)!,
+            forceLight: forceLight, fontFallback: systemFallback),
+        badgePositionPercentageOffset: 1.4,
       );
     }).toList();
   }
 
-  Widget _buildBrandBadge(String brandKey, double mileage, {bool forceLight = false, List<String>? fontFallback}) {
-    final isDark = !forceLight && Theme.of(context).brightness == Brightness.dark;
-    final onSurface = forceLight ? Colors.black : Theme.of(context).colorScheme.onSurface;
+  Widget _buildBrandBadge(
+      String brandKey, double mileage, AppLocalizations l10n,
+      {bool forceLight = false, List<String>? fontFallback}) {
+    final isDark =
+        !forceLight && Theme.of(context).brightness == Brightness.dark;
+    final onSurface =
+        forceLight ? Colors.black : Theme.of(context).colorScheme.onSurface;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -582,13 +668,15 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
               )
             ],
             border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.black.withValues(alpha: 0.05),
               width: 1,
             ),
           ),
           child: BrandLogo(
             brandName: brandKey,
-            size: 26,
+            size: 34,
             showBackground: false,
             color: forceLight ? Colors.black : null,
           ),
@@ -597,11 +685,12 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
           decoration: BoxDecoration(
-            color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+            color:
+                (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
-            '${mileage.toStringAsFixed(1)}km',
+            l10n.distance_unit(mileage.toStringAsFixed(1)),
             style: const TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.bold,

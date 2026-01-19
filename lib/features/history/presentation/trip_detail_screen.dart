@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:latlong2/latlong.dart' hide Path;
+import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/common/widgets/trip_map_view.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/common/utils/i18n.dart';
@@ -73,14 +74,18 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   Future<void> _saveAsImage() async {
     final i18n = ref.read(i18nProvider);
+    debugPrint("[SaveImage] 🟢 开始保存图片流程...");
     try {
       // 1. 权限请求 (iOS 增强)
       if (Platform.isIOS) {
         var status = await Permission.photosAddOnly.status;
+        debugPrint("[SaveImage] iOS 相册权限状态: $status");
         if (status.isDenied) {
           status = await Permission.photosAddOnly.request();
+          debugPrint("[SaveImage] 请求 iOS 权限结果: $status");
         }
         if (!status.isGranted && !status.isLimited) {
+          debugPrint("[SaveImage] ❌ 缺少 iOS 相册权限");
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(i18n.t('error_no_photo_permission'))),
@@ -90,7 +95,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         }
       } else {
         if (await Permission.photos.isDenied) {
-          await Permission.photos.request();
+          final status = await Permission.photos.request();
+          debugPrint("[SaveImage] Android 相册权限请求结果: $status");
         }
       }
 
@@ -108,6 +114,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       await Future.delayed(const Duration(milliseconds: 200));
 
       // 捕捉详情长截屏
+      debugPrint("[SaveImage] 📸 正在捕捉截图...");
       final Uint8List? detailBytes = await _screenshotController.capture(
         delay: const Duration(milliseconds: 100),
       );
@@ -115,23 +122,38 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       if (mounted) setState(() => _isCapturing = false);
 
       if (detailBytes != null) {
+        debugPrint(
+            "[SaveImage] 💾 截图捕捉成功，大小: ${detailBytes.length} bytes，准备存入相册...");
+        final fileName =
+            "${i18n.t('trip_report_title')}_${_currentTrip.id}_${DateTime.now().millisecondsSinceEpoch}";
+
         final result = await ImageGallerySaverPlus.saveImage(
           detailBytes,
           quality: 100,
-          name:
-              "TripDetail_${_currentTrip.id}_${DateTime.now().millisecondsSinceEpoch}",
+          name: fileName,
         );
 
-        if (result != null && result['isSuccess'] == true && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(i18n.t('save_success')),
-              backgroundColor: Colors.green,
-            ),
-          );
+        debugPrint("[SaveImage] 🏁 插件返回结果: $result");
+
+        if (result != null && result['isSuccess'] == true) {
+          debugPrint("[SaveImage] ✅ 图片保存成功！文件名: $fileName");
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(i18n.t('save_success')),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          debugPrint("[SaveImage] ❌ 插件保存失败: $result");
+          throw Exception("Plugin returned failure");
         }
+      } else {
+        debugPrint("[SaveImage] ❌ 截图捕捉返回空对象");
       }
     } catch (e) {
+      debugPrint("[SaveImage] 🚨 发生异常: $e");
       if (mounted) {
         setState(() => _isCapturing = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -142,6 +164,116 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         );
       }
     }
+  }
+
+  Future<void> _showEditEventDialog(RecordedEvent e) async {
+    final i18n = ref.read(i18nProvider);
+    final storage = ref.read(storageServiceProvider);
+
+    String currentType = e.type;
+    final textController =
+        TextEditingController(text: e.voiceText ?? e.notes ?? "");
+
+    final Map<String, String> eventTypes = {
+      'proDisengagement': i18n.t('proDisengagement'),
+      'proViolation': i18n.t('proViolation'),
+      'proExperience': i18n.t('proExperience'),
+      'manual': i18n.t('manual'),
+      'rapidAcceleration': i18n.t('rapidAcceleration'),
+      'rapidDeceleration': i18n.t('rapidDeceleration'),
+      'jerk': i18n.t('jerk'),
+      'bump': i18n.t('bump'),
+      'wobble': i18n.t('wobble'),
+    };
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(i18n.t('edit_event')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(i18n.t('event_type'),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: currentType,
+                      items: eventTypes.entries.map((entry) {
+                        return DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null)
+                          setDialogState(() => currentType = val);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(i18n.t('event_description'),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: textController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: i18n.t('event_description'),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(i18n.t('cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await storage.updateEvent(
+                  e.id,
+                  type: currentType,
+                  voiceText: textController.text,
+                  notes: textController.text,
+                );
+
+                // 刷新行程详情
+                final updatedTrip = await storage.getTripById(_currentTrip.id);
+                if (updatedTrip != null && mounted) {
+                  setState(() {
+                    _currentTrip = updatedTrip;
+                  });
+                }
+
+                if (context.mounted) Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(i18n.t('save_changes')),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildScreenshotHeader() {
@@ -190,8 +322,14 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final i18n = ref.watch(i18nProvider);
+    final l10n = AppLocalizations.of(context)!;
     final trip = _currentTrip;
-    final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(trip.startTime);
+
+    // 自动选择日期格式
+    final datePattern =
+        l10n.localeName == 'zh' ? 'yyyy-MM-dd HH:mm' : 'MMM dd, yyyy HH:mm';
+    final dateStr = DateFormat(datePattern).format(trip.startTime);
+
     final trajectory = trip.trajectory.toList();
     final events = trip.events.toList();
 
@@ -285,13 +423,15 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           final uploadResult = await ref
                               .read(cloudTripServiceProvider)
                               .uploadTrip(_currentTrip);
-                          
+
                           final cloudId = uploadResult['id'] as String;
-                          final metrics = uploadResult['metrics'] as Map<String, dynamic>?;
+                          final metrics =
+                              uploadResult['metrics'] as Map<String, dynamic>?;
 
                           await ref
                               .read(storageServiceProvider)
-                              .updateTripCloudId(_currentTrip.id, cloudId, metrics: metrics);
+                              .updateTripCloudId(_currentTrip.id, cloudId,
+                                  metrics: metrics);
 
                           // 刷新本地状态
                           final updatedTrip = await ref
@@ -480,7 +620,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   Text(i18n.t('trip_summary'),
                                       style: _headerStyle(context)),
                                   Text(
-                                    trip.getDistanceDisplay(),
+                                    trip.getDistanceDisplay(
+                                        i18n.t('user_mileage_unit')),
                                     style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
@@ -501,11 +642,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   value: "${trip.eventCount}"),
                               _StatItem(
                                 label: i18n.t('avg_speed'),
-                                value: trip.getAvgSpeedDisplay("--"),
+                                value: trip.getAvgSpeedDisplay("km/h", "--"),
                               ),
                               _StatItem(
                                   label: i18n.t('duration'),
-                                  value: trip.getDurationDisplay(i18n.t('min'), "--")),
+                                  value: trip.getDurationDisplay(
+                                      i18n.t('min'), "--")),
                             ],
                           ),
                           const SizedBox(height: 24),
@@ -557,6 +699,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               final typeLabel = i18n.t(e.type);
                               Color eventColor;
                               IconData eventIcon;
+                              String parameter = "--";
 
                               switch (e.type) {
                                 case 'rapidAcceleration':
@@ -579,6 +722,18 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   eventColor = const Color(0xFF007AFF);
                                   eventIcon = Icons.waves;
                                   break;
+                                case 'proDisengagement':
+                                  eventColor = const Color(0xFFFF3B30);
+                                  eventIcon = Icons.pan_tool;
+                                  break;
+                                case 'proViolation':
+                                  eventColor = const Color(0xFF5856D6);
+                                  eventIcon = Icons.gavel;
+                                  break;
+                                case 'proExperience':
+                                  eventColor = const Color(0xFF007AFF);
+                                  eventIcon = Icons.sentiment_dissatisfied;
+                                  break;
                                 case 'manual':
                                   eventColor = const Color(0xFF34C759);
                                   eventIcon = Icons.stars;
@@ -588,9 +743,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   eventIcon = Icons.event;
                               }
 
-                              // 计算事件参数 (G值)
-                              String parameter = "--";
-                              if (e.sensorData.isNotEmpty) {
+                              // 如果是 Pro 模式手动标记，参数显示为语音文本，不显示 G 值
+                              if (e.source == 'PRO' ||
+                                  e.type.startsWith('pro')) {
+                                parameter = e.voiceText ?? e.notes ?? "";
+                              } else if (e.sensorData.isNotEmpty) {
                                 final magnitudes = e.sensorData.map((p) {
                                   if (e.type == 'rapidAcceleration' ||
                                       e.type == 'rapidDeceleration') {
@@ -637,9 +794,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 } else {
                                   finalG = maxSmoothedVal;
                                 }
-                                
+
                                 if (e.type == 'manual') finalG = 0;
-                                parameter = "${finalG.toStringAsFixed(2)} G";
+                                parameter =
+                                    l10n.g_unit(finalG.toStringAsFixed(2));
                               }
 
                               return GestureDetector(
@@ -735,11 +893,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16)),
                                       const Spacer(),
-                                      Text(parameter,
-                                          style: TextStyle(
-                                              color: eventColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14)),
+                                      if (e.source != 'PRO' &&
+                                          !e.type.startsWith('pro'))
+                                        Text(parameter,
+                                            style: TextStyle(
+                                                color: eventColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14)),
                                     ],
                                   ),
                                   subtitle: Column(
@@ -751,26 +911,40 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                             .format(e.timestamp),
                                         style: const TextStyle(fontSize: 13),
                                       ),
-                                      if (e.notes != null &&
-                                          e.notes!.isNotEmpty &&
-                                          !e.notes!.contains('聚合特征'))
+                                      if ((e.voiceText != null &&
+                                              e.voiceText!.isNotEmpty) ||
+                                          (e.notes != null &&
+                                              e.notes!.isNotEmpty &&
+                                              e.source != 'AUTO'))
                                         Padding(
                                           padding:
                                               const EdgeInsets.only(top: 2),
                                           child: Text(
-                                            e.notes!,
+                                            e.voiceText ?? e.notes!,
                                             style: TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 12,
                                               color: Theme.of(context)
                                                   .colorScheme
                                                   .primary
-                                                  .withValues(alpha: 0.7),
+                                                  .withValues(alpha: 0.9),
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
                                         ),
                                     ],
                                   ),
+                                  trailing: (e.source == 'MANUAL' ||
+                                          e.source == 'PRO')
+                                      ? IconButton(
+                                          icon: const Icon(Icons.edit_outlined,
+                                              size: 20),
+                                          onPressed: () =>
+                                              _showEditEventDialog(e),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        )
+                                      : null,
                                 ),
                               );
                             },

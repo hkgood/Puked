@@ -1,9 +1,14 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/features/arena/providers/arena_provider.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/services/cloud_trip_service.dart';
 import 'package:puked/models/db_models.dart';
+
+/// 记录最后一次强制刷新的时间戳，用于强制忽略过期快照
+final myStatsForceRefreshProvider = StateProvider<int>((ref) => 0);
 
 class MyStats {
   final double totalMileage;
@@ -22,106 +27,102 @@ class MyStats {
     required this.pukedValue,
   });
 
-  double get contribution => globalTotalMileage > 0 ? (totalMileage / globalTotalMileage) : 0;
+  double get contribution =>
+      globalTotalMileage > 0 ? (totalMileage / globalTotalMileage) : 0;
 }
 
-final myStatsProvider = Provider<AsyncValue<MyStats>>((ref) {
+final myStatsProvider = Provider<AsyncValue<MyStats?>>((ref) {
   final auth = ref.watch(authProvider);
-  final arena = ref.watch(arenaProvider);
-  final arenaStatsAsync = ref.watch(arenaStatsProvider);
 
   if (!auth.isAuthenticated || auth.user == null) {
     return const AsyncValue.loading();
   }
 
-  return arenaStatsAsync.when(
-    data: (_) {
-      // 使用 ArenaService 处理后的数据，其中包含了正确的 global_summary
-      final globalStats = arena.stats;
-      final userId = auth.user!.id;
-      final cloudService = ref.read(cloudTripServiceProvider);
+  final userId = auth.user!.id;
+  // 核心优化：只监听个人统计，不再监听臃肿的全局 arenaStatsProvider
+  final userStatsAsync = ref.watch(userStatsEntryProvider(userId));
 
-      // 获取全局总量 (从 arena_stats 的 global_summary 中)
-      final globalSummary = globalStats['global_summary'] as Map<String, dynamic>?;
-      final globalTotalDist = (globalSummary?['globalTotalMileage'] as num?)?.toDouble() ?? 0.0;
-      final totalGlobalUsers = (globalSummary?['totalUsers'] as num?)?.toInt() ?? 0;
+  return userStatsAsync.when(
+    data: (userPayload) {
+      if (userPayload == null) {
+        // 兜底策略：如果个人快照不存在，尝试从全局汇总中提取该用户的基本里程
+        final arenaStats = ref.watch(arenaStatsProvider).value;
+        double fallbackMileage = 0;
+        double globalTotal = 0;
+        int totalUsers = 0;
 
-      // 由于 myStatsProvider 是一个同步 Provider，我们使用 ref.watch 一个针对该用户的 FutureProvider
-      final userStatsAsync = ref.watch(_userStatsEntryProvider(userId));
+        if (arenaStats != null) {
+          final allSummary =
+              arenaStats['all_summary'] as List<RecordModel>? ?? [];
+          globalTotal =
+              (arenaStats['global_summary']?['globalTotalMileage'] as num?)
+                      ?.toDouble() ??
+                  0;
+          totalUsers =
+              (arenaStats['global_summary']?['totalUsers'] as num?)?.toInt() ??
+                  0;
 
-      return userStatsAsync.when(
-        data: (userPayload) {
-          if (userPayload == null) {
-            return AsyncValue.data(MyStats(
-              totalMileage: 0,
-              brandDistribution: {},
-              globalTotalMileage: globalTotalDist,
-              rank: totalGlobalUsers + 1,
-              totalUsers: totalGlobalUsers,
-              pukedValue: 0,
-            ));
+          for (final s in allSummary) {
+            if (s.getStringValue('user') == userId) {
+              fallbackMileage += (s.get<num>('total_distance') ?? 0).toDouble();
+            }
           }
+        }
 
-          // 核心修复：显式转换个人品牌分布 Map，防止 int/double 混用导致的崩溃
-          final rawBrands = userPayload['brandDistribution'] as Map<String, dynamic>? ?? {};
-          final brandDistribution = rawBrands.map((k, v) => MapEntry(k, (v as num).toDouble()));
+        return AsyncValue.data(MyStats(
+          totalMileage: fallbackMileage,
+          brandDistribution: {},
+          globalTotalMileage: globalTotal > 0 ? globalTotal : fallbackMileage,
+          rank: totalUsers + 1,
+          totalUsers: totalUsers,
+          pukedValue: 0,
+        ));
+      }
 
-          return AsyncValue.data(MyStats(
-            totalMileage: (userPayload['totalMileage'] as num?)?.toDouble() ?? 0.0,
-            brandDistribution: brandDistribution,
-            globalTotalMileage: globalTotalDist,
-            rank: (userPayload['rank'] as num?)?.toInt() ?? (totalGlobalUsers + 1),
-            totalUsers: totalGlobalUsers,
-            pukedValue: (userPayload['pukedValue'] as num?)?.toDouble() ?? 0.0,
-          ));
-        },
-        loading: () => const AsyncValue.loading(),
-        error: (err, stack) => AsyncValue.error(err, stack),
-      );
+      // 直接从快照中提取所有数据，包括 Web 端预先计算好的 globalTotalMileage
+      final totalMileage =
+          (userPayload['totalMileage'] as num?)?.toDouble() ?? 0.0;
+      final globalTotalMileage =
+          (userPayload['globalTotalMileage'] as num?)?.toDouble() ??
+              totalMileage; // 兜底为个人里程
+      final totalGlobalUsers =
+          (userPayload['totalUsers'] as num?)?.toInt() ?? 0;
+      final rank =
+          (userPayload['rank'] as num?)?.toInt() ?? (totalGlobalUsers + 1);
+      final pukedValue = (userPayload['pukedValue'] as num?)?.toDouble() ?? 0.0;
+
+      final rawBrands =
+          userPayload['brandDistribution'] as Map<String, dynamic>? ?? {};
+      final brandDistribution =
+          rawBrands.map((k, v) => MapEntry(k, (v as num).toDouble()));
+
+      return AsyncValue.data(MyStats(
+        totalMileage: totalMileage,
+        brandDistribution: brandDistribution,
+        globalTotalMileage: globalTotalMileage,
+        rank: rank,
+        totalUsers: totalGlobalUsers,
+        pukedValue: pukedValue,
+      ));
     },
     loading: () => const AsyncValue.loading(),
     error: (err, stack) => AsyncValue.error(err, stack),
   );
 });
 
-final _userStatsEntryProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, userId) async {
+final userStatsEntryProvider =
+    FutureProvider.family<Map<String, dynamic>?, String>((ref, userId) async {
   final cloudService = ref.read(cloudTripServiceProvider);
-  
-  // 1. 尝试从 user_stats 获取快照 (如果是后端 cron 任务更新)
+
+  // 核心优化：直接请求个人快照记录。
+  // 所有的复杂聚合逻辑已经在 Web 端完成，手机端只负责“读”。
   final snapshot = await cloudService.fetchUserStats(userId);
   if (snapshot != null) return snapshot;
 
-  // 2. 核心兜底：如果后端没有 hook/cron 刷新快照，前端直接从明细表聚合
-  // 这能解决用户提到的“不使用 hooks”导致数据不更新的问题
-  debugPrint('[MyStats] No user_stats snapshot, falling back to real-time aggregation...');
-  final arenaStats = await ref.read(arenaStatsProvider.future);
-  final allSummary = arenaStats['all_summary'] as List<RecordModel>? ?? [];
-  
-  double totalMileage = 0;
-  int totalEvents = 0;
-  Map<String, double> brandDist = {};
-  
-  for (final s in allSummary) {
-    if (s.getStringValue('user') == userId) {
-      final dist = (s.get<num>('total_distance') ?? 0).toDouble();
-      totalMileage += dist;
-      totalEvents += (s.get<num>('total_events') ?? 0).toInt();
-      
-      final brandRecord = s.expand['brand']?.firstOrNull;
-      final brandName = brandRecord?.getStringValue('name') ?? 'Others';
-      brandDist[brandName] = (brandDist[brandName] ?? 0) + dist;
-    }
-  }
-
-  if (totalMileage == 0) return null;
-
-  return {
-    'totalMileage': totalMileage,
-    'brandDistribution': brandDist,
-    'rank': 0, // 实时聚合难以计算排名，显示为 0
-    'totalUsers': 0,
-    'pukedValue': totalEvents > 0 ? totalMileage / totalEvents : totalMileage,
-  };
+  // 如果快照不存在且有上传过的行程，则尝试通过 arenaStats 兜底（这种情况极少）
+  debugPrint(
+      '[MyStats] Snapshot missing, fallback to partial data from summary...');
+  return null;
 });
 
 int _getFilteredEventCount(Trip t) {

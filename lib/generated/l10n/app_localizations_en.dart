@@ -42,6 +42,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get event_sound_desc => 'Play sound when negative event detected';
 
   @override
+  String get high_frame_rate => 'High Frame Rate Recording';
+
+  @override
+  String get high_frame_rate_desc =>
+      'KOL Exclusive: Record 10Hz sensor data for more details';
+
+  @override
   String get current_version => 'Current Version';
 
   @override
@@ -162,6 +169,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get distance => 'Distance';
+
+  @override
+  String get speed => 'Speed';
 
   @override
   String get avg_speed => 'Avg Speed';
@@ -286,10 +296,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modify_vehicle_info => 'Modify Vehicle Info';
 
   @override
-  String get arena_top10_title => 'Safe Driving Top 10';
+  String get arena_top10_title => 'Comfort Top10';
 
   @override
-  String get arena_total_mileage_title => 'Mileage Leaderboard';
+  String get arena_total_mileage_title => 'Mileage by Brand';
 
   @override
   String get arena_total_mileage_subtitle => 'Total mileage recorded per brand';
@@ -300,16 +310,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get arena_details_title => 'Negative Experience Breakdown';
+  String get arena_details_title => 'Neg Events Breakdown';
 
   @override
   String get arena_leaderboard_title => 'Mileage Contributors';
 
   @override
-  String get low_speed_ranking => 'Urban Comfort Ranking';
+  String get low_speed_ranking => 'Urban Comfort';
 
   @override
-  String get high_speed_ranking => 'Highway Comfort Ranking';
+  String get high_speed_ranking => 'Highway Comfort';
 
   @override
   String get low_speed_desc =>
@@ -833,4 +843,287 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get update_avatar_failed => 'Failed to update avatar';
+
+  @override
+  String get delete_account => 'Destroy Account';
+
+  @override
+  String get new_version_found => 'New Version Found';
+
+  @override
+  String get changelog => 'Changelog';
+
+  @override
+  String get update_now => 'Update Now';
+
+  @override
+  String get downloading_update => 'Downloading Update';
+
+  @override
+  String get permission_not_granted => 'Permission not granted';
+
+  @override
+  String get network_error => 'Network error';
+
+  @override
+  String get calibration_failed_stationary =>
+      'Calibration failed: Please ensure the vehicle is stationary';
+
+  @override
+  String get calibration_failed_motion =>
+      'Calibration failed: Please keep the phone still';
+
+  @override
+  String get sensor_error => 'Sensor reading error';
+
+  @override
+  String get recording_notification_content => 'Puked is recording your trip';
+
+  @override
+  String get recording_notification_title => 'Recording in Progress';
+
+  @override
+  String get logic_section => 'Core Logic';
+
+  @override
+  String get please_login_first => 'Please login first';
+
+  @override
+  String get network_unavailable =>
+      'Network unavailable, please check settings';
+
+  @override
+  String get uploading_trip => 'Uploading trip...';
+
+  @override
+  String get trip_submitted_success => 'Trip submitted to Arena successfully';
+
+  @override
+  String get image_upload_success => 'Image uploaded successfully';
+
+  @override
+  String get network_restored => 'Network connection restored';
+
+  @override
+  String get calibration_success_start =>
+      'Calibration successful, recording started';
+
+  @override
+  String get select_or_input_version => 'Please select or enter version';
+
+  @override
+  String get confirm_delete_account =>
+      'Are you sure you want to destroy your account?';
+
+  @override
+  String get exit_app => 'Exit App';
+
+  @override
+  String get exit_app_confirm => 'Are you sure you want to exit Puked?';
+
+  @override
+  String get ignore_this_version => 'Ignore this version';
+
+  @override
+  String get recalibrate => 'Recalibrate';
+
+  @override
+  String get invalid_verification_code =>
+      'Invalid verification code, please check email';
+
+  @override
+  String speed_unit(Object value) {
+    return '$value km/h';
+  }
+
+  @override
+  String g_unit(Object value) {
+    return '$value G';
+  }
+
+  @override
+  String distance_unit(Object value) {
+    return '$value km';
+  }
+
+  @override
+  String duration_unit(Object value) {
+    return '$value min';
+  }
+
+  @override
+  String get update_failed => 'Update failed';
+
+  @override
+  String get processing => 'Processing...';
+
+  @override
+  String get later => 'Later';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get ensure_network_tip =>
+      'Please ensure network connection and try again';
+
+  @override
+  String get invalid_email_format => 'Invalid email format';
+
+  @override
+  String get password_too_short => 'Password must be at least 8 characters';
+
+  @override
+  String get field_required => 'This field is required';
+
+  @override
+  String get coupling_curve_index_label => 'Suppression Curve Index';
+
+  @override
+  String get coupling_curve_index_hint =>
+      'Controls the non-linearity of Z-axis suppression (1.0 is linear)';
+
+  @override
+  String get coupling_strength_y_label => 'Longitudinal Strength (Y)';
+
+  @override
+  String get coupling_strength_y_hint =>
+      'Weight of Z-axis activity suppressing Accel/Decel detection';
+
+  @override
+  String get coupling_strength_x_label => 'Lateral Strength (X)';
+
+  @override
+  String get coupling_strength_x_hint =>
+      'Weight of Z-axis activity suppressing Jerk/Wobble detection';
+
+  @override
+  String get turn_comp_multiplier_label => 'Turn Comp Multiplier';
+
+  @override
+  String get turn_comp_multiplier_hint =>
+      'Multiplier for raising decel threshold based on yaw rate';
+
+  @override
+  String get turn_comp_max_label => 'Turn Comp Max';
+
+  @override
+  String get turn_comp_max_hint =>
+      'Maximum ceiling for threshold adjustment during turns';
+
+  @override
+  String get event_window_coverage_label => 'Window Coverage Rate';
+
+  @override
+  String get event_window_coverage_hint =>
+      'Required percentage of points exceeding threshold within window';
+
+  @override
+  String get low_speed_jerk_limit_label => 'Low Speed Jerk Limit';
+
+  @override
+  String get low_speed_jerk_limit_hint =>
+      'Speed (km/h) below which deceleration is downgraded to Jerk';
+
+  @override
+  String get recording_voice => 'Recording...';
+
+  @override
+  String get pro_on => 'VOICE ON';
+
+  @override
+  String get pro_off => 'VOICE OFF';
+
+  @override
+  String get voice_tutorial_title => 'Voice Recording Guide';
+
+  @override
+  String get voice_tutorial_step1 =>
+      '1. Turn on \'VOICE ON\' and wait for model download';
+
+  @override
+  String get voice_tutorial_step2 =>
+      '2. Start trip and keep phone still for calibration';
+
+  @override
+  String get voice_tutorial_step3 =>
+      '3. Long-press map or use Bluetooth play key to record';
+
+  @override
+  String get voice_tutorial_step4 =>
+      '4. View supported events in Voice Recording settings';
+
+  @override
+  String get got_it => 'Got it';
+
+  @override
+  String get voice_engine_config_failed => 'Voice Engine Config Failed';
+
+  @override
+  String get voice_engine_not_ready =>
+      'Voice engine not ready, please wait for download';
+
+  @override
+  String get recording_active_debug => 'Recording Active';
+
+  @override
+  String get gps_signal_lost => 'GPS Signal Lost';
+
+  @override
+  String get ins_active_display => 'INS Active (Display Only)';
+
+  @override
+  String get trip_report_title => 'Trip Report';
+
+  @override
+  String share_msg_body(Object time) {
+    return 'Puked Trip Report: $time';
+  }
+
+  @override
+  String get pts_unit => 'pts';
+
+  @override
+  String get fail => 'FAIL';
+
+  @override
+  String get error => 'Error';
+
+  @override
+  String get proDisengagement => 'Disengagement';
+
+  @override
+  String get proViolation => 'Violation';
+
+  @override
+  String get proExperience => 'Experience';
+
+  @override
+  String get voice_recording => 'Voice Recording';
+
+  @override
+  String get voice_recording_desc => 'View events that support voice recording';
+
+  @override
+  String get voice_recording_title => 'Voice Recording Details';
+
+  @override
+  String get voice_recording_intro =>
+      'The following ADAS events support voice descriptions by long-pressing the \'Record\' button when triggered during a trip:';
+
+  @override
+  String get voice_recording_manual_desc =>
+      'Long-press the record button at any time to record a manual voice note for reporting current status or road conditions.';
+
+  @override
+  String get edit_event => 'Edit Event';
+
+  @override
+  String get event_type => 'Event Type';
+
+  @override
+  String get event_description => 'Description';
+
+  @override
+  String get save_changes => 'Save Changes';
 }

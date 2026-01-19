@@ -107,7 +107,8 @@ class MetadataSyncService {
       final remoteBrands = await _pbService.pb.collection('brands').getFullList(
             sort: 'order',
           );
-      debugPrint('[MetadataSync] Step 2: Success. Cloud returned ${remoteBrands.length} brands.');
+      debugPrint(
+          '[MetadataSync] Step 2: Success. Cloud returned ${remoteBrands.length} brands.');
 
       // 3. 写入品牌
       debugPrint('[MetadataSync] Step 3: Updating local Brand table...');
@@ -115,7 +116,7 @@ class MetadataSyncService {
       for (var record in remoteBrands) {
         final name = record.getStringValue('name').trim();
         final isEnabled = record.getBoolValue('isEnabled');
-        
+
         final brand = Brand()
           ..name = name
           ..cloudId = record.id
@@ -145,8 +146,7 @@ class MetadataSyncService {
         try {
           final remoteVersions = await _pbService.pb
               .collection('software_versions')
-              .getFullList(
-                  filter: 'brand = "${brandRecord.id}"');
+              .getFullList(filter: 'brand = "${brandRecord.id}"');
 
           for (var vRecord in remoteVersions) {
             await _storage.addVersion(
@@ -163,9 +163,11 @@ class MetadataSyncService {
         }
       }));
 
-      debugPrint('[MetadataSync] <<< EXITING syncBrandsFromCloud. Success: $successCount, Fail: $failCount');
+      debugPrint(
+          '[MetadataSync] <<< EXITING syncBrandsFromCloud. Success: $successCount, Fail: $failCount');
     } catch (e, stack) {
-      debugPrint('[MetadataSync] !!! CRITICAL ERROR in syncBrandsFromCloud: $e');
+      debugPrint(
+          '[MetadataSync] !!! CRITICAL ERROR in syncBrandsFromCloud: $e');
       debugPrint('[MetadataSync] StackTrace: $stack');
     }
   }

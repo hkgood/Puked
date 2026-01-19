@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // 补全 kIsWeb 所在的包
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
@@ -9,6 +10,7 @@ import 'package:puked/common/theme/app_theme.dart';
 import 'package:puked/services/pocketbase_service.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/metadata_sync_service.dart';
+import 'package:puked/services/media_key_service.dart'; // 新增
 import 'package:puked/features/arena/providers/arena_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +26,12 @@ void main() async {
       sharedPreferencesProvider.overrideWithValue(prefs),
     ],
   );
+
+  // 初始化媒体按键监听 (蓝牙耳机)
+  if (!kIsWeb) {
+    final handler = await initMediaKeyHandler(container);
+    container.read(mediaKeyHandlerProvider.notifier).state = handler;
+  }
 
   runApp(
     UncontrolledProviderScope(

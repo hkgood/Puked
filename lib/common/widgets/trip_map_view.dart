@@ -112,6 +112,7 @@ class TripMapView extends StatefulWidget {
   final Position? currentPosition;
   final LatLng? focusPoint;
   final Offset centerOffset; // 新增：地图中心偏移量 (像素)
+  final VoidCallback? onLongPress; // 新增：长按回调
 
   const TripMapView({
     super.key,
@@ -121,6 +122,7 @@ class TripMapView extends StatefulWidget {
     this.currentPosition,
     this.focusPoint,
     this.centerOffset = Offset.zero,
+    this.onLongPress,
   });
 
   @override
@@ -431,6 +433,11 @@ class _TripMapViewState extends State<TripMapView>
           interactionOptions: const InteractionOptions(
             flags: InteractiveFlag.all,
           ),
+          onLongPress: (_, __) {
+            if (widget.onLongPress != null) {
+              widget.onLongPress!();
+            }
+          },
           onPointerDown: (_, __) {
             if (widget.isLive) {
               setState(() => _isUserInteracting = true);
@@ -597,6 +604,13 @@ class _TripMapViewState extends State<TripMapView>
       return const _EventUIConfig(Icons.vibration, Color(0xFF5856D6));
     } else if (type.contains('wobble')) {
       return const _EventUIConfig(Icons.waves, Color(0xFF007AFF));
+    } else if (type == 'proDisengagement') {
+      return const _EventUIConfig(Icons.pan_tool, Color(0xFFFF3B30));
+    } else if (type == 'proViolation') {
+      return const _EventUIConfig(Icons.gavel, Color(0xFF5856D6));
+    } else if (type == 'proExperience') {
+      return const _EventUIConfig(
+          Icons.sentiment_dissatisfied, Color(0xFF007AFF));
     }
     return const _EventUIConfig(Icons.warning, Colors.grey);
   }

@@ -71,7 +71,9 @@ class BrandLogo extends ConsumerWidget {
 
     // 优化：在等待数据库加载期间，如果 brandName 是已知本地品牌，优先尝试直接显示本地资产
     // 这样可以避免在元数据同步期间出现大量问号图标
-    if (brandName != null && brandName!.isNotEmpty && _localBrands.contains(brandName)) {
+    if (brandName != null &&
+        brandName!.isNotEmpty &&
+        _localBrands.contains(brandName)) {
       final assetPath = 'assets/logos/$brandName.svg';
       final localIcon = Padding(
         padding: EdgeInsets.all(padding),

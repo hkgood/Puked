@@ -251,10 +251,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 final result =
                                     await cloudService.uploadTrip(trip);
                                 final cloudId = result['id'] as String;
-                                final metrics = result['metrics'] as Map<String, dynamic>?;
-                                
+                                final metrics =
+                                    result['metrics'] as Map<String, dynamic>?;
+
                                 await storage.updateTripCloudId(
-                                    trip.id, cloudId, metrics: metrics);
+                                    trip.id, cloudId,
+                                    metrics: metrics);
                                 successCount++;
                               } else if (trip != null && trip.isUploaded) {
                                 successCount++; // Already uploaded counts as success for bulk selection
@@ -319,7 +321,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         error: (err, stack) {
           final errStr = err.toString();
           // 如果是 Isar 竞态错误，显示一个更友好的重试界面，而不是直接报错
-          if (errStr.contains('already been opened') || 
+          if (errStr.contains('already been opened') ||
               errStr.contains('IllegalArg')) {
             return Center(
               child: Column(
@@ -332,7 +334,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ),
             );
           }
-          return Center(child: Text('Error: $err'));
+          return Center(child: Text('${i18n.t('error')}: $err'));
         },
         data: (trips) {
           final i18n = ref.watch(i18nProvider);
@@ -407,8 +409,11 @@ class _TripCardState extends ConsumerState<_TripCard> {
     final onTap = widget.onTap;
     final onRefresh = widget.onRefresh;
 
-    final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(trip.startTime);
     final i18n = ref.watch(i18nProvider);
+    final datePattern = i18n.locale.languageCode == 'zh'
+        ? 'yyyy-MM-dd HH:mm'
+        : 'MMM dd, yyyy HH:mm';
+    final dateStr = DateFormat(datePattern).format(trip.startTime);
     // 核心逻辑修改：使用 isLocalMissing 字段判断是否为纯云端行程
     final isCloudOnly = trip.isLocalMissing;
 
@@ -602,7 +607,8 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                           .withAlpha(153)),
                               const SizedBox(width: 4),
                               Text(
-                                trip.getDistanceDisplay(),
+                                trip.getDistanceDisplay(
+                                    i18n.t('user_mileage_unit')),
                                 style: TextStyle(
                                     fontSize: 12,
                                     color: isCloudOnly
@@ -667,30 +673,35 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                         await cloudService.downloadTripData(
                                             record.id,
                                             fileName); // 传入 record.id 保证一致性
-                                    debugPrint('[PukedSync] UI: Final step - calling completePlaceholderTrip');
+                                    debugPrint(
+                                        '[PukedSync] UI: Final step - calling completePlaceholderTrip');
                                     if (data != null) {
                                       await storage.completePlaceholderTrip(
                                           trip.id, data);
-                                      debugPrint('[PukedSync] UI: completePlaceholderTrip finished');
+                                      debugPrint(
+                                          '[PukedSync] UI: completePlaceholderTrip finished');
                                       if (!context.mounted) return;
                                       setState(() => _isDownloading = false);
                                       onRefresh?.call();
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
                                         SnackBar(
-                                          content: Text(
-                                              i18n.t('download_success')),
+                                          content:
+                                              Text(i18n.t('download_success')),
                                           backgroundColor: Colors.green,
                                         ),
                                       );
                                     } else {
-                                      debugPrint('[PukedSync] UI: Download returned null data');
-                                      throw Exception('Download returned null data');
+                                      debugPrint(
+                                          '[PukedSync] UI: Download returned null data');
+                                      throw Exception(
+                                          'Download returned null data');
                                     }
-                                    } catch (e, stack) {
+                                  } catch (e, stack) {
                                     debugPrint(
-                                        '[PukedSync] UI Layer ERROR: $e'); 
-                                    debugPrint('[PukedSync] UI Layer STACKTRACE: $stack');
+                                        '[PukedSync] UI Layer ERROR: $e');
+                                    debugPrint(
+                                        '[PukedSync] UI Layer STACKTRACE: $stack');
                                     if (!context.mounted) return;
                                     setState(() => _isDownloading = false);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -788,14 +799,15 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                         final result = await ref
                                             .read(cloudTripServiceProvider)
                                             .uploadTrip(trip);
-                                        
+
                                         final cloudId = result['id'] as String;
-                                        final metrics = result['metrics'] as Map<String, dynamic>?;
+                                        final metrics = result['metrics']
+                                            as Map<String, dynamic>?;
 
                                         await ref
                                             .read(storageServiceProvider)
-                                            .updateTripCloudId(
-                                                trip.id, cloudId, metrics: metrics);
+                                            .updateTripCloudId(trip.id, cloudId,
+                                                metrics: metrics);
 
                                         onRefresh?.call();
 

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 
 class AlgorithmConfig {
   final double thresholdAccel;
@@ -19,6 +20,15 @@ class AlgorithmConfig {
 
   final double speedLowFactor;
   final double speedHighFactor;
+
+  // --- 动态抑制曲线参数 (v10.1 新增) ---
+  final double couplingCurveIndex; // 抑制指数 (默认 1.2)
+  final double couplingStrengthY; // Y轴(加减速)抑制强度 (默认 0.5)
+  final double couplingStrengthX; // X轴(顿挫/摆动)抑制强度 (默认 0.8)
+  final double turnCompMultiplier; // 转向补偿倍率 (默认 1.5)
+  final double turnCompMax; // 转向补偿上限 (默认 2.5)
+  final double eventWindowCoverage; // 窗口判定点数占比要求 (默认 0.75)
+  final double lowSpeedJerkLimit; // 低速降级为顿挫的门槛 km/h (默认 2.0)
 
   // --- 物理合理性上限 (Sanity Check) ---
   final double maxJerkAllowed; // 最大允许 Jerk (m/s³)，超过则认为是手机掉落/晃动
@@ -47,6 +57,13 @@ class AlgorithmConfig {
     required this.pitchValidationEnabled,
     required this.speedLowFactor,
     required this.speedHighFactor,
+    required this.couplingCurveIndex,
+    required this.couplingStrengthY,
+    required this.couplingStrengthX,
+    required this.turnCompMultiplier,
+    required this.turnCompMax,
+    required this.eventWindowCoverage,
+    required this.lowSpeedJerkLimit,
     required this.maxJerkAllowed,
     required this.maxAccelAllowed,
     required this.maxWobbleSpanAllowed,
@@ -59,33 +76,58 @@ class AlgorithmConfig {
 
   factory AlgorithmConfig.fromJson(Map<String, dynamic> json,
       {String? recordId}) {
+    debugPrint('🚀 [AlgorithmConfig] 开始解析云端 JSON, version: ${json['version']}');
+    // 内部安全转换辅助函数
+    double toDouble(dynamic val, double fallback) {
+      if (val == null) return fallback;
+      if (val is num) return val.toDouble();
+      if (val is String) {
+        final parsed = double.tryParse(val);
+        if (parsed == null) {
+          debugPrint(
+              '⚠️ [AlgorithmConfig] 无法将 String "$val" 解析为 double, 使用默认值 $fallback');
+        }
+        return parsed ?? fallback;
+      }
+      return fallback;
+    }
+
+    int findInt(dynamic val, int fallback) {
+      if (val == null) return fallback;
+      if (val is num) return val.toInt();
+      if (val is String) return int.tryParse(val) ?? fallback;
+      return fallback;
+    }
+
     return AlgorithmConfig(
-      thresholdAccel: (json['threshold_accel'] ?? 2.2).toDouble(),
-      thresholdDecel: (json['threshold_decel'] ?? -2.0).toDouble(),
-      thresholdWobbleSpan: (json['threshold_wobble_span'] ?? 2.5).toDouble(),
-      thresholdBump: (json['threshold_bump'] ?? 5.5).toDouble(),
-      thresholdJerk: (json['threshold_jerk'] ?? 6.0).toDouble(),
-      thresholdPitch: (json['threshold_pitch'] ?? 1.5).toDouble(),
-      jerkWindowMs: (json['jerk_window_ms'] ?? 250).toInt(),
-      accelDecelWindowMs: (json['accel_decel_window_ms'] ?? 600).toInt(),
-      wobbleWindowMs: (json['wobble_window_ms'] ?? 1000).toInt(),
-      fusionWindowMs: (json['fusion_window_ms'] ?? 3000).toInt(),
-      zyInterferenceThreshold:
-          (json['zy_interference_threshold'] ?? 1.5).toDouble(),
-      zxInterferenceThreshold:
-          (json['zx_interference_threshold'] ?? 2.0).toDouble(),
+      thresholdAccel: toDouble(json['threshold_accel'], 2.2),
+      thresholdDecel: toDouble(json['threshold_decel'], -2.0),
+      thresholdWobbleSpan: toDouble(json['threshold_wobble_span'], 2.5),
+      thresholdBump: toDouble(json['threshold_bump'], 5.5),
+      thresholdJerk: toDouble(json['threshold_jerk'], 6.0),
+      thresholdPitch: toDouble(json['threshold_pitch'], 1.5),
+      jerkWindowMs: findInt(json['jerk_window_ms'], 250),
+      accelDecelWindowMs: findInt(json['accel_decel_window_ms'], 600),
+      wobbleWindowMs: findInt(json['wobble_window_ms'], 1000),
+      fusionWindowMs: findInt(json['fusion_window_ms'], 3000),
+      zyInterferenceThreshold: toDouble(json['zy_interference_threshold'], 1.5),
+      zxInterferenceThreshold: toDouble(json['zx_interference_threshold'], 2.0),
       pitchValidationEnabled: json['pitch_validation_enabled'] ?? true,
-      speedLowFactor: (json['speed_low_factor'] ?? 1.1).toDouble(),
-      speedHighFactor: (json['speed_high_factor'] ?? 0.9).toDouble(),
-      // 物理上限解析
-      maxJerkAllowed: (json['max_jerk_allowed'] ?? 50.0).toDouble(),
-      maxAccelAllowed: (json['max_accel_allowed'] ?? 20.0).toDouble(),
-      maxWobbleSpanAllowed:
-          (json['max_wobble_span_allowed'] ?? 20.0).toDouble(),
-      maxBumpAllowed: (json['max_bump_allowed'] ?? 40.0).toDouble(),
-      minAccelForJerk:
-          (json['min_accel_for_jerk'] ?? 2.5).toDouble(), // 约 0.25G
-      version: (json['version'] ?? 0).toInt(),
+      speedLowFactor: toDouble(json['speed_low_factor'], 1.1),
+      speedHighFactor: toDouble(json['speed_high_factor'], 0.9),
+      couplingCurveIndex: toDouble(json['coupling_curve_index'], 1.2),
+      couplingStrengthY: toDouble(json['coupling_strength_y'], 0.5),
+      couplingStrengthX: toDouble(json['coupling_strength_x'], 0.8),
+      turnCompMultiplier: toDouble(json['turn_comp_multiplier'], 1.5),
+      turnCompMax: toDouble(json['turn_comp_max'], 2.5),
+      eventWindowCoverage: toDouble(json['event_window_coverage'], 0.75),
+      lowSpeedJerkLimit: toDouble(json['low_speed_jerk_limit'], 2.0),
+      maxJerkAllowed: toDouble(json['max_jerk_allowed'], 50.0),
+      maxAccelAllowed: toDouble(json['max_accel_allowed'], 20.0),
+      maxWobbleSpanAllowed: toDouble(json['max_wobble_span_allowed'], 20.0),
+      maxBumpAllowed: toDouble(json['max_bump_allowed'], 40.0),
+      minAccelForJerk: toDouble(json['min_accel_for_jerk'], 2.5),
+      version: findInt(json['version'], 0),
       updatedAt: (json['updated'] ??
           json['updatedAt'] ??
           DateTime.now().toIso8601String()),
@@ -110,6 +152,13 @@ class AlgorithmConfig {
       'pitch_validation_enabled': pitchValidationEnabled,
       'speed_low_factor': speedLowFactor,
       'speed_high_factor': speedHighFactor,
+      'coupling_curve_index': couplingCurveIndex,
+      'coupling_strength_y': couplingStrengthY,
+      'coupling_strength_x': couplingStrengthX,
+      'turn_comp_multiplier': turnCompMultiplier,
+      'turn_comp_max': turnCompMax,
+      'event_window_coverage': eventWindowCoverage,
+      'low_speed_jerk_limit': lowSpeedJerkLimit,
       'max_jerk_allowed': maxJerkAllowed,
       'max_accel_allowed': maxAccelAllowed,
       'max_wobble_span_allowed': maxWobbleSpanAllowed,
@@ -137,6 +186,13 @@ class AlgorithmConfig {
     bool? pitchValidationEnabled,
     double? speedLowFactor,
     double? speedHighFactor,
+    double? couplingCurveIndex,
+    double? couplingStrengthY,
+    double? couplingStrengthX,
+    double? turnCompMultiplier,
+    double? turnCompMax,
+    double? eventWindowCoverage,
+    double? lowSpeedJerkLimit,
     double? maxJerkAllowed,
     double? maxAccelAllowed,
     double? maxWobbleSpanAllowed,
@@ -165,6 +221,13 @@ class AlgorithmConfig {
           pitchValidationEnabled ?? this.pitchValidationEnabled,
       speedLowFactor: speedLowFactor ?? this.speedLowFactor,
       speedHighFactor: speedHighFactor ?? this.speedHighFactor,
+      couplingCurveIndex: couplingCurveIndex ?? this.couplingCurveIndex,
+      couplingStrengthY: couplingStrengthY ?? this.couplingStrengthY,
+      couplingStrengthX: couplingStrengthX ?? this.couplingStrengthX,
+      turnCompMultiplier: turnCompMultiplier ?? this.turnCompMultiplier,
+      turnCompMax: turnCompMax ?? this.turnCompMax,
+      eventWindowCoverage: eventWindowCoverage ?? this.eventWindowCoverage,
+      lowSpeedJerkLimit: lowSpeedJerkLimit ?? this.lowSpeedJerkLimit,
       maxJerkAllowed: maxJerkAllowed ?? this.maxJerkAllowed,
       maxAccelAllowed: maxAccelAllowed ?? this.maxAccelAllowed,
       maxWobbleSpanAllowed: maxWobbleSpanAllowed ?? this.maxWobbleSpanAllowed,
@@ -176,31 +239,38 @@ class AlgorithmConfig {
     );
   }
 
-  /// 默认配置 (2.1.5 物理边界版)
+  /// 默认配置 (同步云端 v11 稳定版)
   factory AlgorithmConfig.defaultConfig() {
     return AlgorithmConfig(
-      thresholdAccel: 2.2,
-      thresholdDecel: -2.0,
-      thresholdWobbleSpan: 2.5,
-      thresholdBump: 5.5,
+      thresholdAccel: 2.0,
+      thresholdDecel: -1.6,
+      thresholdWobbleSpan: 3.5,
+      thresholdBump: 4.5,
       thresholdJerk: 6.0,
-      thresholdPitch: 1.5,
+      thresholdPitch: 0.8,
       jerkWindowMs: 250,
-      accelDecelWindowMs: 600,
+      accelDecelWindowMs: 400,
       wobbleWindowMs: 1000,
       fusionWindowMs: 3000,
-      zyInterferenceThreshold: 1.5,
-      zxInterferenceThreshold: 2.0,
+      zyInterferenceThreshold: 2.5,
+      zxInterferenceThreshold: 2.8,
       pitchValidationEnabled: true,
       speedLowFactor: 1.1,
       speedHighFactor: 0.9,
+      couplingCurveIndex: 1.2,
+      couplingStrengthY: 0.5,
+      couplingStrengthX: 0.8,
+      turnCompMultiplier: 1.5,
+      turnCompMax: 2.5,
+      eventWindowCoverage: 0.6,
+      lowSpeedJerkLimit: 2.0,
       maxJerkAllowed: 50.0,
       maxAccelAllowed: 20.0,
       maxWobbleSpanAllowed: 20.0,
       maxBumpAllowed: 40.0,
       minAccelForJerk: 2.5,
-      version: 0,
-      updatedAt: '2026-01-08T00:00:00Z',
+      version: 11,
+      updatedAt: '2026-01-17T05:57:56.966Z',
     );
   }
 }

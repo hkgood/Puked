@@ -20,6 +20,7 @@ class SettingsState {
   final String? softwareVersionRef;
   final bool isFirstLaunch;
   final bool isEventSoundEnabled;
+  final bool isHighFrameRateEnabled;
 
   SettingsState({
     required this.themeMode,
@@ -31,6 +32,7 @@ class SettingsState {
     this.softwareVersionRef,
     this.isFirstLaunch = false,
     this.isEventSoundEnabled = false,
+    this.isHighFrameRateEnabled = false,
   });
 
   SettingsState copyWith({
@@ -43,6 +45,7 @@ class SettingsState {
     String? softwareVersionRef,
     bool? isFirstLaunch,
     bool? isEventSoundEnabled,
+    bool? isHighFrameRateEnabled,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -54,6 +57,8 @@ class SettingsState {
       softwareVersionRef: softwareVersionRef ?? this.softwareVersionRef,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
       isEventSoundEnabled: isEventSoundEnabled ?? this.isEventSoundEnabled,
+      isHighFrameRateEnabled:
+          isHighFrameRateEnabled ?? this.isHighFrameRateEnabled,
     );
   }
 }
@@ -92,6 +97,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   static const _softwareVersionRefKey = 'default_software_version_ref';
   static const _firstLaunchKey = 'is_first_launch';
   static const _eventSoundKey = 'is_event_sound_enabled';
+  static const _highFrameRateKey = 'is_high_frame_rate_enabled';
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -101,6 +107,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
     // 加载负体验音效开关，默认 false
     final isEventSoundEnabled = prefs.getBool(_eventSoundKey) ?? false;
+
+    // 加载高帧率数据记录开关，默认 false
+    final isHighFrameRateEnabled = prefs.getBool(_highFrameRateKey) ?? false;
 
     // 加载主题
     final themeIndex = prefs.getInt(_themeKey) ?? ThemeMode.system.index;
@@ -192,7 +201,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       softwareVersionRef: softwareVersionRef,
       isFirstLaunch: isFirstLaunch,
       isEventSoundEnabled: isEventSoundEnabled,
+      isHighFrameRateEnabled: isHighFrameRateEnabled,
     );
+  }
+
+  Future<void> setHighFrameRateEnabled(bool enabled) async {
+    state = state.copyWith(isHighFrameRateEnabled: enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_highFrameRateKey, enabled);
   }
 
   Future<void> setEventSoundEnabled(bool enabled) async {

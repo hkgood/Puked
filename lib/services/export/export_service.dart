@@ -6,15 +6,30 @@ import 'package:puked/models/db_models.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final exportServiceProvider = Provider((ref) => ExportService());
+import 'package:intl/intl.dart'; // 增加这行
+import 'package:puked/common/utils/i18n.dart';
+
+final exportServiceProvider = Provider((ref) {
+  final i18n = ref.watch(i18nProvider);
+  return ExportService(i18n);
+});
 
 class ExportService {
+  final I18n _i18n;
+  ExportService(this._i18n);
+
   /// 将单个行程导出为 JSON 文件并触发分享
   /// [sharePositionOrigin] 用于在 iPad 或大屏 iPhone 上定位分享菜单的弹出起点
   Future<void> exportTrip(Trip trip, {Rect? sharePositionOrigin}) async {
     debugPrint(
         "DEBUG: [ExportService] Start exportTrip for UUID: ${trip.uuid}");
     try {
+      // 自动选择日期格式
+      final datePattern = _i18n.locale.languageCode == 'zh'
+          ? 'yyyy-MM-dd HH:mm'
+          : 'MMM dd, yyyy HH:mm';
+      final dateStr = DateFormat(datePattern).format(trip.startTime);
+
       // ... 保持原有加载逻辑 ...
       if (!trip.trajectory.isLoaded) {
         debugPrint("DEBUG: [ExportService] Loading trajectory links...");
@@ -47,6 +62,18 @@ class ExportService {
                   "lng": p.lng,
                   "speed": p.speed,
                   "low_conf": p.isLowConfidence ?? false,
+                  if (p.ax != null)
+                    "ax": double.parse(p.ax!.toStringAsFixed(3)),
+                  if (p.ay != null)
+                    "ay": double.parse(p.ay!.toStringAsFixed(3)),
+                  if (p.az != null)
+                    "az": double.parse(p.az!.toStringAsFixed(3)),
+                  if (p.gx != null)
+                    "gx": double.parse(p.gx!.toStringAsFixed(3)),
+                  if (p.gy != null)
+                    "gy": double.parse(p.gy!.toStringAsFixed(3)),
+                  if (p.gz != null)
+                    "gz": double.parse(p.gz!.toStringAsFixed(3)),
                 })
             .toList(),
         "events": trip.events
@@ -55,6 +82,8 @@ class ExportService {
                   "timestamp": e.timestamp.millisecondsSinceEpoch / 1000.0,
                   "type": e.type,
                   "source": e.source,
+                  "voice_text": e.voiceText,
+                  "notes": e.notes,
                   "location": {
                     "lat": e.lat,
                     "lng": e.lng,
@@ -103,9 +132,10 @@ class ExportService {
 
       debugPrint(
           "DEBUG: [ExportService] Triggering Share.shareXFiles with origin: $sharePositionOrigin");
+      final String shareText = _i18n.t('share_msg_body', args: [dateStr]);
       final result = await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/json')],
-        text: 'Puked Trip Report: ${trip.startTime}',
+        text: shareText,
         sharePositionOrigin: sharePositionOrigin, // 使用位置参数
       );
 

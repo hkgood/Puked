@@ -14,8 +14,12 @@ import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/services/algorithm_config_service.dart';
 import 'package:puked/features/settings/presentation/algorithm_config_screen.dart';
+import 'package:puked/features/settings/presentation/privacy_policy_screen.dart';
+import 'package:puked/features/auth/presentation/delete_account_screen.dart';
 import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:puked/features/settings/presentation/widgets/my_data_card.dart';
+import 'package:puked/features/arena/providers/arena_provider.dart';
+import 'package:puked/features/settings/presentation/voice_recording_info_screen.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -32,8 +36,12 @@ class SettingsScreen extends ConsumerWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (ref.read(authProvider).isAuthenticated) {
         ref.read(authProvider.notifier).refreshUserFromServer();
-        // 核心修复：打开设置页面时也刷新一次统计快照，确保“我的数据”是最新的
-        ref.read(arenaStatsProvider.notifier).refresh(force: false);
+
+        // 核心修复：增加判断，防止死循环。只有在没有值且不在加载时才自动刷新。
+        final stats = ref.read(arenaStatsProvider);
+        if (!stats.hasValue && !stats.isLoading) {
+          ref.read(arenaStatsProvider.notifier).refresh(force: false);
+        }
       }
     });
 
@@ -48,21 +56,10 @@ class SettingsScreen extends ConsumerWidget {
         title: Text(i18n.t('settings')),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            // 触发全量数据同步和快照刷新
-            await Future.wait([
-              ref.read(authProvider.notifier).refreshUserFromServer(),
-              ref.read(arenaStatsProvider.notifier).refresh(force: true),
-            ]);
-            
-            // 给 UI 一点反馈时间
-            await Future.delayed(const Duration(milliseconds: 500));
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(), // 确保内容不足时也能触发下拉刷新
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            child: Column(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // 确保内容不足时也能触发下拉刷新
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. 账号与车辆卡片
@@ -89,13 +86,16 @@ class SettingsScreen extends ConsumerWidget {
                           children: [
                             CircleAvatar(
                               radius: 24,
-                              backgroundColor: Theme.of(context).colorScheme.primaryContainer, // 添加背景色
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer, // 添加背景色
                               backgroundImage: ref
                                           .watch(pbServiceProvider)
                                           .currentAvatarUrl !=
                                       null
-                                  ? NetworkImage(
-                                      ref.watch(pbServiceProvider).currentAvatarUrl!)
+                                  ? NetworkImage(ref
+                                      .watch(pbServiceProvider)
+                                      .currentAvatarUrl!)
                                   : null,
                               child: ref
                                           .watch(pbServiceProvider)
@@ -104,7 +104,9 @@ class SettingsScreen extends ConsumerWidget {
                                   ? Icon(
                                       Icons.person, // 换成实心图标
                                       size: 28,
-                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer,
                                     )
                                   : null,
                             ),
@@ -116,9 +118,11 @@ class SettingsScreen extends ConsumerWidget {
                                 child: Container(
                                   padding: const EdgeInsets.all(2),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
                                   ),
                                   child: const Icon(
                                     Icons.add_a_photo,
@@ -132,7 +136,8 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       title: Row(
                         children: [
-                          Text(auth.user?.getStringValue('name') ?? i18n.t('user')),
+                          Text(auth.user?.getStringValue('name') ??
+                              i18n.t('user')),
                           if (auth.isPro) ...[
                             const SizedBox(width: 8),
                             Container(
@@ -152,6 +157,25 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                             ),
                           ],
+                          if (auth.isKOL) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: const Text(
+                                'Expert',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       subtitle: Column(
@@ -161,7 +185,9 @@ class SettingsScreen extends ConsumerWidget {
                             auth.user?.getStringValue('email') ?? '',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                           if (auth.isSuperUser)
@@ -190,10 +216,11 @@ class SettingsScreen extends ConsumerWidget {
                                           ?.getBoolValue('verified') ==
                                       true) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(
-                                          content:
-                                              Text(i18n.t('verification_success')),
+                                          content: Text(
+                                              i18n.t('verification_success')),
                                           backgroundColor: Colors.green,
                                         ),
                                       );
@@ -206,7 +233,8 @@ class SettingsScreen extends ConsumerWidget {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                          content: Text(i18n.t('verification_sent')),
+                                          content:
+                                              Text(i18n.t('verification_sent')),
                                           backgroundColor: Colors.green),
                                     );
                                   }
@@ -330,11 +358,14 @@ class SettingsScreen extends ConsumerWidget {
                   // 主题设置
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(i18n.t('theme'), style: const TextStyle(fontSize: 14)),
+                    title: Text(i18n.t('theme'),
+                        style: const TextStyle(fontSize: 14)),
                     trailing: Container(
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -372,11 +403,14 @@ class SettingsScreen extends ConsumerWidget {
                   // 语言设置
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(i18n.t('language'), style: const TextStyle(fontSize: 14)),
+                    title: Text(i18n.t('language'),
+                        style: const TextStyle(fontSize: 14)),
                     trailing: Container(
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -419,6 +453,42 @@ class SettingsScreen extends ConsumerWidget {
                           .setEventSoundEnabled(value),
                     ),
                   ),
+
+                  // 高帧率数据记录 (仅限 KOL 用户)
+                  if (ref.watch(pbServiceProvider).isKOL)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(i18n.t('high_frame_rate'),
+                          style: const TextStyle(fontSize: 14)),
+                      subtitle: Text(
+                        i18n.t('high_frame_rate_desc'),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: _SquareSwitch(
+                        value: settings.isHighFrameRateEnabled,
+                        onChanged: (value) => ref
+                            .read(settingsProvider.notifier)
+                            .setHighFrameRateEnabled(value),
+                      ),
+                    ),
+                  if (ref.watch(pbServiceProvider).isKOL)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(i18n.t('voice_recording'),
+                          style: const TextStyle(fontSize: 14)),
+                      subtitle: Text(
+                        i18n.t('voice_recording_desc'),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 20),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const VoiceRecordingInfoScreen(),
+                        ),
+                      ),
+                    ),
                 ],
               ),
 
@@ -434,7 +504,8 @@ class SettingsScreen extends ConsumerWidget {
                     title: i18n.t('current_version'),
                     trailing: packageInfo.when(
                       data: (info) => Text('v${info.version}',
-                          style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 13)),
                       loading: () => const SizedBox(
                         width: 14,
                         height: 14,
@@ -450,9 +521,10 @@ class SettingsScreen extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text('v${algoConfig.version}',
-                            style:
-                                const TextStyle(color: Colors.grey, fontSize: 13)),
-                        const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 13)),
+                        const Icon(Icons.chevron_right,
+                            color: Colors.grey, size: 18),
                       ],
                     ),
                     onTap: () => Navigator.push(
@@ -465,19 +537,31 @@ class SettingsScreen extends ConsumerWidget {
                     _buildAboutTile(
                       context,
                       title: i18n.t('check_update'),
-                      trailing:
-                          const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-                      onTap: () =>
-                          UpdateService.checkUpdate(context, showNoUpdate: true),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: Colors.grey, size: 18),
+                      onTap: () => UpdateService.checkUpdate(context,
+                          showNoUpdate: true),
                     ),
                   _buildAboutTile(
                     context,
                     title: i18n.t('privacy_policy'),
-                    trailing:
-                        const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-                    onTap: () => launchUrl(
-                      Uri.parse('https://hkgood.github.io/puked-privacy/'),
-                      mode: LaunchMode.inAppWebView,
+                    trailing: const Icon(Icons.chevron_right,
+                        color: Colors.grey, size: 18),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PrivacyPolicyScreen()),
+                    ),
+                  ),
+                  _buildAboutTile(
+                    context,
+                    title: i18n.t('delete_account'),
+                    trailing: const Icon(Icons.chevron_right,
+                        color: Colors.grey, size: 18),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const DeleteAccountScreen()),
                     ),
                   ),
                 ],
@@ -597,7 +681,6 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
-
 
   void _showAuthPage(BuildContext context) {
     Navigator.push(

@@ -1,116 +1,78 @@
-// 统一管理版本号，避免在代码中散落硬编码
-object BuildVersions {
-    const val KOTLIN = "2.1.0"
-    const val AGP_COMPILE_SDK = 36
-    const val JVM_TARGET = 17
-}
-
 allprojects {
     repositories {
         google()
         mavenCentral()
-        // 只有在没有环境变量指明禁用镜像时才使用镜像，增加灵活性
-        if (System.getenv("SKIP_MIRRORS") == null) {
-            maven { url = uri("https://maven.aliyun.com/repository/public") }
-            maven { url = uri("https://maven.aliyun.com/repository/google") }
-        }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
         gradlePluginPortal()
     }
 }
 
-val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
+val newBuildDir: Directory =
+    rootProject.layout.buildDirectory
+        .dir("../../build")
+        .get()
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 
-    // 统一 Kotlin 版本
+    // 强制同步所有项目的 Kotlin 版本，解决 image_gallery_saver_plus 等插件的版本冲突
     configurations.all {
         resolutionStrategy.eachDependency {
             if (requested.group == "org.jetbrains.kotlin") {
-                useVersion(BuildVersions.KOTLIN)
+                useVersion("2.1.0") // 2026年 2.1.0 是非常稳定的版本
             }
         }
     }
+}
 
-    // 配置完成后统一修复 AGP 兼容性问题
-    afterEvaluate {
-        val p = this
-        
-        // 1. 解决命名空间 (Namespace) 缺失或冲突问题
-        // 这是 AGP 8.0+ 的核心要求
-        val androidExtension = p.extensions.findByName("android")
-        if (androidExtension != null) {
-            val namespaceValue = "com.puked.generated.${p.name.replace("-", "_")}"
-            
-            when (androidExtension) {
-                is com.android.build.gradle.LibraryExtension -> {
-                    if (androidExtension.namespace == null) {
-                        androidExtension.namespace = namespaceValue
-                    }
-                }
-                is com.android.build.gradle.AppExtension -> {
-                    if (androidExtension.namespace == null) {
-                        androidExtension.namespace = namespaceValue
-                    }
-                }
-            }
+// 核心补丁：统一所有子项目的 JVM 版本为 17，并解决 namespace 缺失问题
+// 特别针对 Isar 3.x 等老旧插件，在配置阶段物理修复 Manifest 冲突
+allprojects {
+    val p = this
+    
+    // 激进修复：直接物理移除 Manifest 中的 package 属性
+    // 必须在配置阶段执行，以绕过 AGP 8.10+ 的预扫描报错
+    val manifestFile = File(p.projectDir, "src/main/AndroidManifest.xml")
+    if (manifestFile.exists()) {
+        val content = manifestFile.readText()
+        if (content.contains("package=")) {
+            println("--- AGP Compatibility Fix: Patching ${p.name} manifest at ${manifestFile.absolutePath}")
+            val updatedContent = content.replace(Regex("""\s+package="[^"]*""""), "")
+            manifestFile.writeText(updatedContent)
+        }
+    }
 
-            // 2. 统一 JVM 版本和 SDK 版本
-            if (androidExtension is com.android.build.gradle.BaseExtension) {
-                androidExtension.compileSdkVersion(BuildVersions.AGP_COMPILE_SDK)
-                androidExtension.compileOptions {
-                    sourceCompatibility = JavaVersion.VERSION_17
-                    targetCompatibility = JavaVersion.VERSION_17
-                }
+    val configureProject = Action<Project> {
+        // 1. 解决部分插件缺失 namespace 的通用问题
+        p.extensions.findByType<com.android.build.gradle.LibraryExtension>()?.apply {
+            if (namespace == null) {
+                namespace = "com.puked.generated.${p.name.replace("-", "_")}"
             }
         }
 
-        // 3. 强制 Kotlin 编译目标
+        // 2. 强制同步 Java 和 Kotlin 的 JVM 版本为 17，并提升 compileSdkVersion
+        p.extensions.findByType<com.android.build.gradle.BaseExtension>()?.apply {
+            compileSdkVersion(36)
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        }
+
         p.tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
             compilerOptions {
                 jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
             }
         }
     }
-}
 
-// 针对 Isar 3.x 等老旧插件的 Manifest 兼容性补丁
-// 采用更稳健的正则匹配与任务挂载方式
-tasks.register("patchOldPluginsManifests") {
-    doLast {
-        subprojects.forEach { p ->
-            val manifestFile = File(p.projectDir, "src/main/AndroidManifest.xml")
-            if (manifestFile.exists()) {
-                val content = manifestFile.readText()
-                if (content.contains("package=")) {
-                    logger.lifecycle("--- AGP Compatibility: Patching manifest for plugin '${p.name}' at ${manifestFile.absolutePath}")
-                    // 更稳健的正则，匹配 package="..." 及其可选的前置空白符
-                    val updatedContent = content.replace(Regex("""\s*package="[^"]*""""), "")
-                    try {
-                        manifestFile.writeText(updatedContent)
-                    } catch (e: Exception) {
-                        logger.error("--- AGP Compatibility: Failed to patch manifest for ${p.name}: ${e.message}")
-                    }
-                }
-            }
-        }
-    }
-}
-
-// 确保在所有编译任务前执行补丁
-subprojects {
-    afterEvaluate {
-        val p = this
-        if (p.plugins.hasPlugin("com.android.library") || p.plugins.hasPlugin("com.android.application")) {
-            p.tasks.configureEach {
-                // 匹配 preBuild 任务（注意大小写敏感度）
-                if (name.contains("preBuild", ignoreCase = true)) {
-                    dependsOn(":patchOldPluginsManifests")
-                }
-            }
-        }
+    if (p.state.executed) {
+        configureProject.execute(p)
+    } else {
+        p.afterEvaluate(configureProject)
     }
 }
 

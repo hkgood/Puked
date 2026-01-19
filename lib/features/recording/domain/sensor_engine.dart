@@ -208,8 +208,7 @@ class SensorEngine {
   Future<void> calibrate({double currentSpeedMs = 0.0}) async {
     // 0. 车辆静止守卫：通过 GPS 速度判定 (放宽到 0.5m/s = 1.8km/h)
     if (currentSpeedMs > 0.5) {
-      throw Exception(
-          "校准失败：请在车辆完全停稳后进行 (当前车速: ${(currentSpeedMs * 3.6).toStringAsFixed(1)} km/h)");
+      throw Exception("calibration_failed_stationary");
     }
 
     // 1. 彻底清空旧的校准状态，确保二次校准不受干扰
@@ -239,7 +238,7 @@ class SensorEngine {
     final maxGyro = gyroMagnitudes.reduce(math.max);
     if (maxGyro > 0.3) {
       // 进一步放宽到 0.3，适配 Android 硬件基底噪声
-      throw Exception("校准失败：请确保手机完全静止（检测到晃动: ${maxGyro.toStringAsFixed(3)}）");
+      throw Exception("calibration_failed_motion");
     }
 
     // 3. 计算均值和方差
@@ -260,12 +259,12 @@ class SensorEngine {
 
     if (variance > 0.15) {
       // 从 0.05 放宽到 0.15
-      throw Exception("校准失败：请确保手机完全静止（检测到震动: ${variance.toStringAsFixed(3)}）");
+      throw Exception("calibration_failed_motion");
     }
 
     final gravityMag = gMean.length;
     if (gravityMag < 8.0 || gravityMag > 12.0) {
-      throw Exception("校准失败：传感器读数异常 (G: ${gravityMag.toStringAsFixed(2)})");
+      throw Exception("sensor_error");
     }
 
     // 4. 构建 3D 姿态矩阵 (支持水平倾斜/Yaw 对齐)

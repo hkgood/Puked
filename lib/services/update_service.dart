@@ -13,13 +13,8 @@ class UpdateService {
   static const String _githubApiUrl =
       'https://api.github.com/repos/$_owner/$_repo/releases/latest';
 
-  // 国内常用的 GitHub 加速镜像站列表
-
-  static const List<String> _mirrors = [
-    'https://ghproxy.cn/',
-    'https://mirror.ghproxy.com/',
-    'https://github.moeyy.xyz/',
-  ];
+  // 自建下载服务器基准地址
+  static const String _downloadBaseUrl = 'http://download.osglab.com/PukedAPK';
 
   static Future<void> checkUpdate(BuildContext context,
       {bool showNoUpdate = false}) async {
@@ -81,22 +76,25 @@ class UpdateService {
         if (_isNewer(latestVersion, currentVersion,
             latestBuild: latestBuild, currentBuild: currentBuild)) {
           if (context.mounted) {
+            // 为安卓构造自建服务器的下载链接
+            final downloadUrl = Platform.isAndroid
+                ? '$_downloadBaseUrl/Puked-$latestVersion.apk'
+                : (Platform.isIOS ? appStoreUrl : (apkUrl ?? htmlUrl));
+
             _showUpdateDialog(
               context,
               latestTag,
               releaseNotes,
-              Platform.isIOS ? appStoreUrl : (apkUrl ?? htmlUrl),
+              downloadUrl,
               l10n,
-              isApk: Platform.isAndroid && apkUrl != null,
+              isApk: Platform.isAndroid,
             );
           }
         } else if (showNoUpdate) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(l10n.localeName == 'zh'
-                    ? '当前已是最新版本'
-                    : 'Already up to date'),
+                content: Text(l10n.current_version),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -145,7 +143,6 @@ class UpdateService {
   static void _showUpdateDialog(BuildContext context, String version,
       String notes, String url, AppLocalizations l10n,
       {bool isApk = false}) {
-    final isZh = l10n.localeName == 'zh';
     final colorScheme = Theme.of(context).colorScheme;
 
     showDialog(
@@ -160,7 +157,7 @@ class UpdateService {
         title: Column(
           children: [
             Text(
-              isZh ? '发现新版本' : 'New Version Found',
+              l10n.new_version_found,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
@@ -185,7 +182,7 @@ class UpdateService {
             children: [
               const Divider(height: 24),
               Text(
-                isZh ? '更新内容' : 'Changelog',
+                l10n.changelog,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -218,7 +215,7 @@ class UpdateService {
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(
-                    isZh ? '稍后再说' : 'Later',
+                    l10n.later,
                     style: const TextStyle(
                       color: Colors.grey,
                     ),
@@ -250,7 +247,7 @@ class UpdateService {
                     elevation: 0,
                   ),
                   child: Text(
-                    isZh ? '立即更新' : 'Update Now',
+                    l10n.update_now,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
@@ -266,208 +263,159 @@ class UpdateService {
 
   static void _showDownloadProgress(
       BuildContext context, String url, AppLocalizations l10n, String version) {
-    final isZh = l10n.localeName == 'zh';
     final colorScheme = Theme.of(context).colorScheme;
-
-    // 构建下载地址候选列表
-    List<String> downloadUrls = [url];
-    if (isZh && url.contains('github.com')) {
-      // 在国内环境下，优先尝试镜像站
-      downloadUrls = _mirrors.map((m) => '$m$url').toList();
-      downloadUrls.add(url); // 最后尝试原地址
-    }
-
-    int currentUrlIndex = 0;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final currentUrl = downloadUrls[currentUrlIndex];
+        return AlertDialog(
+          backgroundColor: colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Column(
+            children: [
+              Text(
+                l10n.downloading_update,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                version,
+                style: TextStyle(
+                  color: colorScheme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          content: StreamBuilder<OtaEvent>(
+            stream: OtaUpdate().execute(
+              url,
+              destinationFilename: 'puked_update.apk',
+              androidProviderAuthority: 'com.osglab.puked.ota_update_provider',
+            ),
+            builder: (context, snapshot) {
+              double progress = 0;
+              String statusText = '';
+              bool isError = false;
 
-            return AlertDialog(
-              backgroundColor: colorScheme.surface,
-              surfaceTintColor: Colors.transparent,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24)),
-              title: Column(
+              if (snapshot.hasData) {
+                switch (snapshot.data!.status) {
+                  case OtaStatus.DOWNLOADING:
+                    progress =
+                        double.tryParse(snapshot.data!.value ?? '0') ?? 0;
+                    statusText = l10n.downloading;
+                    break;
+                  case OtaStatus.INSTALLING:
+                    statusText = l10n.processing;
+                    progress = 100;
+                    Future.delayed(const Duration(seconds: 1), () {
+                      if (context.mounted) Navigator.of(context).pop();
+                    });
+                    break;
+                  case OtaStatus.ALREADY_RUNNING_ERROR:
+                    statusText = l10n.download_failed;
+                    isError = true;
+                    break;
+                  case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
+                    statusText = l10n.permission_not_granted;
+                    isError = true;
+                    break;
+                  case OtaStatus.INTERNAL_ERROR:
+                  case OtaStatus.DOWNLOAD_ERROR:
+                  case OtaStatus.CHECKSUM_ERROR:
+                    statusText = l10n.download_failed;
+                    isError = true;
+                    break;
+                  default:
+                    statusText = l10n.processing;
+                }
+              } else if (snapshot.hasError) {
+                statusText = l10n.network_error;
+                isError = true;
+              }
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    isZh ? '正在下载更新' : 'Downloading Update',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    version,
-                    style: TextStyle(
-                      color: colorScheme.primary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (downloadUrls.length > 1)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        isZh
-                            ? '正在尝试通道 ${currentUrlIndex + 1}/${downloadUrls.length}'
-                            : 'Attempting mirror ${currentUrlIndex + 1}/${downloadUrls.length}',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 12,
+                  const SizedBox(height: 8),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progress / 100,
+                          minHeight: 12,
+                          backgroundColor: colorScheme.surfaceContainerHighest,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              colorScheme.primary),
                         ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isError
+                              ? Colors.red
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        '${progress.toInt()}%',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (isError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: Column(
+                        children: [
+                          Text(
+                            l10n.ensure_network_tip,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                l10n.back,
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 ],
-              ),
-              content: StreamBuilder<OtaEvent>(
-                key: ValueKey(currentUrl), // 当 URL 改变时重新触发 StreamBuilder
-                stream: OtaUpdate().execute(
-                  currentUrl,
-                  destinationFilename: 'puked_update.apk',
-                  androidProviderAuthority:
-                      'com.osglab.puked.ota_update_provider',
-                ),
-                builder: (context, snapshot) {
-                  double progress = 0;
-                  String statusText = '';
-                  bool isError = false;
-
-                  if (snapshot.hasData) {
-                    switch (snapshot.data!.status) {
-                      case OtaStatus.DOWNLOADING:
-                        progress =
-                            double.tryParse(snapshot.data!.value ?? '0') ?? 0;
-                        statusText = isZh ? '正在下载...' : 'Downloading...';
-                        break;
-                      case OtaStatus.INSTALLING:
-                        statusText =
-                            isZh ? '正在准备安装...' : 'Preparing to install...';
-                        progress = 100;
-                        Future.delayed(const Duration(seconds: 1), () {
-                          if (context.mounted) Navigator.of(context).pop();
-                        });
-                        break;
-                      case OtaStatus.ALREADY_RUNNING_ERROR:
-                        statusText =
-                            isZh ? '已有下载任务正在运行' : 'Download already running';
-                        isError = true;
-                        break;
-                      case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
-                        statusText = isZh ? '缺少安装权限' : 'Permission not granted';
-                        isError = true;
-                        break;
-                      case OtaStatus.INTERNAL_ERROR:
-                      case OtaStatus.DOWNLOAD_ERROR:
-                      case OtaStatus.CHECKSUM_ERROR:
-                        statusText =
-                            isZh ? '当前通道下载失败' : 'Mirror download failed';
-                        isError = true;
-                        break;
-                      default:
-                        statusText = isZh ? '处理中...' : 'Processing...';
-                    }
-                  } else if (snapshot.hasError) {
-                    statusText = isZh ? '网络连接异常' : 'Network error';
-                    isError = true;
-                  }
-
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 8),
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: LinearProgressIndicator(
-                              value: progress / 100,
-                              minHeight: 12,
-                              backgroundColor:
-                                  colorScheme.surfaceContainerHighest,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  colorScheme.primary),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isError
-                                  ? Colors.red
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          Text(
-                            '${progress.toInt()}%',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (isError)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 24),
-                          child: Column(
-                            children: [
-                              if (currentUrlIndex < downloadUrls.length - 1)
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      setState(() {
-                                        currentUrlIndex++;
-                                      });
-                                    },
-                                    icon: const Icon(Icons.refresh, size: 18),
-                                    label: Text(
-                                        isZh ? '切换备用通道' : 'Try next mirror'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: colorScheme.primary,
-                                      foregroundColor: colorScheme.onPrimary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: Text(
-                                    isZh ? '取消下载' : 'Cancel',
-                                    style: const TextStyle(color: Colors.grey),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );

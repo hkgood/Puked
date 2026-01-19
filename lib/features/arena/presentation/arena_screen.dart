@@ -25,10 +25,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 自动刷新统计快照 (核心优化：极速加载)
-      ref.read(arenaStatsProvider.notifier).refresh(force: false);
-    });
+    // 移除 WidgetsBinding.instance.addPostFrameCallback，
+    // 改为由 arenaStatsProvider 内部处理初始化加载，
+    // 这样点击 Tab 切换时不会重复触发请求。
   }
 
   Future<void> _onRefresh() async {
@@ -46,18 +45,10 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
       appBar: AppBar(
         title: Text(i18n.t('arena')),
         actions: [
-          // 在 AppBar 右侧显示同步状态
-          statsAsync.maybeWhen(
-            loading: () => Container(
-              margin: const EdgeInsets.only(right: 16),
-              width: 16,
-              height: 16,
-              child: const CircularProgressIndicator(strokeWidth: 2),
-            ),
-            orElse: () => IconButton(
-              icon: const Icon(Icons.sync, size: 20),
-              onPressed: _onRefresh,
-            ),
+          // 右上角刷新按钮：根据加载状态进入动画状态
+          _SyncButton(
+            isLoading: statsAsync.isLoading,
+            onPressed: _onRefresh,
           ),
         ],
       ),
@@ -255,8 +246,11 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(i18n.t('arena_leaderboard_title'),
-                    style: _headerStyle(context)),
+                Expanded(
+                  child: Text(i18n.t('arena_leaderboard_title'),
+                      style: _headerStyle(context)),
+                ),
+                const SizedBox(width: 12),
                 Row(
                   children: [
                     Text(
@@ -458,16 +452,19 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start, // 标题行靠上
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(i18n.t('arena_top10_title'),
-                        style: _headerStyle(context)),
-                    const SizedBox(height: 2),
-                    Text(i18n.t('km_per_event_long'),
-                        style: _unitStyle(context)),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(i18n.t('arena_top10_title'),
+                          style: _headerStyle(context)),
+                      const SizedBox(height: 2),
+                      Text(i18n.t('km_per_event_long'),
+                          style: _unitStyle(context)),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 12),
                 Row(
                   children: [
                     Text(
@@ -1108,43 +1105,50 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: () => _showBrandPicker(context, arena, brandKey,
-                          (selected) {
-                        setState(() => _card2Brand = selected);
-                      }),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              i18n.t('arena_brand_evolution_title',
-                                  args: [brandName]),
-                              style: _headerStyle(context),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              size: 20,
-                            ),
-                          ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onTap: () => _showBrandPicker(context, arena, brandKey,
+                            (selected) {
+                          setState(() => _card2Brand = selected);
+                        }),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  i18n.t('arena_brand_evolution_title',
+                                      args: [brandName]),
+                                  style: _headerStyle(context),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                color: Theme.of(context).colorScheme.onSurface,
+                                size: 20,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(i18n.t('km_per_version_event_long'),
-                        style: _unitStyle(context)),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(i18n.t('km_per_version_event_long'),
+                          style: _unitStyle(context)),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 12),
                 BrandLogo(
                   brandName: brandKey,
-                  overrideLogoUrl: arena.getBrandLogoUrl(brandKey), // 使用合并后的 Logo URL
+                  overrideLogoUrl:
+                      arena.getBrandLogoUrl(brandKey), // 使用合并后的 Logo URL
                   size: 42,
                   padding: 8,
                   showBackground: true,
@@ -1173,7 +1177,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                               showTitles: true,
                               reservedSize: 32,
                               interval: 1,
-                          getTitlesWidget: (value, meta) {
+                              getTitlesWidget: (value, meta) {
                                 final index = value.toInt();
                                 if (index < 0 ||
                                     index >= data.evolution.length) {
@@ -1181,7 +1185,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                                 }
                                 final version = data.evolution[index].version;
                                 if (version.isEmpty) return const SizedBox();
-                                
+
                                 return SideTitleWidget(
                                   meta: meta,
                                   space: 4, // 减少间距防止挤出显示区域
@@ -1192,7 +1196,9 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                                     style: TextStyle(
                                       fontSize: 9, // 稍微减小字体
                                       fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
                                     ),
                                   ),
                                 );
@@ -1202,13 +1208,25 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 30,
+                              reservedSize: 38,
                               interval: intervalY,
-                              getTitlesWidget: (value, meta) => Text(
-                                  value.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold)),
+                              getTitlesWidget: (value, meta) => SideTitleWidget(
+                                meta: meta,
+                                space: 8,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    value.toStringAsFixed(1),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           topTitles: const AxisTitles(
@@ -1418,8 +1436,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
             itemBuilder: (context, index) {
               final v = options[index];
               return ListTile(
-                title:
-                    Text(v == null ? i18n.t('all_versions') : v),
+                title: Text(v == null ? i18n.t('all_versions') : v),
                 onTap: () {
                   onSelected(v);
                   Navigator.pop(context);
@@ -1581,6 +1598,64 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
           },
         );
       },
+    );
+  }
+}
+
+class _SyncButton extends StatefulWidget {
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  const _SyncButton({
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  @override
+  State<_SyncButton> createState() => _SyncButtonState();
+}
+
+class _SyncButtonState extends State<_SyncButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    if (widget.isLoading) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_SyncButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isLoading != oldWidget.isLoading) {
+      if (widget.isLoading) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+        _controller.reset();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _controller,
+      child: IconButton(
+        icon: const Icon(Icons.sync, size: 20),
+        onPressed: widget.isLoading ? null : widget.onPressed,
+      ),
     );
   }
 }

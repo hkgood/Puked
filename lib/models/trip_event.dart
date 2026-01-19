@@ -7,6 +7,9 @@ enum EventType {
   wobble,
   jerk, // 顿挫（含点刹、起步突踩、停车点头）
   manual, // 用户手动标记
+  proDisengagement, // 接管：安全接管、走错路、卡死、绿灯不走
+  proViolation, // 违章：压实线、走错车道、闯红灯
+  proExperience, // 体验：误刹车、画龙、过快/过慢、轨迹不自然
 }
 
 class TripEvent {
@@ -17,6 +20,7 @@ class TripEvent {
   final double? latitude;
   final double? longitude;
   final double? speed; // 新增：记录触发时的融合车速 (m/s)
+  final String? voiceText; // 新增：语音转文本信息
 
   // 核心回溯数据片段 (30Hz)
   final List<SensorData> sensorFragment;
@@ -29,6 +33,7 @@ class TripEvent {
     this.latitude,
     this.longitude,
     this.speed,
+    this.voiceText,
     required this.sensorFragment,
   });
 
@@ -37,6 +42,7 @@ class TripEvent {
         'timestamp': timestamp.millisecondsSinceEpoch / 1000.0,
         'type': type.name,
         'source': source,
+        'voice_text': voiceText,
         'location': {
           'lat': latitude,
           'lng': longitude,

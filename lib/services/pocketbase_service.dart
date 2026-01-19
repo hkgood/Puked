@@ -77,7 +77,8 @@ class PocketBaseService {
   bool get isAuthenticated {
     final valid = pb.authStore.isValid;
     if (!valid) {
-      debugPrint('[PocketBase] authStore.isValid is false. Token present: ${pb.authStore.token.isNotEmpty}');
+      debugPrint(
+          '[PocketBase] authStore.isValid is false. Token present: ${pb.authStore.token.isNotEmpty}');
     }
     return valid;
   }
@@ -107,6 +108,8 @@ class PocketBaseService {
   }
 
   String? get currentUserId => currentUser?.id;
+
+  bool get isKOL => currentUser?.getBoolValue('KOL') ?? false;
 
   String? get currentAvatarUrl {
     final user = currentUser;

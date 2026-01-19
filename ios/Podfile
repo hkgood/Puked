@@ -1,19 +1,4 @@
-# 动态获取 Flutter SDK 路径，避免硬编码绝对路径
-def find_flutter_root
-  generated_xconfig = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  if File.exist?(generated_xconfig)
-    File.foreach(generated_xconfig) do |line|
-      matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
-      return matches[1] if matches
-    end
-  end
-  # 回退方案：从环境变量获取或报错
-  ENV['FLUTTER_ROOT'] || raise("Error: FLUTTER_ROOT not found. Please run 'flutter pub get' or set FLUTTER_ROOT environment variable.")
-end
-
-flutter_root = find_flutter_root
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+source 'https://mirrors.tuna.tsinghua.edu.cn/git/CocoaPods/Specs.git'
 
 platform :ios, '13.0'
 
@@ -22,6 +7,12 @@ project 'Runner', {
   'Profile' => :release,
   'Release' => :release,
 }
+
+def flutter_root
+  "/Users/maxliu/development/flutter"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
 target 'Runner' do
   use_frameworks!

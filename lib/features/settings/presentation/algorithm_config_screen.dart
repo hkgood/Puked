@@ -230,7 +230,7 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                 ),
                 _buildGroup(
                   context,
-                  i18n.t('核心逻辑 (Logic)'),
+                  i18n.t('logic_section'),
                   [
                     _buildItem(
                       i18n.t('zy_interference_threshold_label'),
@@ -258,6 +258,76 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                               i18n,
                               'zxInterferenceThreshold',
                               config.zxInterferenceThreshold)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('coupling_curve_index_label'),
+                      config.couplingCurveIndex,
+                      '',
+                      subtitle: i18n.t('coupling_curve_index_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'couplingCurveIndex', config.couplingCurveIndex)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('coupling_strength_y_label'),
+                      config.couplingStrengthY,
+                      '',
+                      subtitle: i18n.t('coupling_strength_y_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'couplingStrengthY', config.couplingStrengthY)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('coupling_strength_x_label'),
+                      config.couplingStrengthX,
+                      '',
+                      subtitle: i18n.t('coupling_strength_x_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'couplingStrengthX', config.couplingStrengthX)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('turn_comp_multiplier_label'),
+                      config.turnCompMultiplier,
+                      '',
+                      subtitle: i18n.t('turn_comp_multiplier_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'turnCompMultiplier', config.turnCompMultiplier)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('turn_comp_max_label'),
+                      config.turnCompMax,
+                      'x',
+                      subtitle: i18n.t('turn_comp_max_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'turnCompMax', config.turnCompMax)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('event_window_coverage_label'),
+                      config.eventWindowCoverage,
+                      '',
+                      subtitle: i18n.t('event_window_coverage_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'eventWindowCoverage', config.eventWindowCoverage)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('low_speed_jerk_limit_label'),
+                      config.lowSpeedJerkLimit,
+                      'km/h',
+                      subtitle: i18n.t('low_speed_jerk_limit_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'lowSpeedJerkLimit', config.lowSpeedJerkLimit)
                           : null,
                     ),
                     _buildItem(
@@ -394,6 +464,27 @@ class AlgorithmConfigScreen extends ConsumerWidget {
             case 'zxInterferenceThreshold':
               newConfig = config.copyWith(zxInterferenceThreshold: newValue);
               break;
+            case 'couplingCurveIndex':
+              newConfig = config.copyWith(couplingCurveIndex: newValue);
+              break;
+            case 'couplingStrengthY':
+              newConfig = config.copyWith(couplingStrengthY: newValue);
+              break;
+            case 'couplingStrengthX':
+              newConfig = config.copyWith(couplingStrengthX: newValue);
+              break;
+            case 'turnCompMultiplier':
+              newConfig = config.copyWith(turnCompMultiplier: newValue);
+              break;
+            case 'turnCompMax':
+              newConfig = config.copyWith(turnCompMax: newValue);
+              break;
+            case 'eventWindowCoverage':
+              newConfig = config.copyWith(eventWindowCoverage: newValue);
+              break;
+            case 'lowSpeedJerkLimit':
+              newConfig = config.copyWith(lowSpeedJerkLimit: newValue);
+              break;
             case 'speedLowFactor':
               newConfig = config.copyWith(speedLowFactor: newValue);
               break;
@@ -438,12 +529,15 @@ class AlgorithmConfigScreen extends ConsumerWidget {
     );
     try {
       await ref.read(algorithmConfigProvider.notifier).fetchAndSync();
+      // 获取同步后的最新状态
+      final updatedConfig = ref.read(algorithmConfigProvider);
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(i18n
-                .t('algorithm_update_success', args: ['${config.version}'])),
+            content: Text(i18n.t('algorithm_update_success',
+                args: ['${updatedConfig.version}'])),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),

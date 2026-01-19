@@ -246,7 +246,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   decoration:
                       _buildInputDecoration(l10n.name, Icons.person_outline),
                   validator: (v) =>
-                      (v == null || v.isEmpty) ? l10n.required : null,
+                      (v == null || v.isEmpty) ? l10n.field_required : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -256,8 +256,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       l10n.email, Icons.email_outlined,
                       hint: 'example@email.com'),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) =>
-                      (v == null || !v.contains('@')) ? l10n.invalid_email : null,
+                  validator: (v) => (v == null || !v.contains('@'))
+                      ? l10n.invalid_email_format
+                      : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -266,8 +267,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   decoration:
                       _buildInputDecoration(l10n.password, Icons.lock_outline),
                   obscureText: true,
-                  validator: (v) =>
-                      (v == null || v.length < 8) ? l10n.password_too_short_hint : null,
+                  validator: (v) => (v == null || v.length < 8)
+                      ? l10n.password_too_short
+                      : null,
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -278,7 +280,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       hint: l10n.repeat_password),
                   obscureText: true,
                   validator: (v) =>
-                      (v == null || v.isEmpty) ? l10n.required : null,
+                      (v == null || v.isEmpty) ? l10n.field_required : null,
                 ),
                 const SizedBox(height: 24),
                 Row(

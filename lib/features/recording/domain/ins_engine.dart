@@ -113,9 +113,9 @@ class InertialNavigationEngine {
 
       // 第一性原理：如果是“原地摇手机”，加速度的均值会接近重力，但方差巨大。
       // 真正的静止要求方差极小。
-      if (accVar < 0.01 &&
-          gyroMean < 0.05 &&
-          data.processedAccel.length < 0.2) {
+      if (accVar < 0.005 &&
+          gyroMean < 0.03 &&
+          data.processedAccel.length < 0.15) {
         isStationary = true;
       }
     }

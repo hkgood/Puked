@@ -1,7 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
-import 'dart:io';
+// import 'dart:io'; // 移除直接导入，改用 defaultTargetPlatform
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/features/recording/domain/sensor_engine.dart';
@@ -15,10 +16,14 @@ import 'package:puked/features/settings/providers/settings_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:puked/features/recording/domain/ins_engine.dart';
 import 'package:puked/services/amap_service.dart';
+import 'package:puked/services/sherpa_onnx_service.dart'; // 新增
+import 'package:puked/services/media_key_service.dart'; // 新增
+import 'package:puked/common/utils/i18n.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:audio_session/audio_session.dart'; // 新增
 import 'dart:async';
 import 'dart:collection';
 
@@ -48,6 +53,7 @@ class RecordingState {
   final List<RecordedEvent> events;
   final List<TrajectoryPoint> trajectory; // 增加内存中的轨迹缓存，加速 UI 渲染
   final double currentDistance; // 当前行程里程 (米)
+  final double currentSpeed; // 当前行驶速度 (m/s)
   final double maxGForce; // 本次行程的最大 G 值
   final double currentGForce; // 当前实时的 G 值
   final Position? currentPosition; // 实时位置
@@ -63,6 +69,13 @@ class RecordingState {
   final bool isInsActive; // 是否正在使用惯导推算
   final DateTime? lastHardwareTimestamp; // 上一次 GPS 硬件时间戳
   final String? alertMessage; // 新增：用于在 UI 弹出警告窗口的信息
+  final bool isVoiceRecordingEnabled; // 是否启用了语音记录功能
+  final bool isVoiceRecording; // 是否正在进行语音记录
+  final String? currentTranscription; // 当前实时转写的文字
+  final String? voiceStatus; // 语音引擎状态（用于显示下载进度等）
+  final double downloadProgress; // 语音模型下载进度 (0.0-1.0)
+  final bool isDownloading; // 是否正在下载模型
+  final bool isVoiceError; // 语音引擎是否初始化失败
 
   RecordingState({
     required this.isRecording,
@@ -71,6 +84,7 @@ class RecordingState {
     this.events = const [],
     this.trajectory = const [],
     this.currentDistance = 0.0,
+    this.currentSpeed = 0.0,
     this.maxGForce = 0.0,
     this.currentGForce = 0.0,
     this.currentPosition,
@@ -86,6 +100,13 @@ class RecordingState {
     this.isInsActive = false,
     this.lastHardwareTimestamp,
     this.alertMessage,
+    this.isVoiceRecordingEnabled = false,
+    this.isVoiceRecording = false,
+    this.currentTranscription,
+    this.voiceStatus,
+    this.downloadProgress = 0.0,
+    this.isDownloading = false,
+    this.isVoiceError = false,
   });
 
   RecordingState copyWith({
@@ -95,6 +116,7 @@ class RecordingState {
     List<RecordedEvent>? events,
     List<TrajectoryPoint>? trajectory,
     double? currentDistance,
+    double? currentSpeed,
     double? maxGForce,
     double? currentGForce,
     Position? currentPosition,
@@ -108,8 +130,15 @@ class RecordingState {
     DateTime? lastSensorTime,
     LatLng? lastInsLocation,
     bool? isInsActive,
+    bool? isVoiceRecordingEnabled,
+    bool? isVoiceRecording,
+    String? currentTranscription,
+    String? voiceStatus,
     DateTime? lastHardwareTimestamp,
     String? alertMessage,
+    double? downloadProgress,
+    bool? isDownloading,
+    bool? isVoiceError,
   }) {
     return RecordingState(
       isRecording: isRecording ?? this.isRecording,
@@ -118,6 +147,7 @@ class RecordingState {
       events: events ?? this.events,
       trajectory: trajectory ?? this.trajectory,
       currentDistance: currentDistance ?? this.currentDistance,
+      currentSpeed: currentSpeed ?? this.currentSpeed,
       maxGForce: maxGForce ?? this.maxGForce,
       currentGForce: currentGForce ?? this.currentGForce,
       currentPosition: currentPosition ?? this.currentPosition,
@@ -131,9 +161,17 @@ class RecordingState {
       lastSensorTime: lastSensorTime ?? this.lastSensorTime,
       lastInsLocation: lastInsLocation ?? this.lastInsLocation,
       isInsActive: isInsActive ?? this.isInsActive,
+      isVoiceRecordingEnabled:
+          isVoiceRecordingEnabled ?? this.isVoiceRecordingEnabled,
+      isVoiceRecording: isVoiceRecording ?? this.isVoiceRecording,
+      currentTranscription: currentTranscription ?? this.currentTranscription,
+      voiceStatus: voiceStatus ?? this.voiceStatus,
       lastHardwareTimestamp:
           lastHardwareTimestamp ?? this.lastHardwareTimestamp,
       alertMessage: alertMessage ?? this.alertMessage,
+      downloadProgress: downloadProgress ?? this.downloadProgress,
+      isDownloading: isDownloading ?? this.isDownloading,
+      isVoiceError: isVoiceError ?? this.isVoiceError,
     );
   }
 }
@@ -146,7 +184,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   final InertialNavigationEngine _insEngine = InertialNavigationEngine();
   final AmapService _amapService = AmapService();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  
+
+  SherpaOnnxService get _sherpa => _ref.read(sherpaOnnxServiceProvider);
+
   StreamSubscription<Position>? _positionSub;
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
@@ -175,20 +215,27 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   final Map<String, DateTime> _lastTriggered = {};
   static const Duration _debounceDuration = Duration(seconds: 2);
 
-  // --- 聚合引擎相关成员 ---
+  // 聚合特征相关成员
   final List<_PendingEvent> _pendingEvents = [];
   Timer? _fusionTimer;
-  // 移除硬编码，统一使用 _config.fusionWindowMs
+
+  // 高帧率记录相关
+  DateTime? _lastSensorRecordTime;
+
+  StreamSubscription<String>? _voiceStatusSub;
 
   RecordingNotifier(this._engine, this._storage, this._ref)
       : super(RecordingState(
           isRecording: false,
-          algorithmMode: AlgorithmMode.expert, // 默认改为算法 B (专家模式)
+          algorithmMode: AlgorithmMode.expert,
         )) {
     // 注册生命周期监听
     WidgetsBinding.instance.addObserver(this);
 
-    // 【调试】监听算法配置更新
+    // 初始化音频会话和语音引擎状态监听（增加容错）
+    _safeInitVoiceService();
+
+    // 监听算法配置更新
     _ref.listen<AlgorithmConfig>(algorithmConfigProvider, (previous, next) {
       debugPrint('🔔 [RecordingNotifier] 算法配置已动态更新: v${next.version}');
       debugPrint('   - 加速阈值: ${next.thresholdAccel}');
@@ -203,11 +250,144 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       if (lifecycleState == AppLifecycleState.resumed ||
           lifecycleState == null) {
         _startLocationUpdates();
-    _engine.start();
+        _engine.start();
       } else {
         debugPrint('App started in background, skipping initial GPS/Sensor');
       }
     });
+  }
+
+  Future<void> _initAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.speech());
+    } catch (e) {
+      debugPrint('[RecordingNotifier] AudioSession init failed: $e');
+    }
+  }
+
+  void _safeInitVoiceService() {
+    try {
+      _initAudioSession();
+
+      // 监听语音引擎状态
+      _voiceStatusSub = _sherpa.statusStream.listen((status) {
+        if (status.startsWith("PROGRESS:")) {
+          final progress = double.parse(status.split(":")[1]) / 100.0;
+          state = state.copyWith(
+              downloadProgress: progress,
+              isDownloading: true,
+              isVoiceError: false);
+        } else if (status == "START_DOWNLOAD") {
+          state = state.copyWith(
+              isDownloading: true, downloadProgress: 0, isVoiceError: false);
+        } else if (status == "DOWNLOAD_COMPLETE") {
+          state = state.copyWith(
+              isDownloading: true, downloadProgress: 1.0, isVoiceError: false);
+        } else if (status == "ENGINE_READY") {
+          state = state.copyWith(
+              isDownloading: false,
+              downloadProgress: 1.0,
+              voiceStatus: null,
+              isVoiceError: false);
+        } else if (status == "DOWNLOAD_FAILED" || status == "INIT_FAILED") {
+          state = state.copyWith(
+              isDownloading: false,
+              voiceStatus:
+                  _ref.read(i18nProvider).t('voice_engine_config_failed'),
+              isVoiceError: true);
+        }
+
+        debugPrint('[SherpaOnnxStatus] $status');
+
+        if (state.voiceStatus != null &&
+            (status == "DOWNLOAD_FAILED" || status == "INIT_FAILED")) {
+          Future.delayed(const Duration(seconds: 3), () {
+            if (state.isVoiceError) {
+              state = state.copyWith(voiceStatus: null);
+            }
+          });
+        }
+      }, onError: (e) {
+        debugPrint('[RecordingNotifier] Sherpa status stream error: $e');
+      });
+    } catch (e) {
+      debugPrint('[RecordingNotifier] Voice service listener failed: $e');
+    }
+  }
+
+  void startVoiceRecording() async {
+    if (!state.isVoiceRecordingEnabled || state.isVoiceRecording) {
+      debugPrint(
+          '[VoiceDebug] startVoiceRecording skipped: Enabled:${state.isVoiceRecordingEnabled}, Active:${state.isVoiceRecording}');
+      return;
+    }
+
+    if (!_sherpa.isInitialized) {
+      debugPrint('[VoiceDebug] ASR not ready yet.');
+      final msg = _ref.read(i18nProvider).t('voice_engine_not_ready');
+      state = state.copyWith(voiceStatus: msg);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (state.voiceStatus == msg) {
+          state = state.copyWith(voiceStatus: null);
+        }
+      });
+      return;
+    }
+
+    debugPrint('[VoiceDebug] --- 启动录音流程 ---');
+    state = state.copyWith(isVoiceRecording: true, currentTranscription: "");
+
+    // 震动反馈
+    HapticFeedback.vibrate();
+
+    await _sherpa.startListening(
+      onResult: (text) {
+        debugPrint('[VoiceDebug] 实时转写: $text');
+        state = state.copyWith(currentTranscription: text);
+      },
+      onFinalResult: (category, text) {
+        if (!state.isVoiceRecording) return; // 二次校验：如果已经关闭录音，不再处理
+
+        debugPrint('[VoiceDebug] 录音完成: 分类=$category, 文本=$text');
+
+        if (text.isNotEmpty) {
+          _handleVoiceEvent(category, text);
+        }
+
+        state = state.copyWith(isVoiceRecording: false);
+        debugPrint('[VoiceDebug] --- 录音流程结束，遮罩已关闭 ---');
+      },
+    );
+  }
+
+  void stopVoiceRecording() async {
+    if (!state.isVoiceRecording) {
+      debugPrint('[VoiceDebug] stopVoiceRecording skipped: Not recording');
+      return;
+    }
+    debugPrint('[VoiceDebug] 手动停止录音...');
+    await _sherpa.stopListening();
+    state = state.copyWith(isVoiceRecording: false);
+  }
+
+  void _handleVoiceEvent(String category, String text) async {
+    EventType? type;
+    if (category == 'proDisengagement') {
+      type = EventType.proDisengagement;
+    } else if (category == 'proViolation') {
+      type = EventType.proViolation;
+    } else if (category == 'proExperience') {
+      type = EventType.proExperience;
+    } else {
+      type = EventType.manual;
+    }
+
+    // 手动标记 Pro 事件：source 为 'PRO'
+    await tagEvent(type, source: 'PRO', notes: text, voiceText: text);
+
+    // 成功反馈
+    HapticFeedback.vibrate();
   }
 
   @override
@@ -219,8 +399,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       _startLocationUpdates();
       _engine.start();
       if (this.state.isRecording) {
-      debugPrint('App resumed, re-enabling Wakelock');
-      WakelockPlus.enable();
+        debugPrint('App resumed, re-enabling Wakelock');
+        WakelockPlus.enable();
       }
     }
     // 当 App 进入后台（暂停或失去焦点）时
@@ -273,9 +453,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
             distanceFilter: 0,
             intervalDuration: const Duration(seconds: 2),
             forceLocationManager: true,
-            foregroundNotificationConfig: const ForegroundNotificationConfig(
-              notificationText: "Puked 正在记录行程中",
-              notificationTitle: "实时记录中",
+            foregroundNotificationConfig: ForegroundNotificationConfig(
+              notificationText:
+                  _ref.read(i18nProvider).t('recording_notification_content'),
+              notificationTitle:
+                  _ref.read(i18nProvider).t('recording_notification_title'),
               enableWakeLock: true,
             ),
           );
@@ -303,13 +485,13 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
         // 异步尝试获取更高精度的起始点 (仅在 stream 还没稳定时)
         if (state.locationUpdateCount == 0) {
-        Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-          ),
-        ).timeout(const Duration(seconds: 5)).then((pos) {
-          if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
-        }).catchError((_) {});
+          Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+            ),
+          ).timeout(const Duration(seconds: 5)).then((pos) {
+            if (state.locationUpdateCount == 0) _handlePositionUpdate(pos);
+          }).catchError((_) {});
         }
       }
     } catch (e) {
@@ -392,6 +574,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     // 更新 UI 坐标 (小圆点移动)
     state = state.copyWith(
       currentPosition: position,
+      currentSpeed: position.speed,
       lastLocationTime: now,
       lastHardwareTimestamp: hwTimestamp,
       locationUpdateCount: state.locationUpdateCount + 1,
@@ -464,11 +647,12 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         accuracy: 100.0, // 标记为低精度
         altitude: state.currentPosition?.altitude ?? 0,
         heading: state.currentPosition?.heading ?? 0,
-        speed: state.currentPosition?.speed ?? 0,
+        speed: _insEngine.currentSpeed,
         speedAccuracy: 0,
         altitudeAccuracy: 0,
         headingAccuracy: 0,
       ),
+      currentSpeed: _insEngine.currentSpeed,
       lastInsLocation: insLatLng,
       debugMessage: 'INS ACTIVE (Display Only)',
     );
@@ -500,7 +684,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   }
 
   Future<void> tagEvent(EventType type,
-      {String source = 'MANUAL', String? notes}) async {
+      {String source = 'MANUAL', String? notes, String? voiceText}) async {
     if (!state.isRecording || state.currentTrip == null) return;
 
     final now = DateTime.now();
@@ -518,6 +702,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       ..speed = currentFusedSpeed // 存入融合车速
       ..gForce = state.currentGForce // 存入实时 G 值
       ..notes = notes ?? "" // 使用传入的备注
+      ..voiceText = voiceText // 存入语音文本
       ..sensorData = fragment
           .map((d) => SensorPointEmbedded()
             ..ax = d.processedAccel.x
@@ -540,8 +725,21 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     await _storage.saveEvent(state.currentTrip!.id, event);
     state = state.copyWith(events: [...state.events, event]);
 
+    debugPrint('✅ [RecordingNotifier] 事件记录成功:');
+    debugPrint('   - ID: ${event.uuid}');
+    debugPrint('   - 类型: ${event.type}');
+    debugPrint('   - 来源: ${event.source}');
+    if (event.voiceText != null) {
+      debugPrint('   - 转写文本: ${event.voiceText}');
+    }
+    if (event.lat != null) {
+      debugPrint('   - 坐标: (${event.lat}, ${event.lng})');
+    }
+
     // 播放负体验音效：仅在非手动标记且设置开启时播放
-    if (type != EventType.manual &&
+    if (source == 'PRO') {
+      _audioPlayer.play(AssetSource('sound/events.mp3'), volume: 0.5);
+    } else if (type != EventType.manual &&
         _ref.read(settingsProvider).isEventSoundEnabled) {
       _audioPlayer.play(AssetSource('sound/events.mp3'));
     }
@@ -551,12 +749,37 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     state = state.copyWith(algorithmMode: mode);
   }
 
+  void _updateMediaKeyHandler() {
+    final mediaHandler = _ref.read(mediaKeyHandlerProvider);
+    if (mediaHandler == null) return;
+
+    if (state.isRecording && state.isVoiceRecordingEnabled) {
+      mediaHandler.activate();
+    } else {
+      mediaHandler.deactivate();
+    }
+  }
+
+  void toggleVoiceRecordingEnabled() {
+    final newState = !state.isVoiceRecordingEnabled;
+    state = state.copyWith(isVoiceRecordingEnabled: newState);
+    debugPrint('Voice recording enabled: $newState');
+
+    if (newState && !_sherpa.isInitialized) {
+      _sherpa.init();
+    }
+
+    _updateMediaKeyHandler();
+  }
+
   Future<void> startRecording({String? carModel, String? notes}) async {
     if (state.isCalibrating || state.isRecording) return;
 
+    final i18n = _ref.read(i18nProvider);
+
     try {
-      state =
-          state.copyWith(isCalibrating: true, debugMessage: 'Calibrating...');
+      state = state.copyWith(
+          isCalibrating: true, debugMessage: i18n.t('calibrating'));
       await WakelockPlus.enable();
 
       // 传入当前速度进行静止守卫校验
@@ -571,6 +794,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           algorithm: state.algorithmMode.name);
       _recordingStartTime = DateTime.now();
       _lastGpsTime = DateTime.now(); // 强制刷新 GPS 时间，防止启动瞬间触发 INS
+      _lastSensorRecordTime = null; // 重置高帧率记录时间
       _gpsStabilityCounter = 0;
       _insEngine.reset(); // 确保引擎状态完全清空
 
@@ -607,7 +831,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               if (state.isSensorFrozen != isFrozen) {
                 state = state.copyWith(
                   isSensorFrozen: isFrozen,
-                  debugMessage: isFrozen ? 'SENSOR FROZEN' : 'Recording Active',
+                  debugMessage: isFrozen
+                      ? i18n.t('sensor_frozen')
+                      : i18n.t('recording_active_debug'),
                 );
               }
 
@@ -644,14 +870,14 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                           isInsActive: false, debugMessage: 'GPS SIGNAL LOST');
                     }
                   } else {
-                  if (!state.isInsActive) {
-                    state = state.copyWith(
-                      isInsActive: true,
+                    if (!state.isInsActive) {
+                      state = state.copyWith(
+                        isInsActive: true,
                         debugMessage: 'INS ACTIVE (Display Only)',
-                    );
-                  }
+                      );
+                    }
                     // 仅更新实时位置，用于小圆点平滑移动
-                  _handleInsTick();
+                    _handleInsTick();
                   }
                 } else {
                   // GPS 信号正常，强制关闭 INS，并清除稳定性计数器
@@ -666,21 +892,58 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
               // 实时平滑处理
               _realtimeGHistory.addLast(rawG);
-              if (_realtimeGHistory.length > (Platform.isIOS ? 6 : 3)) {
+              if (_realtimeGHistory.length >
+                  (defaultTargetPlatform == TargetPlatform.iOS ? 6 : 3)) {
                 _realtimeGHistory.removeFirst();
               }
 
               final smoothedG = _realtimeGHistory.reduce((a, b) => a + b) /
                   _realtimeGHistory.length;
 
+              // 核心决策：仅在丢信号（INS ACTIVE）时使用惯导速度，否则以 GPS 速度为准，防止拿手机晃动产生虚假速度
+              final double displaySpeed = state.isInsActive
+                  ? _insEngine.currentSpeed
+                  : (state.currentPosition?.speed ?? 0.0);
+
               state = state.copyWith(
                 currentGForce: smoothedG,
+                currentSpeed: displaySpeed,
                 maxGForce:
                     smoothedG > state.maxGForce ? smoothedG : state.maxGForce,
               );
 
+              // --- KOL 专属：高帧率数据记录 (10Hz) ---
+              if (_ref.read(settingsProvider).isHighFrameRateEnabled &&
+                  state.currentTrip != null) {
+                final now = DateTime.now();
+                if (_lastSensorRecordTime == null ||
+                    now.difference(_lastSensorRecordTime!).inMilliseconds >=
+                        100) {
+                  _lastSensorRecordTime = now;
+
+                  // 创建包含传感器数据的轨迹点
+                  // 注意：为了防止内存溢出和 UI 卡顿，高频点仅持久化，不进入 state.trajectory
+                  final sensorPoint = TrajectoryPoint()
+                    ..timestamp = now
+                    ..lat = state.currentPosition?.latitude ?? 0
+                    ..lng = state.currentPosition?.longitude ?? 0
+                    ..altitude = state.currentPosition?.altitude ?? 0
+                    ..speed = displaySpeed
+                    ..isLowConfidence = state.isLowConfidenceGPS
+                    ..ax = sensorData.processedAccel.x
+                    ..ay = sensorData.processedAccel.y
+                    ..az = sensorData.processedAccel.z
+                    ..gx = sensorData.processedGyro.x
+                    ..gy = sensorData.processedGyro.y
+                    ..gz = sensorData.processedGyro.z;
+
+                  _storage.addTrajectoryPoint(
+                      state.currentTrip!.id, sensorPoint);
+                }
+              }
+
               // 统一使用专家级物理引擎，内部已针对跨平台和速度做了鲁棒性适配
-                  _detectAutoEventsExpert(sensorData);
+              _detectAutoEventsExpert(sensorData);
             }
           });
         },
@@ -694,17 +957,23 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         events: [],
         trajectory: initialTrajectory, // 包含起始点
         currentDistance: 0.0,
+        currentSpeed: state.currentPosition?.speed ?? 0.0,
         maxGForce: 0.0,
-        debugMessage: 'Recording Active',
+        debugMessage: i18n.t('recording_active_debug'),
       );
+      _updateMediaKeyHandler();
     } catch (e, stack) {
       debugPrint('ERROR startRecording: $e');
       debugPrint(stack.toString());
+
+      final errorKey = e.toString().replaceFirst('Exception: ', '');
+      final translatedMessage = i18n.t(errorKey);
+
       state = state.copyWith(
           isRecording: false,
           isCalibrating: false,
           debugMessage: 'FAILED',
-          alertMessage: e.toString().replaceFirst('Exception: ', ''));
+          alertMessage: translatedMessage);
     }
   }
 
@@ -730,9 +999,12 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       events: [],
       trajectory: [],
       currentDistance: 0.0,
+      currentSpeed: 0.0,
       maxGForce: 0.0,
       currentPosition: state.currentPosition,
     );
+
+    _updateMediaKeyHandler();
 
     // 如果行程结束时 App 已经处于后台，则立即停止定位和传感器以省电
     if (!isResumed) {
@@ -793,7 +1065,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (_recordingStartTime != null) {
       final elapsed = now.difference(_recordingStartTime!);
       if (elapsed < _startProtectionDuration && currentSpeedKmh < 10.0) {
-      return;
+        return;
       }
     }
 
@@ -834,15 +1106,19 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     if (az > config.zyInterferenceThreshold) {
       // Y轴抑制（针对急加减速/摆动）
-      couplingSuppressionY =
-          1.0 + math.pow(az - config.zyInterferenceThreshold, 1.2) * 0.5;
+      couplingSuppressionY = 1.0 +
+          math.pow(az - config.zyInterferenceThreshold,
+                  config.couplingCurveIndex) *
+              config.couplingStrengthY;
       couplingSuppressionY = couplingSuppressionY.clamp(1.0, 3.5);
     }
 
     if (az > config.zxInterferenceThreshold) {
       // X轴抑制（专门针对纵向顿挫/Jerk）
-      couplingSuppressionX =
-          1.0 + math.pow(az - config.zxInterferenceThreshold, 1.2) * 0.8;
+      couplingSuppressionX = 1.0 +
+          math.pow(az - config.zxInterferenceThreshold,
+                  config.couplingCurveIndex) *
+              config.couplingStrengthX;
       couplingSuppressionX =
           couplingSuppressionX.clamp(1.0, 5.0); // 纵向顿挫对颠簸更敏感，给更高抑制上限
     }
@@ -853,8 +1129,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     final double yawRate = gyro.z.abs();
     if (yawRate > 0.1) {
       // 当角速度超过 0.1 rad/s 时开始补偿
-      turnCompensation = 1.0 + (yawRate * 1.5); // 线性增加减速阈值，最高约 2-3 倍
-      turnCompensation = turnCompensation.clamp(1.0, 2.5);
+      turnCompensation = 1.0 + (yawRate * config.turnCompMultiplier);
+      turnCompensation = turnCompensation.clamp(1.0, config.turnCompMax);
     }
 
     // --- 逻辑 1: 持续性检测 (急加速/急刹车) ---
@@ -863,7 +1139,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
             now.difference(e.key).inMilliseconds < config.accelDecelWindowMs)
         .toList();
 
-    if (recentLongitudinal.length >= (Platform.isIOS ? 10 : 5)) {
+    if (recentLongitudinal.length >=
+        (defaultTargetPlatform == TargetPlatform.iOS ? 10 : 5)) {
       int decelCount = recentLongitudinal
           .where((e) =>
               e.value <
@@ -871,7 +1148,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                   factor *
                   couplingSuppressionY *
                   turnCompensation))
-            .length;
+          .length;
       int accelCount = recentLongitudinal
           .where((e) =>
               e.value > (config.thresholdAccel * factor * couplingSuppressionY))
@@ -879,30 +1156,34 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
       bool isPitching = gyro.x.abs() > (config.thresholdPitch / 10.0);
 
-      if (decelCount >= (recentLongitudinal.length * 0.75).floor() &&
-        !isDebounced('rapidDeceleration')) {
+      if (decelCount >=
+              (recentLongitudinal.length * config.eventWindowCoverage)
+                  .floor() &&
+          !isDebounced('rapidDeceleration')) {
         // 物理上限过滤
         final avgDecel =
             recentLongitudinal.map((e) => e.value).reduce((a, b) => a + b) /
                 recentLongitudinal.length;
         if (avgDecel.abs() < config.maxAccelAllowed) {
           if (!config.pitchValidationEnabled || isPitching) {
-        _lastTriggered['rapidDeceleration'] = now;
-        _enqueueEvent(EventType.rapidDeceleration, now);
-      }
+            _lastTriggered['rapidDeceleration'] = now;
+            _enqueueEvent(EventType.rapidDeceleration, now);
+          }
         }
-      } else if (accelCount >= (recentLongitudinal.length * 0.75).floor() &&
-        !isDebounced('rapidAcceleration')) {
+      } else if (accelCount >=
+              (recentLongitudinal.length * config.eventWindowCoverage)
+                  .floor() &&
+          !isDebounced('rapidAcceleration')) {
         // 物理上限过滤
         final avgAccel =
             recentLongitudinal.map((e) => e.value).reduce((a, b) => a + b) /
                 recentLongitudinal.length;
         if (avgAccel.abs() < config.maxAccelAllowed) {
           if (!config.pitchValidationEnabled || isPitching) {
-        _lastTriggered['rapidAcceleration'] = now;
-        _enqueueEvent(EventType.rapidAcceleration, now);
-      }
-    }
+            _lastTriggered['rapidAcceleration'] = now;
+            _enqueueEvent(EventType.rapidAcceleration, now);
+          }
+        }
       }
     }
 
@@ -975,7 +1256,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
               now.difference(e.key).inMilliseconds < config.wobbleWindowMs)
           .toList();
 
-      final minPoints = Platform.isIOS ? 8 : 4;
+      final minPoints = defaultTargetPlatform == TargetPlatform.iOS ? 8 : 4;
       if (recentX.length >= minPoints) {
         double minX = 0, maxX = 0;
         for (var e in recentX) {
@@ -998,8 +1279,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
                 (config.thresholdWobbleSpan * factor * couplingSuppressionY) &&
             span < config.maxWobbleSpanAllowed &&
             yawSignSwitches >= 1) {
-        _lastTriggered['wobble'] = now;
-        _enqueueEvent(EventType.wobble, now);
+          _lastTriggered['wobble'] = now;
+          _enqueueEvent(EventType.wobble, now);
         }
       }
     }
@@ -1062,10 +1343,10 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     final speedKmh = mainEvent.speed * 3.6;
     var finalType = mainEvent.type;
 
-    // 核心改进：低速点头转换门槛由 3.0km/h 降至 2.0km/h，减少对极重刹的误杀
-    if (finalType == EventType.rapidDeceleration && speedKmh < 2.0) {
-      // 场景：极低速下的剧烈减速信号，通常是停稳瞬间的“点头”或过坎
-      // 决策：将其修正为“顿挫 (Jerk)”，因为此时不具备“危险驾驶”的急刹性质
+    // 场景：极低速下的剧烈减速信号，通常是停稳瞬间的“点头”或过坎
+    // 决策：将其修正为“顿挫 (Jerk)”，因为此时不具备“危险驾驶”的急刹性质
+    if (finalType == EventType.rapidDeceleration &&
+        speedKmh < _config.lowSpeedJerkLimit) {
       finalType = EventType.jerk;
     }
 
@@ -1084,6 +1365,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
   @override
   void dispose() {
+    _voiceStatusSub?.cancel();
     _audioPlayer.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();

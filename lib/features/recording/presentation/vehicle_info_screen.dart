@@ -6,7 +6,6 @@ import 'package:puked/models/db_models.dart';
 import 'package:puked/common/widgets/version_selection_dialog.dart';
 import 'package:puked/features/history/presentation/trip_detail_screen.dart';
 import 'package:puked/features/settings/providers/settings_provider.dart';
-import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/common/widgets/brand_selection.dart';
 import 'package:puked/features/recording/providers/vehicle_provider.dart';
@@ -14,6 +13,7 @@ import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/services/pocketbase_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
+import 'package:puked/generated/l10n/app_localizations.dart';
 
 class VehicleInfoScreen extends ConsumerStatefulWidget {
   final int? tripId;
@@ -111,8 +111,9 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     final status = auth.user?.getStringValue('audit_status') ?? '';
     if (status == 'pending') return; // 认证中不允许操作
 
+    final l10n = AppLocalizations.of(context)!;
     if (_selectedImages.length >= 3) {
-      _showError(ref.read(i18nProvider).t('error_image_limit'));
+      _showError(l10n.error_image_limit);
       return;
     }
 
@@ -122,21 +123,20 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
 
     if (images.isEmpty) return;
 
-    final i18n = ref.read(i18nProvider);
     for (var image in images) {
       // 校验格式
       final ext = image.path.toLowerCase();
       if (!ext.endsWith('.jpg') &&
           !ext.endsWith('.jpeg') &&
           !ext.endsWith('.png')) {
-        _showError(i18n.t('error_image_type'));
+        _showError(l10n.error_image_type);
         continue;
       }
 
       // 校验大小 (5MB)
       final size = await image.length();
       if (size > 5 * 1024 * 1024) {
-        _showError(i18n.t('error_image_size'));
+        _showError(l10n.error_image_size);
         continue;
       }
 
@@ -230,7 +230,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final i18n = ref.read(i18nProvider);
+      final l10n = AppLocalizations.of(context)!;
       final auth = ref.read(authProvider);
       final pb = ref.read(pbServiceProvider).pb;
 
@@ -275,21 +275,21 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(i18n.t('submit_success_tip')),
+            content: Text(l10n.submit_success_tip),
             backgroundColor: Colors.green,
           ),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
-      String errorMessage = 'Submit failed';
+      final l10n = AppLocalizations.of(context)!;
+      String errorMessage = l10n.upload_failed;
       if (e is ClientException) {
         final errorData = e.response['data'];
-        final i18n = ref.read(i18nProvider);
         if (errorData != null &&
             errorData is Map &&
             errorData.containsKey('certification_images')) {
-          errorMessage = i18n.t('error_image_size');
+          errorMessage = l10n.error_image_size;
         } else {
           errorMessage = e.response['message'] ?? e.toString();
         }
@@ -330,7 +330,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     super.dispose();
   }
 
-  Widget _buildVersionField(BuildContext context, dynamic i18n,
+  Widget _buildVersionField(BuildContext context, AppLocalizations l10n,
       AsyncValue<List<SoftwareVersion>> presetVersionsAsync) {
     return presetVersionsAsync.when(
       data: (versions) {
@@ -366,14 +366,14 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                 : Theme.of(context).colorScheme.onSurface,
           ),
           decoration: InputDecoration(
-            labelText: i18n.t('software_version'),
+            labelText: l10n.software_version,
             labelStyle: TextStyle(
               fontWeight: FontWeight.bold,
               color: Theme.of(context).brightness == Brightness.dark
                   ? Colors.white.withValues(alpha: 0.7)
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            hintText: i18n.t('version_hint'),
+            hintText: l10n.version_hint,
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.code),
             suffixIcon: const Icon(Icons.arrow_drop_down),
@@ -384,7 +384,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       error: (e, s) => TextField(
         controller: _versionController,
         decoration: InputDecoration(
-          labelText: i18n.t('software_version'),
+          labelText: l10n.software_version,
           border: const OutlineInputBorder(),
           prefixIcon: const Icon(Icons.code),
         ),
@@ -394,7 +394,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final i18n = ref.watch(i18nProvider);
+    final l10n = AppLocalizations.of(context)!;
     final brandsAsync = ref.watch(allBrandsProvider);
 
     if (!_isInitialized) {
@@ -402,14 +402,15 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     }
 
     return brandsAsync.when(
-      data: (brands) => _buildContent(context, i18n, brands),
+      data: (brands) => _buildContent(context, l10n, brands),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
     );
   }
 
-  Widget _buildContent(BuildContext context, dynamic i18n, List<Brand> brands) {
+  Widget _buildContent(
+      BuildContext context, AppLocalizations l10n, List<Brand> brands) {
     final presetVersionsAsync = _selectedBrand != null
         ? ref.watch(presetVersionsProvider(_selectedBrand!))
         : const AsyncValue<List<SoftwareVersion>>.data([]);
@@ -422,7 +423,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.isSettingsMode ? i18n.t('my_car') : i18n.t('vehicle_info'),
+          widget.isSettingsMode ? l10n.my_car : l10n.vehicle_info,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -431,7 +432,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
           children: [
             // 1. 顶部 Banner (仅在设置模式显示)
             if (widget.isSettingsMode)
-              _buildCertificationBanner(context, i18n, auditStatus),
+              _buildCertificationBanner(context, l10n, auditStatus),
 
             Expanded(
               child: SingleChildScrollView(
@@ -454,35 +455,35 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                             : Theme.of(context).colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        labelText: i18n.t('car_model'),
+                        labelText: l10n.car_model,
                         labelStyle: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: isDark
                               ? Colors.white.withValues(alpha: 0.7)
                               : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        hintText: i18n.t('model_hint'),
+                        hintText: l10n.model_hint,
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.directions_car),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildVersionField(context, i18n, presetVersionsAsync),
+                    _buildVersionField(context, l10n, presetVersionsAsync),
 
                     // 2. 图片上传区域 (仅在设置模式显示)
                     if (widget.isSettingsMode) ...[
                       const SizedBox(height: 32),
                       Text(
                         isPending
-                            ? i18n.t('upload_cert_photos_submitted')
-                            : i18n.t('upload_cert_photos_new'),
+                            ? l10n.upload_cert_photos_submitted
+                            : l10n.upload_cert_photos_new,
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       if (!isPending) ...[
                         const SizedBox(height: 8),
                         Text(
-                          i18n.t('upload_hint_new'),
+                          l10n.upload_hint_new,
                           style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(context)
@@ -564,7 +565,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                       if (!isPending) ...[
                         const SizedBox(height: 8),
                         Text(
-                          i18n.t('file_limit_hint'),
+                          l10n.file_limit_hint,
                           style:
                               const TextStyle(fontSize: 10, color: Colors.grey),
                         ),
@@ -582,15 +583,15 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
           child: widget.isSettingsMode
-              ? _buildCertificationButton(context, i18n, isPending)
-              : _buildOriginalButtons(context, i18n),
+              ? _buildCertificationButton(context, l10n, isPending)
+              : _buildOriginalButtons(context, l10n),
         ),
       ),
     );
   }
 
   Widget _buildCertificationBanner(
-      BuildContext context, dynamic i18n, String status) {
+      BuildContext context, AppLocalizations l10n, String status) {
     Color bannerColor;
     String bannerText;
     IconData icon;
@@ -598,22 +599,22 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     switch (status) {
       case 'pending':
         bannerColor = Colors.orange;
-        bannerText = i18n.t('car_cert_banner_pending');
+        bannerText = l10n.car_cert_banner_pending;
         icon = Icons.hourglass_empty;
         break;
       case 'rejected':
         bannerColor = Colors.red;
-        bannerText = i18n.t('car_cert_banner_rejected');
+        bannerText = l10n.car_cert_banner_rejected;
         icon = Icons.error_outline;
         break;
       case 'approved':
         bannerColor = Colors.green;
-        bannerText = i18n.t('car_cert_banner_approved');
+        bannerText = l10n.car_cert_banner_approved;
         icon = Icons.verified;
         break;
       default:
         bannerColor = Theme.of(context).colorScheme.primary;
-        bannerText = i18n.t('car_cert_banner');
+        bannerText = l10n.car_cert_banner;
         icon = Icons.verified_user;
     }
 
@@ -641,7 +642,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   }
 
   Widget _buildCertificationButton(
-      BuildContext context, dynamic i18n, bool isPending) {
+      BuildContext context, AppLocalizations l10n, bool isPending) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -667,7 +668,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                 child: CircularProgressIndicator(
                     strokeWidth: 2, color: Colors.white))
             : Text(
-                i18n.t('submit_for_audit'),
+                l10n.submit_for_audit,
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
@@ -675,7 +676,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     );
   }
 
-  Widget _buildOriginalButtons(BuildContext context, dynamic i18n) {
+  Widget _buildOriginalButtons(BuildContext context, AppLocalizations l10n) {
     return Row(
       children: [
         Expanded(
@@ -687,7 +688,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
                   borderRadius: BorderRadius.circular(18)),
             ),
             child: Text(
-              i18n.t('skip'),
+              l10n.skip,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
@@ -705,7 +706,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
               elevation: 0,
             ),
             child: Text(
-              i18n.t('save'),
+              l10n.save,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),

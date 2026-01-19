@@ -164,6 +164,18 @@ abstract class AppLocalizations {
   /// **'Play sound when negative event detected'**
   String get event_sound_desc;
 
+  /// No description provided for @high_frame_rate.
+  ///
+  /// In en, this message translates to:
+  /// **'High Frame Rate Recording'**
+  String get high_frame_rate;
+
+  /// No description provided for @high_frame_rate_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'KOL Exclusive: Record 10Hz sensor data for more details'**
+  String get high_frame_rate_desc;
+
   /// No description provided for @current_version.
   ///
   /// In en, this message translates to:
@@ -391,6 +403,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Distance'**
   String get distance;
+
+  /// No description provided for @speed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get speed;
 
   /// No description provided for @avg_speed.
   ///
@@ -635,13 +653,13 @@ abstract class AppLocalizations {
   /// No description provided for @arena_top10_title.
   ///
   /// In en, this message translates to:
-  /// **'Safe Driving Top 10'**
+  /// **'Comfort Top10'**
   String get arena_top10_title;
 
   /// No description provided for @arena_total_mileage_title.
   ///
   /// In en, this message translates to:
-  /// **'Mileage Leaderboard'**
+  /// **'Mileage by Brand'**
   String get arena_total_mileage_title;
 
   /// No description provided for @arena_total_mileage_subtitle.
@@ -659,7 +677,7 @@ abstract class AppLocalizations {
   /// No description provided for @arena_details_title.
   ///
   /// In en, this message translates to:
-  /// **'Negative Experience Breakdown'**
+  /// **'Neg Events Breakdown'**
   String get arena_details_title;
 
   /// No description provided for @arena_leaderboard_title.
@@ -671,13 +689,13 @@ abstract class AppLocalizations {
   /// No description provided for @low_speed_ranking.
   ///
   /// In en, this message translates to:
-  /// **'Urban Comfort Ranking'**
+  /// **'Urban Comfort'**
   String get low_speed_ranking;
 
   /// No description provided for @high_speed_ranking.
   ///
   /// In en, this message translates to:
-  /// **'Highway Comfort Ranking'**
+  /// **'Highway Comfort'**
   String get high_speed_ranking;
 
   /// No description provided for @low_speed_desc.
@@ -1633,6 +1651,510 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to update avatar'**
   String get update_avatar_failed;
+
+  /// No description provided for @delete_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Destroy Account'**
+  String get delete_account;
+
+  /// No description provided for @new_version_found.
+  ///
+  /// In en, this message translates to:
+  /// **'New Version Found'**
+  String get new_version_found;
+
+  /// No description provided for @changelog.
+  ///
+  /// In en, this message translates to:
+  /// **'Changelog'**
+  String get changelog;
+
+  /// No description provided for @update_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Now'**
+  String get update_now;
+
+  /// No description provided for @downloading_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading Update'**
+  String get downloading_update;
+
+  /// No description provided for @permission_not_granted.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission not granted'**
+  String get permission_not_granted;
+
+  /// No description provided for @network_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error'**
+  String get network_error;
+
+  /// No description provided for @calibration_failed_stationary.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibration failed: Please ensure the vehicle is stationary'**
+  String get calibration_failed_stationary;
+
+  /// No description provided for @calibration_failed_motion.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibration failed: Please keep the phone still'**
+  String get calibration_failed_motion;
+
+  /// No description provided for @sensor_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensor reading error'**
+  String get sensor_error;
+
+  /// No description provided for @recording_notification_content.
+  ///
+  /// In en, this message translates to:
+  /// **'Puked is recording your trip'**
+  String get recording_notification_content;
+
+  /// No description provided for @recording_notification_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording in Progress'**
+  String get recording_notification_title;
+
+  /// No description provided for @logic_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Core Logic'**
+  String get logic_section;
+
+  /// No description provided for @please_login_first.
+  ///
+  /// In en, this message translates to:
+  /// **'Please login first'**
+  String get please_login_first;
+
+  /// No description provided for @network_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Network unavailable, please check settings'**
+  String get network_unavailable;
+
+  /// No description provided for @uploading_trip.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading trip...'**
+  String get uploading_trip;
+
+  /// No description provided for @trip_submitted_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip submitted to Arena successfully'**
+  String get trip_submitted_success;
+
+  /// No description provided for @image_upload_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Image uploaded successfully'**
+  String get image_upload_success;
+
+  /// No description provided for @network_restored.
+  ///
+  /// In en, this message translates to:
+  /// **'Network connection restored'**
+  String get network_restored;
+
+  /// No description provided for @calibration_success_start.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibration successful, recording started'**
+  String get calibration_success_start;
+
+  /// No description provided for @select_or_input_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select or enter version'**
+  String get select_or_input_version;
+
+  /// No description provided for @confirm_delete_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to destroy your account?'**
+  String get confirm_delete_account;
+
+  /// No description provided for @exit_app.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit App'**
+  String get exit_app;
+
+  /// No description provided for @exit_app_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to exit Puked?'**
+  String get exit_app_confirm;
+
+  /// No description provided for @ignore_this_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore this version'**
+  String get ignore_this_version;
+
+  /// No description provided for @recalibrate.
+  ///
+  /// In en, this message translates to:
+  /// **'Recalibrate'**
+  String get recalibrate;
+
+  /// No description provided for @invalid_verification_code.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid verification code, please check email'**
+  String get invalid_verification_code;
+
+  /// No description provided for @speed_unit.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} km/h'**
+  String speed_unit(Object value);
+
+  /// No description provided for @g_unit.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} G'**
+  String g_unit(Object value);
+
+  /// No description provided for @distance_unit.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} km'**
+  String distance_unit(Object value);
+
+  /// No description provided for @duration_unit.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} min'**
+  String duration_unit(Object value);
+
+  /// No description provided for @update_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed'**
+  String get update_failed;
+
+  /// No description provided for @processing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing...'**
+  String get processing;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
+  /// No description provided for @ensure_network_tip.
+  ///
+  /// In en, this message translates to:
+  /// **'Please ensure network connection and try again'**
+  String get ensure_network_tip;
+
+  /// No description provided for @invalid_email_format.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email format'**
+  String get invalid_email_format;
+
+  /// No description provided for @password_too_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be at least 8 characters'**
+  String get password_too_short;
+
+  /// No description provided for @field_required.
+  ///
+  /// In en, this message translates to:
+  /// **'This field is required'**
+  String get field_required;
+
+  /// No description provided for @coupling_curve_index_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Suppression Curve Index'**
+  String get coupling_curve_index_label;
+
+  /// No description provided for @coupling_curve_index_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls the non-linearity of Z-axis suppression (1.0 is linear)'**
+  String get coupling_curve_index_hint;
+
+  /// No description provided for @coupling_strength_y_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Longitudinal Strength (Y)'**
+  String get coupling_strength_y_label;
+
+  /// No description provided for @coupling_strength_y_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight of Z-axis activity suppressing Accel/Decel detection'**
+  String get coupling_strength_y_hint;
+
+  /// No description provided for @coupling_strength_x_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Lateral Strength (X)'**
+  String get coupling_strength_x_label;
+
+  /// No description provided for @coupling_strength_x_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight of Z-axis activity suppressing Jerk/Wobble detection'**
+  String get coupling_strength_x_hint;
+
+  /// No description provided for @turn_comp_multiplier_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn Comp Multiplier'**
+  String get turn_comp_multiplier_label;
+
+  /// No description provided for @turn_comp_multiplier_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiplier for raising decel threshold based on yaw rate'**
+  String get turn_comp_multiplier_hint;
+
+  /// No description provided for @turn_comp_max_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn Comp Max'**
+  String get turn_comp_max_label;
+
+  /// No description provided for @turn_comp_max_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum ceiling for threshold adjustment during turns'**
+  String get turn_comp_max_hint;
+
+  /// No description provided for @event_window_coverage_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Window Coverage Rate'**
+  String get event_window_coverage_label;
+
+  /// No description provided for @event_window_coverage_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Required percentage of points exceeding threshold within window'**
+  String get event_window_coverage_hint;
+
+  /// No description provided for @low_speed_jerk_limit_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Speed Jerk Limit'**
+  String get low_speed_jerk_limit_label;
+
+  /// No description provided for @low_speed_jerk_limit_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed (km/h) below which deceleration is downgraded to Jerk'**
+  String get low_speed_jerk_limit_hint;
+
+  /// No description provided for @recording_voice.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording...'**
+  String get recording_voice;
+
+  /// No description provided for @pro_on.
+  ///
+  /// In en, this message translates to:
+  /// **'VOICE ON'**
+  String get pro_on;
+
+  /// No description provided for @pro_off.
+  ///
+  /// In en, this message translates to:
+  /// **'VOICE OFF'**
+  String get pro_off;
+
+  /// No description provided for @voice_tutorial_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Recording Guide'**
+  String get voice_tutorial_title;
+
+  /// No description provided for @voice_tutorial_step1.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Turn on \'VOICE ON\' and wait for model download'**
+  String get voice_tutorial_step1;
+
+  /// No description provided for @voice_tutorial_step2.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Start trip and keep phone still for calibration'**
+  String get voice_tutorial_step2;
+
+  /// No description provided for @voice_tutorial_step3.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Long-press map or use Bluetooth play key to record'**
+  String get voice_tutorial_step3;
+
+  /// No description provided for @voice_tutorial_step4.
+  ///
+  /// In en, this message translates to:
+  /// **'4. View supported events in Voice Recording settings'**
+  String get voice_tutorial_step4;
+
+  /// No description provided for @got_it.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get got_it;
+
+  /// No description provided for @voice_engine_config_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Engine Config Failed'**
+  String get voice_engine_config_failed;
+
+  /// No description provided for @voice_engine_not_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice engine not ready, please wait for download'**
+  String get voice_engine_not_ready;
+
+  /// No description provided for @recording_active_debug.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording Active'**
+  String get recording_active_debug;
+
+  /// No description provided for @gps_signal_lost.
+  ///
+  /// In en, this message translates to:
+  /// **'GPS Signal Lost'**
+  String get gps_signal_lost;
+
+  /// No description provided for @ins_active_display.
+  ///
+  /// In en, this message translates to:
+  /// **'INS Active (Display Only)'**
+  String get ins_active_display;
+
+  /// No description provided for @trip_report_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip Report'**
+  String get trip_report_title;
+
+  /// No description provided for @share_msg_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Puked Trip Report: {time}'**
+  String share_msg_body(Object time);
+
+  /// No description provided for @pts_unit.
+  ///
+  /// In en, this message translates to:
+  /// **'pts'**
+  String get pts_unit;
+
+  /// No description provided for @fail.
+  ///
+  /// In en, this message translates to:
+  /// **'FAIL'**
+  String get fail;
+
+  /// No description provided for @error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get error;
+
+  /// No description provided for @proDisengagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Disengagement'**
+  String get proDisengagement;
+
+  /// No description provided for @proViolation.
+  ///
+  /// In en, this message translates to:
+  /// **'Violation'**
+  String get proViolation;
+
+  /// No description provided for @proExperience.
+  ///
+  /// In en, this message translates to:
+  /// **'Experience'**
+  String get proExperience;
+
+  /// No description provided for @voice_recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Recording'**
+  String get voice_recording;
+
+  /// No description provided for @voice_recording_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'View events that support voice recording'**
+  String get voice_recording_desc;
+
+  /// No description provided for @voice_recording_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Recording Details'**
+  String get voice_recording_title;
+
+  /// No description provided for @voice_recording_intro.
+  ///
+  /// In en, this message translates to:
+  /// **'The following ADAS events support voice descriptions by long-pressing the \'Record\' button when triggered during a trip:'**
+  String get voice_recording_intro;
+
+  /// No description provided for @voice_recording_manual_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press the record button at any time to record a manual voice note for reporting current status or road conditions.'**
+  String get voice_recording_manual_desc;
+
+  /// No description provided for @edit_event.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Event'**
+  String get edit_event;
+
+  /// No description provided for @event_type.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Type'**
+  String get event_type;
+
+  /// No description provided for @event_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get event_description;
+
+  /// No description provided for @save_changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Changes'**
+  String get save_changes;
 }
 
 class _AppLocalizationsDelegate

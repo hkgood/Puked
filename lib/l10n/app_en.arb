@@ -341,5 +341,6 @@
   "edit_event": "Edit Event",
   "event_type": "Event Type",
   "event_description": "Description",
-  "save_changes": "Save Changes"
+  "save_changes": "Save Changes",
+  "selecting_best_mirror": "Selecting fastest mirror..."
 }

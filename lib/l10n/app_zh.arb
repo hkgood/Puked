@@ -341,5 +341,6 @@
   "edit_event": "编辑事件",
   "event_type": "事件类型",
   "event_description": "事件描述",
-  "save_changes": "保存修改"
+  "save_changes": "保存修改",
+  "selecting_best_mirror": "正在选择最快下载源..."
 }

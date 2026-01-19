@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/material.dart';
@@ -13,8 +14,84 @@ class UpdateService {
   static const String _githubApiUrl =
       'https://api.github.com/repos/$_owner/$_repo/releases/latest';
 
-  // 自建下载服务器基准地址
-  static const String _downloadBaseUrl = 'http://download.osglab.com/PukedAPK';
+  // 下载源配置
+  static const String _osgLabMirror = 'https://download.osglab.com/PukedAPK';
+  static const String _githubRelease = 'https://github.com/$_owner/$_repo/releases/download';
+  
+  // 防止重复下载的状态锁
+  static bool _isDownloading = false;
+
+  /// 智能选择最快的下载源
+  /// 返回：最快源的URL和源名称
+  static Future<Map<String, String>> _selectFastestMirror(
+      String version, String fileName) async {
+    final osgLabUrl = '$_osgLabMirror/$fileName';
+    final githubUrl = '$_githubRelease/v$version/$fileName';
+
+    debugPrint('🔍 Testing download mirrors...');
+    
+    // 并行测试两个源的速度
+    final results = await Future.wait([
+      _testMirrorSpeed(osgLabUrl, 'OSGLab镜像'),
+      _testMirrorSpeed(githubUrl, 'GitHub'),
+    ]);
+
+    // 按响应时间排序
+    results.sort((a, b) => a['duration'].compareTo(b['duration']));
+    
+    final fastest = results.first;
+    final fallback = results.last;
+    
+    debugPrint('✅ Fastest: ${fastest['name']} (${fastest['duration']}ms)');
+    debugPrint('⏱️ Fallback: ${fallback['name']} (${fallback['duration']}ms)');
+    
+    return {
+      'url': fastest['url'] as String,
+      'name': fastest['name'] as String,
+      'fallbackUrl': fallback['url'] as String,
+      'fallbackName': fallback['name'] as String,
+    };
+  }
+
+  /// 测试单个镜像的响应速度
+  static Future<Map<String, dynamic>> _testMirrorSpeed(
+      String url, String name) async {
+    final startTime = DateTime.now();
+    
+    try {
+      // 使用 HEAD 请求测试响应速度（不下载完整文件）
+      final response = await http
+          .head(Uri.parse(url))
+          .timeout(const Duration(seconds: 5));
+      
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        return {
+          'url': url,
+          'name': name,
+          'duration': duration,
+          'available': true,
+        };
+      } else {
+        debugPrint('⚠️ $name returned ${response.statusCode}');
+        return {
+          'url': url,
+          'name': name,
+          'duration': 999999, // 大数值，确保排到后面
+          'available': false,
+        };
+      }
+    } catch (e) {
+      debugPrint('❌ $name test failed: $e');
+      return {
+        'url': url,
+        'name': name,
+        'duration': 999999,
+        'available': false,
+      };
+    }
+  }
 
   static Future<void> checkUpdate(BuildContext context,
       {bool showNoUpdate = false}) async {
@@ -76,10 +153,31 @@ class UpdateService {
         if (_isNewer(latestVersion, currentVersion,
             latestBuild: latestBuild, currentBuild: currentBuild)) {
           if (context.mounted) {
-            // 为安卓构造自建服务器的下载链接
-            final downloadUrl = Platform.isAndroid
-                ? '$_downloadBaseUrl/Puked-$latestVersion.apk'
-                : (Platform.isIOS ? appStoreUrl : (apkUrl ?? htmlUrl));
+            String downloadUrl;
+            
+            if (Platform.isAndroid && apkName != null) {
+              // Android: 智能选择最快的下载源
+              final fileName = 'Puked-$latestVersion.apk';
+              
+              // 显示"正在选择最快下载源"提示
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.selecting_best_mirror ?? '正在选择最快下载源...'),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              
+              // 选择最快的镜像
+              final mirrorInfo = await _selectFastestMirror(latestVersion, fileName);
+              downloadUrl = mirrorInfo['url']!;
+              
+              debugPrint('📥 Selected download source: ${mirrorInfo['name']}');
+            } else if (Platform.isIOS) {
+              downloadUrl = appStoreUrl;
+            } else {
+              downloadUrl = apkUrl ?? htmlUrl;
+            }
 
             _showUpdateDialog(
               context,
@@ -227,6 +325,20 @@ class UpdateService {
                 child: ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(context);
+                    
+                    // 检查是否已经在下载中
+                    if (_isDownloading) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.downloading_update),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    
                     if (Platform.isAndroid && isApk) {
                       _showDownloadProgress(context, url, l10n, version);
                     } else {
@@ -264,6 +376,9 @@ class UpdateService {
   static void _showDownloadProgress(
       BuildContext context, String url, AppLocalizations l10n, String version) {
     final colorScheme = Theme.of(context).colorScheme;
+    
+    // 设置下载状态标志
+    _isDownloading = true;
 
     showDialog(
       context: context,
@@ -318,22 +433,26 @@ class UpdateService {
                     statusText = l10n.processing;
                     progress = 100;
                     Future.delayed(const Duration(seconds: 1), () {
+                      _isDownloading = false; // 重置状态
                       if (context.mounted) Navigator.of(context).pop();
                     });
                     break;
                   case OtaStatus.ALREADY_RUNNING_ERROR:
                     statusText = l10n.download_failed;
                     isError = true;
+                    _isDownloading = false; // 重置状态
                     break;
                   case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
                     statusText = l10n.permission_not_granted;
                     isError = true;
+                    _isDownloading = false; // 重置状态
                     break;
                   case OtaStatus.INTERNAL_ERROR:
                   case OtaStatus.DOWNLOAD_ERROR:
                   case OtaStatus.CHECKSUM_ERROR:
                     statusText = l10n.download_failed;
                     isError = true;
+                    _isDownloading = false; // 重置状态
                     break;
                   default:
                     statusText = l10n.processing;
@@ -341,6 +460,7 @@ class UpdateService {
               } else if (snapshot.hasError) {
                 statusText = l10n.network_error;
                 isError = true;
+                _isDownloading = false; // 重置状态
               }
 
               return Column(
@@ -402,7 +522,10 @@ class UpdateService {
                           SizedBox(
                             width: double.infinity,
                             child: TextButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () {
+                                _isDownloading = false; // 用户关闭时重置状态
+                                Navigator.pop(context);
+                              },
                               child: Text(
                                 l10n.back,
                                 style: const TextStyle(color: Colors.grey),

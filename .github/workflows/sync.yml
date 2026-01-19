@@ -1,39 +1,56 @@
-name: Sync Release to Alist
+name: Sync Release to Alist Mirror
 
 on:
   release:
     types: [published]
-  workflow_dispatch: # 允许你在 Actions 页面手动点击运行
+  workflow_dispatch: # 允许手动点击按钮触发，方便测试
 
 jobs:
-  upload:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - name: Get Release Assets
         id: get_assets
         run: |
-          # 获取当前 Release 的所有文件下载链接
-          # 如果是手动触发，则获取最新 (latest) 的 Release
+          # 获取当前 Release 的所有下载地址
           RELEASE_ID=${{ github.event.release.id || 'latest' }}
+          echo "Fetching assets for release: $RELEASE_ID"
           ASSETS=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID | jq -r '.assets[].browser_download_url')
+          
+          # 将下载地址转换为数组，处理多文件情况
           echo "assets=$ASSETS" >> $GITHUB_OUTPUT
 
-      - name: Upload to Alist via WebDAV
+      - name: Upload to Alist WebDAV
         run: |
-          # 定义网盘挂载点
+          # 1. 配置信息
+          ALIST_URL="http://115.29.162.18:5244/dav"
           DRIVES=("Aliyun" "Baidu")
-          # 获取仓库名作为目标文件夹
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
 
+          # 2. 遍历所有 Release 文件
           for url in ${{ steps.get_assets.outputs.assets }}; do
             filename=$(basename $url)
+            
             for drive in "${DRIVES[@]}"; do
-              echo "正在上传 $filename 到 $drive/$REPO_NAME ..."
+              echo "------------------------------------------------"
+              echo "准备上传: $filename"
+              echo "目标路径: $drive/$REPO_NAME/"
               
-              # 使用 curl 直接流式推送
-              # -u 填入你在 Secrets 设置的变量
-              curl -L "$url" | curl -u "${{ secrets.ALIST_USER }}:${{ secrets.ALIST_PASSWORD }}" \
-                -T - "http://115.29.162.18:5244/dav/$drive/$REPO_NAME/$filename" \
-                --fail --show-error
+              # 3. 使用 curl 进行流式同步
+              # -L: 跟踪 GitHub 下载链接的重定向
+              # -u: 显式指定用户名密码，避免在 URL 中拼接导致转义失败
+              # -T -: 从标准输入读取数据（管道传输），不占用本地磁盘
+              # --fail: 如果返回 401/404 等错误，直接让步骤显示失败
+              
+              curl -L "$url" | curl -v --fail \
+                --user "${{ secrets.ALIST_USER }}:${{ secrets.ALIST_PASSWORD }}" \
+                -T - "$ALIST_URL/$drive/$REPO_NAME/$filename"
+              
+              if [ $? -eq 0 ]; then
+                echo "✅ $drive 同步成功"
+              else
+                echo "❌ $drive 同步失败"
+                exit 1
+              fi
             done
           done

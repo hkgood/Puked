@@ -6,4 +6,4 @@ NSPhotoLibraryUsageDescription = "Puked 需要访问您的相册，以便您可�
 NSPhotoLibraryAddUsageDescription = "Puked 需要访问您的相册，以便您可以保存行程详情截图。";
 NSCameraUsageDescription = "Puked 需要访问您的相机，以便您可以拍摄并上传车辆或路况照片。";
 NSMicrophoneUsageDescription = "Puked 需要访问您的麦克风，以便在拍摄视频时记录声音。";
-CFBundleDisplayName = "吐槽";
+CFBundleDisplayName = "Puked";

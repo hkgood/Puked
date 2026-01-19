@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/common/widgets/g_force_ball.dart';
 import 'package:puked/common/widgets/sensor_waveform.dart';
 import 'package:puked/common/widgets/trip_map_view.dart';
+import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/features/history/presentation/history_screen.dart';
 import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/features/settings/presentation/settings_screen.dart';
@@ -338,8 +339,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   Widget _buildAlgorithmToggle(BuildContext context, RecordingState state) {
     return Consumer(builder: (context, ref, child) {
       final l10n = AppLocalizations.of(context)!;
-      final pb = ref.watch(pbServiceProvider);
-      if (!pb.isKOL) return const SizedBox.shrink();
+      final auth = ref.watch(authProvider);
+      // 语音打标功能：仅对通过认证的 Pro 用户开放
+      if (!auth.isPro) return const SizedBox.shrink();
 
       return GestureDetector(
         onTap: () async {

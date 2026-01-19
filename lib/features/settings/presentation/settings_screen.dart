@@ -20,6 +20,7 @@ import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:puked/features/settings/presentation/widgets/my_data_card.dart';
 import 'package:puked/features/arena/providers/arena_provider.dart';
 import 'package:puked/features/settings/presentation/voice_recording_info_screen.dart';
+import 'package:puked/features/admin/presentation/user_management_screen.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -471,7 +472,8 @@ class SettingsScreen extends ConsumerWidget {
                             .setHighFrameRateEnabled(value),
                       ),
                     ),
-                  if (ref.watch(pbServiceProvider).isKOL)
+                  // 语音记录说明 (仅对通过认证的 Pro 用户开放)
+                  if (ref.watch(authProvider).isPro)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(i18n.t('voice_recording'),
@@ -493,6 +495,35 @@ class SettingsScreen extends ConsumerWidget {
               ),
 
               const SizedBox(height: 16),
+
+              // 3.5. 管理员功能卡片 (仅 SuperUser 可见)
+              if (auth.isSuperUser) ...[
+                _buildCard(
+                  context,
+                  title: i18n.t('admin_functions'),
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.people,
+                          color: Theme.of(context).colorScheme.primary),
+                      title: Text(i18n.t('user_management'),
+                          style: const TextStyle(fontSize: 14)),
+                      subtitle: Text(
+                        i18n.t('user_management_desc'),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 20),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserManagementScreen(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // 4. 关于与支持卡片
               _buildCard(

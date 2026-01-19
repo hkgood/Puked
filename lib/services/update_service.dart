@@ -16,8 +16,9 @@ class UpdateService {
 
   // 下载源配置
   static const String _osgLabMirror = 'https://download.osglab.com/PukedAPK';
-  static const String _githubRelease = 'https://github.com/$_owner/$_repo/releases/download';
-  
+  static const String _githubRelease =
+      'https://github.com/$_owner/$_repo/releases/download';
+
   // 防止重复下载的状态锁
   static bool _isDownloading = false;
 
@@ -29,7 +30,7 @@ class UpdateService {
     final githubUrl = '$_githubRelease/v$version/$fileName';
 
     debugPrint('🔍 Testing download mirrors...');
-    
+
     // 并行测试两个源的速度
     final results = await Future.wait([
       _testMirrorSpeed(osgLabUrl, 'OSGLab镜像'),
@@ -38,13 +39,13 @@ class UpdateService {
 
     // 按响应时间排序
     results.sort((a, b) => a['duration'].compareTo(b['duration']));
-    
+
     final fastest = results.first;
     final fallback = results.last;
-    
+
     debugPrint('✅ Fastest: ${fastest['name']} (${fastest['duration']}ms)');
     debugPrint('⏱️ Fallback: ${fallback['name']} (${fallback['duration']}ms)');
-    
+
     return {
       'url': fastest['url'] as String,
       'name': fastest['name'] as String,
@@ -57,15 +58,14 @@ class UpdateService {
   static Future<Map<String, dynamic>> _testMirrorSpeed(
       String url, String name) async {
     final startTime = DateTime.now();
-    
+
     try {
       // 使用 HEAD 请求测试响应速度（不下载完整文件）
-      final response = await http
-          .head(Uri.parse(url))
-          .timeout(const Duration(seconds: 5));
-      
+      final response =
+          await http.head(Uri.parse(url)).timeout(const Duration(seconds: 5));
+
       final duration = DateTime.now().difference(startTime).inMilliseconds;
-      
+
       if (response.statusCode == 200 || response.statusCode == 302) {
         return {
           'url': url,
@@ -154,11 +154,11 @@ class UpdateService {
             latestBuild: latestBuild, currentBuild: currentBuild)) {
           if (context.mounted) {
             String downloadUrl;
-            
+
             if (Platform.isAndroid && apkName != null) {
               // Android: 智能选择最快的下载源
               final fileName = 'Puked-$latestVersion.apk';
-              
+
               // 显示"正在选择最快下载源"提示
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -167,11 +167,12 @@ class UpdateService {
                   duration: const Duration(seconds: 2),
                 ),
               );
-              
+
               // 选择最快的镜像
-              final mirrorInfo = await _selectFastestMirror(latestVersion, fileName);
+              final mirrorInfo =
+                  await _selectFastestMirror(latestVersion, fileName);
               downloadUrl = mirrorInfo['url']!;
-              
+
               debugPrint('📥 Selected download source: ${mirrorInfo['name']}');
             } else if (Platform.isIOS) {
               downloadUrl = appStoreUrl;
@@ -325,7 +326,7 @@ class UpdateService {
                 child: ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(context);
-                    
+
                     // 检查是否已经在下载中
                     if (_isDownloading) {
                       if (context.mounted) {
@@ -338,7 +339,7 @@ class UpdateService {
                       }
                       return;
                     }
-                    
+
                     if (Platform.isAndroid && isApk) {
                       _showDownloadProgress(context, url, l10n, version);
                     } else {
@@ -376,7 +377,7 @@ class UpdateService {
   static void _showDownloadProgress(
       BuildContext context, String url, AppLocalizations l10n, String version) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     // 设置下载状态标志
     _isDownloading = true;
 

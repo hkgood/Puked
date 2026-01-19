@@ -1074,4 +1074,67 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get save_changes => '保存修改';
+
+  @override
+  String get selecting_best_mirror => '正在选择最快下载源...';
+
+  @override
+  String get user_management => '用户管理';
+
+  @override
+  String get user_management_desc => '管理系统用户和权限设置';
+
+  @override
+  String get admin_functions => '管理员功能';
+
+  @override
+  String get search_users => '搜索用户名或邮箱';
+
+  @override
+  String get no_users_found => '没有找到用户';
+
+  @override
+  String get no_search_results => '没有搜索结果';
+
+  @override
+  String get access_denied => '访问被拒绝';
+
+  @override
+  String get superuser_only => '此功能仅限超级管理员使用';
+
+  @override
+  String get user_info => '用户信息';
+
+  @override
+  String get permissions => '权限设置';
+
+  @override
+  String get user_id => '用户 ID';
+
+  @override
+  String get email_verified => '邮箱已验证';
+
+  @override
+  String get audit_status => '认证状态';
+
+  @override
+  String get pro_status => 'Pro 用户';
+
+  @override
+  String get superuser_status => '超级管理员';
+
+  @override
+  String get kol_permission => 'Expert 权限';
+
+  @override
+  String get kol_permission_desc => '开启后用户可使用专家功能（语音打标、高帧率记录等）';
+
+  @override
+  String get yes => '是';
+
+  @override
+  String get no => '否';
+
+  @override
+  String get update_success => '更新成功';
 }

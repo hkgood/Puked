@@ -1126,4 +1126,69 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get save_changes => 'Save Changes';
+
+  @override
+  String get selecting_best_mirror => 'Selecting fastest mirror...';
+
+  @override
+  String get user_management => 'User Management';
+
+  @override
+  String get user_management_desc => 'Manage system users and permissions';
+
+  @override
+  String get admin_functions => 'Admin Functions';
+
+  @override
+  String get search_users => 'Search by name or email';
+
+  @override
+  String get no_users_found => 'No users found';
+
+  @override
+  String get no_search_results => 'No search results';
+
+  @override
+  String get access_denied => 'Access Denied';
+
+  @override
+  String get superuser_only =>
+      'This feature is only available to super administrators';
+
+  @override
+  String get user_info => 'User Information';
+
+  @override
+  String get permissions => 'Permissions';
+
+  @override
+  String get user_id => 'User ID';
+
+  @override
+  String get email_verified => 'Email Verified';
+
+  @override
+  String get audit_status => 'Verification Status';
+
+  @override
+  String get pro_status => 'Pro User';
+
+  @override
+  String get superuser_status => 'Super Administrator';
+
+  @override
+  String get kol_permission => 'Expert Permission';
+
+  @override
+  String get kol_permission_desc =>
+      'When enabled, user can access expert features (voice labeling, high frame rate recording, etc.)';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get update_success => 'Update successful';
 }

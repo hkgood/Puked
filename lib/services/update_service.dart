@@ -226,12 +226,20 @@ class UpdateService {
       for (int i = 0; i < 3; i++) {
         int l = i < latestParts.length ? latestParts[i] : 0;
         int c = i < currentParts.length ? currentParts[i] : 0;
-        if (l > c) return true; // 情况 B: 远程大版本更新
-        if (l < c) return false; // 情况 C: 远程版本更旧，拦截
+        if (l > c) {
+          debugPrint('✅ Newer version detected by version name: $latestVersion > $currentVersion');
+          return true;
+        }
+        if (l < c) {
+          debugPrint('ℹ️ Local version is newer than remote: $currentVersion > $latestVersion');
+          return false;
+        }
       }
 
       // 2. 如果版本名相同，对比构建号 (Case A)
-      return latestBuild > currentBuild;
+      final isNewerBuild = latestBuild > currentBuild;
+      debugPrint('🔍 Comparing build numbers: remote($latestBuild) ${isNewerBuild ? ">" : "<="} local($currentBuild)');
+      return isNewerBuild;
     } catch (e) {
       // 兜底：如果解析出错，仅当版本名或构建号不完全一致时（且非空）尝试更新
       return (latestVersion != currentVersion || latestBuild != currentBuild) &&
@@ -420,48 +428,55 @@ class UpdateService {
             ),
             builder: (context, snapshot) {
               double progress = 0;
-              String statusText = '';
+              String statusText = l10n.processing;
               bool isError = false;
+              bool isConnecting = snapshot.connectionState == ConnectionState.waiting;
 
               if (snapshot.hasData) {
-                switch (snapshot.data!.status) {
+                final event = snapshot.data!;
+                debugPrint('📥 OTA Status: ${event.status}, Value: ${event.value}');
+                
+                switch (event.status) {
                   case OtaStatus.DOWNLOADING:
-                    progress =
-                        double.tryParse(snapshot.data!.value ?? '0') ?? 0;
+                    final val = double.tryParse(event.value ?? '0') ?? 0;
+                    progress = val;
                     statusText = l10n.downloading;
+                    // 如果 progress 为 0，说明刚开始连接
+                    if (progress <= 0) isConnecting = true;
                     break;
                   case OtaStatus.INSTALLING:
                     statusText = l10n.processing;
                     progress = 100;
                     Future.delayed(const Duration(seconds: 1), () {
-                      _isDownloading = false; // 重置状态
+                      _isDownloading = false;
                       if (context.mounted) Navigator.of(context).pop();
                     });
                     break;
                   case OtaStatus.ALREADY_RUNNING_ERROR:
                     statusText = l10n.download_failed;
                     isError = true;
-                    _isDownloading = false; // 重置状态
+                    _isDownloading = false;
                     break;
                   case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
                     statusText = l10n.permission_not_granted;
                     isError = true;
-                    _isDownloading = false; // 重置状态
+                    _isDownloading = false;
                     break;
                   case OtaStatus.INTERNAL_ERROR:
                   case OtaStatus.DOWNLOAD_ERROR:
                   case OtaStatus.CHECKSUM_ERROR:
                     statusText = l10n.download_failed;
                     isError = true;
-                    _isDownloading = false; // 重置状态
+                    _isDownloading = false;
                     break;
                   default:
                     statusText = l10n.processing;
                 }
               } else if (snapshot.hasError) {
+                debugPrint('❌ OTA Error: ${snapshot.error}');
                 statusText = l10n.network_error;
                 isError = true;
-                _isDownloading = false; // 重置状态
+                _isDownloading = false;
               }
 
               return Column(
@@ -474,7 +489,7 @@ class UpdateService {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: LinearProgressIndicator(
-                          value: progress / 100,
+                          value: isConnecting ? null : progress / 100,
                           minHeight: 12,
                           backgroundColor: colorScheme.surfaceContainerHighest,
                           valueColor: AlwaysStoppedAnimation<Color>(
@@ -488,7 +503,7 @@ class UpdateService {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        statusText,
+                        isConnecting ? '${l10n.processing}...' : statusText,
                         style: TextStyle(
                           fontSize: 13,
                           color: isError
@@ -496,14 +511,15 @@ class UpdateService {
                               : colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      Text(
-                        '${progress.toInt()}%',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.primary,
+                      if (!isConnecting)
+                        Text(
+                          '${progress.toInt()}%',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   if (isError)

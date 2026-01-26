@@ -78,13 +78,31 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           final l10n = AppLocalizations.of(context)!;
           final i18n = I18n(l10n);
           
+          debugPrint('[Recording] Received alert message: $next');
+          
+          // 清理错误key：移除可能存在的 "Exception: " 前缀（防御性编程）
+          String cleanKey = next.trim();
+          if (cleanKey.toLowerCase().startsWith('exception:')) {
+            cleanKey = cleanKey.substring(cleanKey.indexOf(':') + 1).trim();
+            debugPrint('[Recording] Cleaned to: $cleanKey');
+          }
+          
           // 根据错误key翻译成对应语言的错误消息
           String errorMessage;
           try {
-            errorMessage = i18n.t(next);
+            errorMessage = i18n.t(cleanKey);
+            debugPrint('[Recording] Translated message: $errorMessage');
+            
+            // 如果翻译返回的还是原始key，说明没有找到翻译
+            if (errorMessage == cleanKey) {
+              debugPrint('[Recording] Translation returned same key, using fallback');
+              // 使用通用错误描述
+              errorMessage = l10n.calibration_failed_desc;
+            }
           } catch (e) {
-            // 如果翻译失败，使用原始消息
-            errorMessage = next;
+            // 如果翻译失败，使用通用错误描述
+            debugPrint('[Recording] Translation error for key: $cleanKey, error: $e');
+            errorMessage = l10n.calibration_failed_desc;
           }
           
           showDialog(

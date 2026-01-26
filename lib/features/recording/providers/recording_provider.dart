@@ -38,6 +38,9 @@ final inertialNavigationEngineProvider =
     Provider<InertialNavigationEngine>((ref) => InertialNavigationEngine());
 final amapServiceProvider = Provider<AmapService>((ref) => AmapService());
 
+// 用于区分"未传参"和"传入null"的哨兵对象
+const _undefined = Object();
+
 class RecordingState {
   final bool isRecording;
   final bool isCalibrating;
@@ -94,7 +97,7 @@ class RecordingState {
     DateTime? lastSensorTime,
     LatLng? lastInsLocation,
     bool? isInsActive,
-    String? alertMessage,
+    Object? alertMessage = _undefined,  // 使用哨兵对象来区分"未传参"和"传入null"
   }) {
     return RecordingState(
       isRecording: isRecording ?? this.isRecording,
@@ -113,7 +116,9 @@ class RecordingState {
       lastSensorTime: lastSensorTime ?? this.lastSensorTime,
       lastInsLocation: lastInsLocation ?? this.lastInsLocation,
       isInsActive: isInsActive ?? this.isInsActive,
-      alertMessage: alertMessage ?? this.alertMessage,
+      alertMessage: alertMessage == _undefined 
+          ? this.alertMessage 
+          : alertMessage as String?,  // 允许真正设置为 null
     );
   }
 }
@@ -481,9 +486,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     } catch (e) {
       // 提取错误消息的key（去除 "Exception: " 前缀）
       String errorKey = e.toString();
+      debugPrint('[Recording] Caught calibration error: $errorKey');
       if (errorKey.startsWith('Exception: ')) {
         errorKey = errorKey.substring('Exception: '.length);
       }
+      debugPrint('[Recording] Cleaned error key: $errorKey');
       state = state.copyWith(isCalibrating: false, alertMessage: errorKey);
     }
   }
@@ -576,7 +583,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     state = state.copyWith(isRecording: false, currentTrip: null);
   }
 
-  void clearAlert() => state = state.copyWith(alertMessage: null);
+  void clearAlert() {
+    debugPrint('[Recording] clearAlert called, current alertMessage: ${state.alertMessage}');
+    state = state.copyWith(alertMessage: null);
+    debugPrint('[Recording] alertMessage after clear: ${state.alertMessage}');
+  }
 
   @override
   void dispose() {

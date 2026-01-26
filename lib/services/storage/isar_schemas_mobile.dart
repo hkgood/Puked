@@ -1,5 +1,5 @@
 import 'package:isar/isar.dart';
-import '../../models/db_models_mobile.dart';
+import '../../models/db_models.dart';
 
 const List<CollectionSchema<dynamic>> allIsarSchemas = [
   TripSchema,

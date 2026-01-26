@@ -53,9 +53,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: image.path,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      // 核心优化：限制最大尺寸和压缩质量
-      maxWidth: 512,
-      maxHeight: 512,
+      // 核心优化：限制最大尺寸和压缩质量（头像256x256即可满足显示需求）
+      maxWidth: 256,
+      maxHeight: 256,
       compressFormat: ImageCompressFormat.jpg,
       compressQuality: 85,
       uiSettings: [

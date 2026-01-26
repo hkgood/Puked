@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/features/recording/providers/recording_provider.dart';
+import 'package:puked/features/recording/providers/voice_recording_provider.dart';
 
 class MediaKeyHandler extends BaseAudioHandler {
   final ProviderContainer container;
@@ -72,23 +73,39 @@ class MediaKeyHandler extends BaseAudioHandler {
   }
 
   void _triggerVoiceRecording() {
-    final notifier = container.read(recordingProvider.notifier);
-    final state = container.read(recordingProvider);
+    final recordingState = container.read(recordingProvider);
+    final voiceState = container.read(voiceRecordingProvider);
+    final voiceNotifier = container.read(voiceRecordingProvider.notifier);
 
     debugPrint(
-        '[MediaKeyHandler] 状态检查: isRecording=${state.isRecording}, isVoiceEnabled=${state.isVoiceRecordingEnabled}');
+        '[MediaKeyHandler] 状态检查: isRecording=${recordingState.isRecording}, isVoiceEnabled=${voiceState.isEnabled}');
 
-    if (state.isRecording && state.isVoiceRecordingEnabled) {
-      if (state.isVoiceRecording) {
+    if (recordingState.isRecording && voiceState.isEnabled) {
+      if (voiceState.isRecording) {
         debugPrint('[MediaKeyHandler] 正在录音中，触发停止');
-        notifier.stopVoiceRecording();
+        voiceNotifier.stopRecording();
       } else {
         debugPrint('[MediaKeyHandler] 未在录音，触发开始');
-        notifier.startVoiceRecording();
+        voiceNotifier.startRecording();
       }
     } else {
       debugPrint('[MediaKeyHandler] 触发跳过: 行程未开始或语音开关未打开');
     }
+  }
+}
+
+/// 辅助函数：根据当前行程和语音开关状态，更新媒体按键监听器的激活状态
+void updateMediaKeyActivation(Ref ref) {
+  final recordingState = ref.read(recordingProvider);
+  final voiceState = ref.read(voiceRecordingProvider);
+  final handler = ref.read(mediaKeyHandlerProvider);
+
+  if (handler == null) return;
+
+  if (recordingState.isRecording && voiceState.isEnabled) {
+    handler.activate();
+  } else {
+    handler.deactivate();
   }
 }
 

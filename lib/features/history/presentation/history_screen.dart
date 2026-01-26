@@ -141,18 +141,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   SnackBar(content: Text(i18n.t('pulling_cloud_trips'))),
                 );
 
-                final newCount = await cloudService.syncCloudToLocal(storage);
+                try {
+                  final newCount = await cloudService.syncCloudToLocal(storage);
 
-                if (!context.mounted) return;
-                setState(() {});
+                  if (!context.mounted) return;
+                  setState(() {});
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(i18n
-                        .t('cloud_sync_result', args: [newCount.toString()])),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(i18n
+                          .t('cloud_sync_result', args: [newCount.toString()])),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  debugPrint('Sync error: $e');
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(i18n.t('sync_failed')),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               tooltip: i18n.t('sync_cloud_status'),
             ),
@@ -607,8 +618,7 @@ class _TripCardState extends ConsumerState<_TripCard> {
                                           .withAlpha(153)),
                               const SizedBox(width: 4),
                               Text(
-                                trip.getDistanceDisplay(
-                                    i18n.t('user_mileage_unit')),
+                                trip.getDistanceDisplay(),
                                 style: TextStyle(
                                     fontSize: 12,
                                     color: isCloudOnly

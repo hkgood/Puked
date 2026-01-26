@@ -4,9 +4,16 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/models/sensor_data.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vector_math/vector_math_64.dart';
+
+final sensorEngineProvider = Provider<SensorEngine>((ref) {
+  final engine = SensorEngine();
+  ref.onDispose(() => engine.dispose());
+  return engine;
+});
 
 class SensorEngine {
   // 采样周期：iOS 强制 60Hz (约16ms)，Android 维持 30Hz (33ms)
@@ -112,7 +119,23 @@ class SensorEngine {
     // Stage 1: 中值滤波 (Median Filter) - 消除硬件毛刺
     _medianBuffer.addLast(_latestAccel.clone());
     if (_medianBuffer.length > _medianWindowSize) _medianBuffer.removeFirst();
-    final Vector3 smoothedAccel = _calculateMedian(_medianBuffer.toList());
+    Vector3 smoothedAccel = _calculateMedian(_medianBuffer.toList());
+
+    // 🔍 DEBUG: 异常值检测和日志（针对原地晃动测试）
+    if (_medianBuffer.length >= 3) {
+      final prev = _medianBuffer.elementAt(_medianBuffer.length - 2);
+      final jumpMagnitude = (smoothedAccel - prev).length;
+      
+      // 降低阈值到 10 m/s² 以便在原地晃动时也能检测到
+      if (jumpMagnitude > 10.0) {
+        debugPrint('🔴 OVERFLOW! Jump: ${jumpMagnitude.toStringAsFixed(2)} m/s²');
+        debugPrint('   ax: ${prev.x.toStringAsFixed(3)} → ${smoothedAccel.x.toStringAsFixed(3)} (Δ${(smoothedAccel.x - prev.x).toStringAsFixed(3)})');
+        debugPrint('   ay: ${prev.y.toStringAsFixed(3)} → ${smoothedAccel.y.toStringAsFixed(3)} (Δ${(smoothedAccel.y - prev.y).toStringAsFixed(3)})');
+        debugPrint('   az: ${prev.z.toStringAsFixed(3)} → ${smoothedAccel.z.toStringAsFixed(3)} (Δ${(smoothedAccel.z - prev.z).toStringAsFixed(3)})');
+        debugPrint('   ✅ FILTERED: Using previous value');
+        smoothedAccel = prev.clone(); // 用前一个值替代异常值
+      }
+    }
 
     // Stage 2: 扣除静态重力 (原始坐标系)
     // 第一性原理：先减去重力向量，再进行坐标旋转。这能彻底消除因旋转矩阵不准导致的重力泄露 (0.3G 偏移)
@@ -139,6 +162,18 @@ class SensorEngine {
     // 低通滤波用于平滑显示
     _filteredAccel =
         _filteredAccel * (1.0 - _lpfCoeff) + processedAccel * _lpfCoeff;
+
+    // 🔍 DEBUG: 持续监控 processedAccel 的值，检测并过滤溢出
+    final accelMagnitude = processedAccel.length;
+    if (accelMagnitude > 50.0) {  // 5G 以上绝对是异常
+      debugPrint('🚨 CRITICAL OVERFLOW in processedAccel!');
+      debugPrint('   Magnitude: ${accelMagnitude.toStringAsFixed(2)} m/s² (${(accelMagnitude / 9.80665).toStringAsFixed(2)} G)');
+      debugPrint('   Values: (${processedAccel.x.toStringAsFixed(3)}, ${processedAccel.y.toStringAsFixed(3)}, ${processedAccel.z.toStringAsFixed(3)})');
+      debugPrint('   ✅ CLAMPING to zero (treating as sensor failure)');
+      
+      // 过滤策略：超过 5G 的数据认为是传感器故障，直接归零
+      processedAccel = Vector3.zero();
+    }
 
     final data = SensorData(
       timestamp: now,
@@ -310,13 +345,17 @@ class SensorEngine {
   }
 
   /// 获取回溯数据片段 (过去 N 秒)，并进行下采样 (Downsampling to ~20Hz)
-  List<SensorData> getLookbackBuffer(int seconds, {int targetHz = 20}) {
+  List<SensorData> getLookbackBuffer(int seconds,
+      {int targetHz = 20, DateTime? endTime}) {
     // 计算原始采样率 (iOS 60Hz, Android 30Hz)
     final sourceHz = Platform.isIOS ? 60 : 30;
     final step = (sourceHz / targetHz).round().clamp(1, 10);
 
-    int pointsToTake = (seconds * sourceHz).clamp(0, _buffer.length);
-    final rawList = _buffer.toList().sublist(_buffer.length - pointsToTake);
+    final end = endTime ?? DateTime.now();
+    final start = end.subtract(Duration(seconds: seconds));
+
+    // 根据时间戳从缓冲区筛选数据
+    final rawList = _buffer.where((d) => d.timestamp.isAfter(start) && d.timestamp.isBefore(end)).toList();
 
     // 执行跳格采样
     List<SensorData> downsampled = [];

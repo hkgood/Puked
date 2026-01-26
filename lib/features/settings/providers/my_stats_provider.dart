@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
@@ -129,7 +130,13 @@ int _getFilteredEventCount(Trip t) {
   final Map<String, dynamic> source = {};
   source['event_count'] = t.eventCount;
 
-  final metrics = t.cloudMetrics;
+  final metricsStr = t.cloudMetrics;
+  Map<String, dynamic>? metrics;
+  if (metricsStr != null) {
+    try {
+      metrics = jsonDecode(metricsStr) as Map<String, dynamic>?;
+    } catch (_) {}
+  }
 
   if (metrics != null) {
     metrics.forEach((k, v) => source[k.toLowerCase()] = v);

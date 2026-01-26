@@ -376,7 +376,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get app_name => '吐槽';
+  String get app_name => 'Puked';
 
   @override
   String get history => '历史行程';
@@ -388,7 +388,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get start_trip => '开始行程';
 
   @override
-  String get stop_trip => '结束行程';
+  String get stop_trip => '长按结束行程';
 
   @override
   String get calibrating => '校准中，请保持手机静止...';
@@ -488,7 +488,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboarding_step3 => '开始测试，避免中途拿起手机';
 
   @override
-  String get onboarding_step4 => '停下车辆，点击“结束行程”再拿起手机';
+  String get onboarding_step4 => '停下车辆，长按\"长按结束行程\"按钮0.8秒再拿起手机';
 
   @override
   String get onboarding_step5 => '点击分享行程，与大家一起共享数据';
@@ -497,7 +497,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboarding_start => '开始体验';
 
   @override
-  String get onboarding_welcome => '欢迎使用吐槽';
+  String get onboarding_welcome => '欢迎使用 Puked';
 
   @override
   String get saving_image => '正在保存为图片...';
@@ -750,6 +750,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get event_list => '事件详情';
 
   @override
+  String get event_statistics => '事件详情';
+
+  @override
+  String get auto_negative_events => '自动检测';
+
+  @override
+  String get manual_marked_events => '手动标记';
+
+  @override
+  String total_count(Object value) {
+    return '共 $value 次';
+  }
+
+  @override
   String get min => '分钟';
 
   @override
@@ -882,7 +896,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get exit_app => '退出应用';
 
   @override
-  String get exit_app_confirm => '确定要退出吐槽吗？';
+  String get exit_app_confirm => '确定要退出 Puked 吗？';
 
   @override
   String get ignore_this_version => '忽略此版本';
@@ -1077,64 +1091,4 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get selecting_best_mirror => '正在选择最快下载源...';
-
-  @override
-  String get user_management => '用户管理';
-
-  @override
-  String get user_management_desc => '管理系统用户和权限设置';
-
-  @override
-  String get admin_functions => '管理员功能';
-
-  @override
-  String get search_users => '搜索用户名或邮箱';
-
-  @override
-  String get no_users_found => '没有找到用户';
-
-  @override
-  String get no_search_results => '没有搜索结果';
-
-  @override
-  String get access_denied => '访问被拒绝';
-
-  @override
-  String get superuser_only => '此功能仅限超级管理员使用';
-
-  @override
-  String get user_info => '用户信息';
-
-  @override
-  String get permissions => '权限设置';
-
-  @override
-  String get user_id => '用户 ID';
-
-  @override
-  String get email_verified => '邮箱已验证';
-
-  @override
-  String get audit_status => '认证状态';
-
-  @override
-  String get pro_status => 'Pro 用户';
-
-  @override
-  String get superuser_status => '超级管理员';
-
-  @override
-  String get kol_permission => 'Expert 权限';
-
-  @override
-  String get kol_permission_desc => '开启后用户可使用专家功能（语音打标、高帧率记录等）';
-
-  @override
-  String get yes => '是';
-
-  @override
-  String get no => '否';
-
-  @override
-  String get update_success => '更新成功';
 }

@@ -378,6 +378,14 @@ class I18n {
         return _delegate.upload_hint_new;
       case 'event_list':
         return _delegate.event_list;
+      case 'event_statistics':
+        return _delegate.event_statistics;
+      case 'auto_negative_events':
+        return _delegate.auto_negative_events;
+      case 'manual_marked_events':
+        return _delegate.manual_marked_events;
+      case 'total_count':
+        return _delegate.total_count('{}');
       case 'min':
         return _delegate.min;
       case 'value':

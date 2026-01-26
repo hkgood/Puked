@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/services/pocketbase_service.dart';
+import 'package:puked/services/user_session_manager.dart';
 import 'package:http/http.dart' as http;
 
 class AuthState {
@@ -46,15 +47,18 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final PocketBaseService _pbService;
+  final Ref _ref;
   bool _isLoggingOut = false;
 
-  AuthNotifier(this._pbService)
+  AuthNotifier(this._pbService, this._ref)
       : super(AuthState(
           user: _pbService.currentUser,
           isTokenValid: _pbService.isAuthenticated,
         )) {
     // 启动时如果 Token 有效，静默刷新用户信息以确保 UI 数据最新
-    if (state.isTokenValid) {
+    if (state.isTokenValid && _pbService.currentUserId != null) {
+      // 初始化会话管理器
+      _ref.read(userSessionManagerProvider).initialize(_pbService.currentUserId);
       refreshUserFromServer();
     }
   }
@@ -63,11 +67,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _pbService.pb.collection('users').authWithPassword(email, password);
+      
+      final newUserId = _pbService.currentUserId;
+      
+      // 更新状态
       state = state.copyWith(
         isLoading: false,
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,
       );
+      
+      // 🔥 关键：通知会话管理器用户已登录
+      if (newUserId != null) {
+        await _ref.read(userSessionManagerProvider).startSession(newUserId, null);
+      }
     } on ClientException catch (_) {
       // 设置一个标准化的错误 Key
       state = state.copyWith(
@@ -120,15 +133,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    _isLoggingOut = true;
-    try {
-      await _pbService.logout();
-    } finally {
-      // 无论登出是否发生网络错误，都必须强制重置本地状态为未登录，确保 UI 同步
-      state = AuthState(isTokenValid: false);
+    if (_isLoggingOut) {
+      return;
+    }
 
-      // 延迟重置锁，确保在此期间所有残留的异步刷新请求都已处理完毕或被拦截
-      Future.delayed(const Duration(seconds: 2), () {
+    _isLoggingOut = true;
+    
+    try {
+      
+      // 🔥 关键步骤1：先通知会话管理器结束会话（这会触发所有Provider清理）
+      await _ref.read(userSessionManagerProvider).endSession(null);
+      
+      // 步骤2：清除PocketBase的认证状态
+      await _pbService.logout();
+      
+      // 步骤3：重置本地状态为未登录
+      state = AuthState(isTokenValid: false);
+    } catch (e) {
+      // 即使出错，也要确保状态被重置
+      state = AuthState(isTokenValid: false);
+    } finally {
+      // 短暂延迟后重置锁，确保所有清理操作完成
+      Future.delayed(const Duration(milliseconds: 500), () {
         _isLoggingOut = false;
       });
     }
@@ -193,21 +219,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// 从服务器拉取最新的用户信息（用于更新验证状态等）
   Future<void> refreshUserFromServer() async {
-    // 如果正在退出登录，或者本来就未登录，则不执行刷新
-    if (_isLoggingOut || !_pbService.isAuthenticated) {
-      if (state.isTokenValid && !_pbService.isAuthenticated) {
+    // 防御性检查1: 如果正在退出登录，立即返回
+    if (_isLoggingOut) {
+      return;
+    }
+    
+    // 防御性检查2: 如果未登录，立即返回
+    if (!_pbService.isAuthenticated) {
+      if (state.isTokenValid) {
         state = state.copyWith(isTokenValid: false);
       }
+      return;
+    }
+
+    // 防御性检查3: 验证当前用户ID与会话管理器一致
+    final currentUserId = _pbService.currentUserId;
+    final sessionUserId = _ref.read(userSessionManagerProvider).currentUserId;
+    
+    if (currentUserId != sessionUserId) {
       return;
     }
 
     try {
       await _pbService.pb.collection('users').authRefresh();
 
-      // 再次检查，防止在请求期间用户点击了退出登录
-      if (_isLoggingOut) return;
+      // 再次检查：防止在请求期间用户点击了退出登录
+      if (_isLoggingOut) {
+        return;
+      }
 
-      // 刷新成功后，再次同步最新的用户信息
+      // 最终检查：确保刷新回来的用户ID仍然匹配
+      final refreshedUserId = _pbService.currentUserId;
+      if (refreshedUserId != sessionUserId) {
+        return;
+      }
+
+      // 刷新成功后，同步最新的用户信息
       state = state.copyWith(
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,
@@ -228,7 +275,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,
       );
-    } catch (_) {
+    } catch (e) {
       // 再次检查
       if (_isLoggingOut) return;
 
@@ -242,5 +289,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final pbService = ref.watch(pbServiceProvider);
-  return AuthNotifier(pbService);
+  return AuthNotifier(pbService, ref);
 });

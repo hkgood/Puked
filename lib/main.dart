@@ -11,6 +11,8 @@ import 'package:puked/services/pocketbase_service.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/metadata_sync_service.dart';
 import 'package:puked/services/media_key_service.dart'; // 新增
+import 'package:puked/services/logo_cache_service.dart'; // Logo 缓存服务
+import 'package:puked/services/update_service.dart'; // 更新服务
 import 'package:puked/features/arena/providers/arena_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -43,9 +45,28 @@ void main() async {
   // 将耗时的初始化移到后台执行，避免阻塞 iOS 渲染
   Future.microtask(() async {
     try {
+      // 清理可能卡住的下载状态
+      await UpdateService.cleanupStaleDownloadState();
+      
       await container.read(storageServiceProvider).init();
+      
       // 启动后尝试同步元数据
       await container.read(metadataSyncServiceProvider).syncBrandsFromCloud();
+      
+      // 【新增】Logo 预加载：首次启动或版本更新时下载所有 Logo 到缓存
+      final logoCache = container.read(logoCacheServiceProvider);
+      if (logoCache.needsPreload) {
+        debugPrint('[Main] 开始预加载 Logo 缓存...');
+        await logoCache.preloadLogos(
+          onProgress: (current, total, brandName) {
+            debugPrint('[Main] Logo 预加载进度: $current/$total ($brandName)');
+          },
+        );
+        debugPrint('[Main] Logo 预加载完成！');
+      } else {
+        debugPrint('[Main] Logo 缓存已是最新，跳过预加载');
+      }
+      
       // 主动触发一次 Arena 统计快照加载
       await container.read(arenaStatsProvider.notifier).refresh();
     } catch (e) {

@@ -112,45 +112,66 @@ class TripAccelerationChart extends StatelessWidget {
 
   List<double> _calculateAcceleration() {
     final List<double> results = [];
-    if (trajectory.length < 2) return results;
+    if (trajectory.isEmpty) return results;
 
-    for (int i = 1; i < trajectory.length; i++) {
-      final p1 = trajectory[i - 1];
-      final p2 = trajectory[i];
+    // 优先使用传感器数据，如果没有则回退到GPS计算
+    bool hasSensorData = trajectory.any((p) => 
+      (isLongitudinal && p.ay != null) || (!isLongitudinal && p.ax != null));
 
-      final dt = p2.timestamp.difference(p1.timestamp).inMilliseconds / 1000.0;
-      if (dt <= 0) continue;
-
-      if (isLongitudinal) {
-        // 纵向加速度: delta(v) / delta(t)
-        final dv = p2.speed - p1.speed;
-        double acc = dv / dt;
-        acc = acc.clamp(-10.0, 10.0);
-        results.add(acc);
-      } else {
-        // 横向加速度估算: v * omega
-        final heading1 = _calculateHeading(p1, p2);
-
-        if (i < trajectory.length - 1) {
-          final p3 = trajectory[i + 1];
-          final heading2 = _calculateHeading(p2, p3);
-
-          double dTheta = heading2 - heading1;
-          if (dTheta > pi) dTheta -= 2 * pi;
-          if (dTheta < -pi) dTheta += 2 * pi;
-
-          final avgSpeed = (p1.speed + p2.speed) / 2.0;
-          double latAcc = avgSpeed * (dTheta / dt);
-
-          latAcc = latAcc.clamp(-5.0, 5.0);
-          results.add(latAcc);
+    if (hasSensorData) {
+      // 使用传感器记录的加速度数据（已经是m/s²）
+      for (final point in trajectory) {
+        if (isLongitudinal) {
+          final ay = point.ay ?? 0.0;
+          results.add(ay.clamp(-10.0, 10.0));
         } else {
-          if (results.isNotEmpty) results.add(results.last);
+          final ax = point.ax ?? 0.0;
+          results.add(ax.clamp(-10.0, 10.0));
         }
       }
+    } else {
+      // 回退到GPS速度计算（兼容旧数据）
+      if (trajectory.length < 2) return results;
+
+      for (int i = 1; i < trajectory.length; i++) {
+        final p1 = trajectory[i - 1];
+        final p2 = trajectory[i];
+
+        final dt = p2.timestamp.difference(p1.timestamp).inMilliseconds / 1000.0;
+        if (dt <= 0) continue;
+
+        if (isLongitudinal) {
+          // 纵向加速度: delta(v) / delta(t)
+          final dv = p2.speed - p1.speed;
+          double acc = dv / dt;
+          acc = acc.clamp(-10.0, 10.0);
+          results.add(acc);
+        } else {
+          // 横向加速度估算: v * omega
+          final heading1 = _calculateHeading(p1, p2);
+
+          if (i < trajectory.length - 1) {
+            final p3 = trajectory[i + 1];
+            final heading2 = _calculateHeading(p2, p3);
+
+            double dTheta = heading2 - heading1;
+            if (dTheta > pi) dTheta -= 2 * pi;
+            if (dTheta < -pi) dTheta += 2 * pi;
+
+            final avgSpeed = (p1.speed + p2.speed) / 2.0;
+            double latAcc = avgSpeed * (dTheta / dt);
+
+            latAcc = latAcc.clamp(-5.0, 5.0);
+            results.add(latAcc);
+          } else {
+            if (results.isNotEmpty) results.add(results.last);
+          }
+        }
+      }
+
+      if (results.length == 1) results.add(results.first);
     }
 
-    if (results.length == 1) results.add(results.first);
     return results;
   }
 

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="external_files" path="."/>
-    <external-cache-path name="external_cache_files" path="."/>
-    <files-path name="files" path="."/>
-    <cache-path name="cache" path="."/>
+    <!-- 兼容 ota_update 插件默认路径（根缓存目录） -->
+    <cache-path name="apk_cache" path="."/>
+    <external-cache-path name="apk_external_cache" path="."/>
+    <!-- 备用：专门的 APK 下载子目录 -->
+    <cache-path name="apk_downloads" path="apk_downloads/"/>
+    <external-cache-path name="apk_downloads_external" path="apk_downloads/"/>
 </paths>
 

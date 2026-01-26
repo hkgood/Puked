@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/services/pocketbase_service.dart';
+import 'package:puked/services/user_session_manager.dart';
 
 final settingsProvider =
     StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
@@ -65,6 +66,8 @@ class SettingsState {
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final Ref _ref;
+  String? _lastLoadedUserId; // 追踪上次加载设置的用户ID
+  
   SettingsNotifier(this._ref)
       : super(SettingsState(
           themeMode: ThemeMode.system,
@@ -72,11 +75,23 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         )) {
     _loadSettings();
 
-    // 监听登录状态变化，自动刷新设置
-    _ref.listen(authProvider, (previous, next) {
-      if (next.isAuthenticated && next.user != null) {
-        // 只要用户对象发生变化（如刷新成功），就重新加载设置以覆盖本地缓存
-        _loadSettings();
+    // 🔥 监听会话变更，而非直接监听authProvider
+    // 这样可以避免在数据刷新时重复加载设置
+    _ref.read(userSessionManagerProvider).sessionChanges.listen((event) {
+      debugPrint('[Settings] Session event: $event');
+      
+      switch (event.type) {
+        case SessionEventType.started:
+        case SessionEventType.restored:
+          // 新用户登录或会话恢复 - 加载该用户的设置
+          _loadSettings();
+          break;
+          
+        case SessionEventType.logout:
+        case SessionEventType.switched:
+          // 用户退出或切换 - 清理旧用户的设置
+          _clearUserSpecificSettings();
+          break;
       }
     });
   }
@@ -101,6 +116,17 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final auth = _ref.read(authProvider);
+    final currentUserId = auth.user?.id;
+
+    // 🔥 防止重复加载：如果是同一个用户，且设置未改变，跳过
+    if (_lastLoadedUserId == currentUserId && currentUserId != null) {
+      debugPrint('[Settings] Skipping redundant load for user: $currentUserId');
+      return;
+    }
+
+    debugPrint('[Settings] Loading settings for user: ${currentUserId ?? "guest"}');
+    _lastLoadedUserId = currentUserId;
 
     // 加载首次启动标志，默认 true
     final isFirstLaunch = prefs.getBool(_firstLaunchKey) ?? true;
@@ -133,8 +159,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     String? softwareVersionRef = prefs.getString(_softwareVersionRefKey);
 
     // 如果已登录，优先从账号信息加载
-    final auth = _ref.read(authProvider);
-    if (auth.isAuthenticated) {
+    if (auth.isAuthenticated && currentUserId != null) {
       String? cloudBrand = auth.user?.getStringValue('brand');
       String? cloudBrandRef = auth.user?.getStringValue('brand_ref');
       String? cloudCarModel = auth.user?.getStringValue('car_model');
@@ -203,6 +228,30 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       isEventSoundEnabled: isEventSoundEnabled,
       isHighFrameRateEnabled: isHighFrameRateEnabled,
     );
+  }
+
+  /// 清理用户特定的设置（退出登录或切换账号时调用）
+  Future<void> _clearUserSpecificSettings() async {
+    debugPrint('[Settings] Clearing user-specific settings');
+    
+    _lastLoadedUserId = null;
+    
+    // 只清空与用户关联的车辆信息，保留主题、语言等全局设置
+    state = state.copyWith(
+      brand: null,
+      brandRef: null,
+      carModel: null,
+      softwareVersion: null,
+      softwareVersionRef: null,
+    );
+    
+    // 同步清理本地缓存
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_brandKey);
+    await prefs.remove(_brandRefKey);
+    await prefs.remove(_carModelKey);
+    await prefs.remove(_softwareVersionKey);
+    await prefs.remove(_softwareVersionRefKey);
   }
 
   Future<void> setHighFrameRateEnabled(bool enabled) async {

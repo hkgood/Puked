@@ -98,5 +98,5 @@ final presetVersionsProvider =
     FutureProvider.family<List<SoftwareVersion>, String>(
         (ref, brandName) async {
   final storage = ref.read(storageServiceProvider);
-  return await storage.getVersionsForBrand(brandName);
+  return await storage.getVersionsForBrandName(brandName);
 });

@@ -14,6 +14,8 @@ import 'package:puked/services/pocketbase_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path/path.dart' as path;
 
 class VehicleInfoScreen extends ConsumerStatefulWidget {
   final int? tripId;
@@ -141,10 +143,85 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       }
 
       if (_selectedImages.length < 3) {
-        setState(() {
-          _selectedImages.add(image);
-        });
+        // 【核心优化】在添加到列表前先压缩图片
+        final compressedImage = await _compressImage(image);
+        if (compressedImage != null) {
+          setState(() {
+            _selectedImages.add(compressedImage);
+          });
+        }
       }
+    }
+  }
+
+  /// 图片压缩函数：长边2000px，短边自适应，保持原格式和文件名
+  Future<XFile?> _compressImage(XFile originalImage) async {
+    try {
+      final originalFile = File(originalImage.path);
+      final originalBytes = await originalFile.readAsBytes();
+      
+      // 解码图片以获取原始尺寸
+      final decodedImage = await decodeImageFromList(originalBytes);
+      final originalWidth = decodedImage.width;
+      final originalHeight = decodedImage.height;
+
+      // 判断是否需要压缩
+      final longerSide = originalWidth > originalHeight ? originalWidth : originalHeight;
+      if (longerSide <= 2000) {
+        // 尺寸已满足要求，仅做质量压缩
+        final ext = path.extension(originalImage.path).toLowerCase();
+        final isJpg = ext == '.jpg' || ext == '.jpeg';
+        
+        final compressedBytes = await FlutterImageCompress.compressWithFile(
+          originalImage.path,
+          quality: isJpg ? 90 : 100, // JPG压缩90%，PNG保持100%
+        );
+
+        if (compressedBytes == null) return originalImage;
+
+        // 创建临时文件
+        final tempDir = Directory.systemTemp;
+        final fileName = path.basename(originalImage.path);
+        final compressedFile = File('${tempDir.path}/$fileName');
+        await compressedFile.writeAsBytes(compressedBytes);
+
+        return XFile(compressedFile.path);
+      }
+
+      // 计算目标尺寸（长边2000px，短边自适应）
+      int targetWidth, targetHeight;
+      if (originalWidth > originalHeight) {
+        targetWidth = 2000;
+        targetHeight = (originalHeight * 2000 / originalWidth).round();
+      } else {
+        targetHeight = 2000;
+        targetWidth = (originalWidth * 2000 / originalHeight).round();
+      }
+
+      // 执行压缩
+      final ext = path.extension(originalImage.path).toLowerCase();
+      final isJpg = ext == '.jpg' || ext == '.jpeg';
+
+      final compressedBytes = await FlutterImageCompress.compressWithFile(
+        originalImage.path,
+        minWidth: targetWidth,
+        minHeight: targetHeight,
+        quality: isJpg ? 90 : 100,
+      );
+
+      if (compressedBytes == null) return originalImage;
+
+      // 创建临时文件，保持原文件名
+      final tempDir = Directory.systemTemp;
+      final fileName = path.basename(originalImage.path);
+      final compressedFile = File('${tempDir.path}/$fileName');
+      await compressedFile.writeAsBytes(compressedBytes);
+
+      debugPrint('[VehicleInfo] 图片压缩成功: ${originalWidth}x${originalHeight} -> ${targetWidth}x${targetHeight}');
+      return XFile(compressedFile.path);
+    } catch (e) {
+      debugPrint('[VehicleInfo] 图片压缩失败: $e');
+      return originalImage; // 失败则返回原图
     }
   }
 

@@ -41,6 +41,17 @@ class ExportService {
       }
 
       debugPrint("DEBUG: [ExportService] Preparing data map...");
+      
+      // 🔍 DEBUG: 检查轨迹点数量和传感器数据
+      debugPrint("DEBUG: [ExportService] Total trajectory points: ${trip.trajectory.length}");
+      int pointsWithSensorData = 0;
+      for (var p in trip.trajectory) {
+        if (p.ax != null || p.ay != null || p.az != null) {
+          pointsWithSensorData++;
+        }
+      }
+      debugPrint("DEBUG: [ExportService] Points with sensor data: $pointsWithSensorData / ${trip.trajectory.length}");
+      
       // ... 原有 exportData 构建逻辑 ...
       final Map<String, dynamic> exportData = {
         "version": "1.0.0",

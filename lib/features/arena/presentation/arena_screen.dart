@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/common/widgets/brand_selection.dart';
 import '../providers/arena_provider.dart';
@@ -59,65 +60,69 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
         bottom: false,
         child: statsAsync.when(
           skipLoadingOnReload: true,
-          loading: () => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary),
+          // ✅ loading 时：如果有旧数据就显示旧数据，否则显示加载动画
+          loading: () => statsAsync.hasValue
+              ? _buildArenaContent(arena, i18n)
+              : Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Theme.of(context).colorScheme.primary),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                      Text(
+                        i18n.t('syncing'),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        i18n.t('fetching_arena_data'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        i18n.t('arena_mileage_requirement'),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.5),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  i18n.t('syncing'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  i18n.t('fetching_arena_data'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  i18n.t('arena_mileage_requirement'),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.5),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // ✅ error 时：优先显示旧数据
           error: (err, stack) => statsAsync.hasValue
               ? _buildArenaContent(arena, i18n)
               : ListView(
@@ -149,6 +154,10 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   }
 
   Widget _buildArenaContent(ArenaService arena, dynamic i18n) {
+    // 检查是否正在后台刷新
+    final statsAsync = ref.watch(arenaStatsProvider);
+    final isRefreshing = statsAsync.isLoading && statsAsync.hasValue;
+
     return arena.stats.isEmpty
         ? ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -174,45 +183,86 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
           )
         : RefreshIndicator(
             onRefresh: _onRefresh,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-              child: Column(
-                children: [
-                  _buildCard1(arena, i18n),
-                  const SizedBox(height: 16),
-                  _buildScenarioRankingCard(arena, i18n),
-                  const SizedBox(height: 16),
-                  _buildUserLeaderboardCard(arena, i18n),
-                  const SizedBox(height: 16),
-                  _buildTotalMileageCard(arena, i18n),
-                  const SizedBox(height: 16),
-                  _buildCard2(arena, i18n),
-                  const SizedBox(height: 16),
-                  _buildCard3(arena, i18n),
-                  const SizedBox(height: 32),
-                  // 底部提示文字
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        i18n.t('arena_mileage_requirement').toUpperCase(),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outline
-                              .withValues(alpha: 0.5),
-                          letterSpacing: 1.2,
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  child: Column(
+                    children: [
+                      // ✅ 后台刷新提示（不显眼）
+                      if (isRefreshing)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Theme.of(context).colorScheme.primary),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                i18n.t('syncing'),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      _buildCard1(arena, i18n),
+                      const SizedBox(height: 16),
+                      _buildScenarioRankingCard(arena, i18n),
+                      const SizedBox(height: 16),
+                      _buildUserLeaderboardCard(arena, i18n),
+                      const SizedBox(height: 16),
+                      _buildTotalMileageCard(arena, i18n),
+                      const SizedBox(height: 16),
+                      _buildCard2(arena, i18n),
+                      const SizedBox(height: 16),
+                      _buildCard3(arena, i18n),
+                      const SizedBox(height: 32),
+                      // 底部提示文字
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            i18n.t('arena_mileage_requirement').toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outline
+                                  .withValues(alpha: 0.5),
+                              letterSpacing: 1.2,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+                ),
+              ],
             ),
           );
   }
@@ -350,9 +400,10 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                               .colorScheme
                               .primaryContainer, // 使用容器背景色
                           shape: BoxShape.circle,
+                          // 核心修复：使用 CachedNetworkImageProvider 缓存头像
                           image: item.avatarUrl != null
                               ? DecorationImage(
-                                  image: NetworkImage(item.avatarUrl!),
+                                  image: CachedNetworkImageProvider(item.avatarUrl!),
                                   fit: BoxFit.cover,
                                 )
                               : null,

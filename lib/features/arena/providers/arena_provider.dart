@@ -10,6 +10,7 @@ import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/cloud_trip_service.dart';
 import 'package:puked/services/pocketbase_service.dart';
 import 'package:puked/services/metadata_sync_service.dart';
+import 'package:puked/services/user_session_manager.dart';
 import 'package:puked/models/db_models.dart';
 import '../models/arena_data.dart';
 
@@ -37,6 +38,29 @@ class ArenaStatsNotifier
 
   ArenaStatsNotifier(this.ref) : super(const AsyncValue.loading()) {
     _init();
+    
+    // 🔥 监听会话变更，在账号切换时清理缓存
+    ref.read(userSessionManagerProvider).sessionChanges.listen((event) {
+      debugPrint('[Arena] Session event: $event');
+      
+      switch (event.type) {
+        case SessionEventType.logout:
+        case SessionEventType.switched:
+          // 账号切换或退出 - 清理缓存
+          _clearCache();
+          state = const AsyncValue.loading();
+          break;
+          
+        case SessionEventType.started:
+          // 新账号登录 - 加载该账号的数据
+          refresh(force: false, isSilent: false);
+          break;
+          
+        case SessionEventType.restored:
+          // 会话恢复 - 已在 _init 中处理
+          break;
+      }
+    });
   }
 
   Future<void> _init() async {
@@ -106,6 +130,17 @@ class ArenaStatsNotifier
     }
   }
 
+  /// 清理缓存（账号切换时调用）
+  Future<void> _clearCache() async {
+    debugPrint('[Arena] Clearing stats cache');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_cacheKey);
+    } catch (e) {
+      debugPrint('[Arena] Failed to clear cache: $e');
+    }
+  }
+
   Future<void> refresh({bool force = false, bool isSilent = false}) async {
     // 核心防御：只有当真正的网络任务在运行时才跳过
     if (_isRefreshing && !force) {
@@ -119,10 +154,12 @@ class ArenaStatsNotifier
 
     _isRefreshing = true;
 
-    // 如果不是静默刷新，或者当前完全没数据，则显示加载状态
-    if (!isSilent || !state.hasValue) {
-      state = AsyncLoading<Map<String, dynamic>>().copyWithPrevious(state);
+    // ✅ 优化：只在完全没有数据时才显示 loading 状态
+    // 如果已有数据，直接在后台刷新，保持旧数据显示，避免空白页面
+    if (!state.hasValue) {
+      state = const AsyncLoading<Map<String, dynamic>>();
     }
+    // 如果有数据，不改变 state，保持旧数据显示
 
     try {
       final cloudService = ref.read(cloudTripServiceProvider);
@@ -142,20 +179,27 @@ class ArenaStatsNotifier
 
       final stats = await cloudService.fetchArenaStats();
 
-      // 保存到本地缓存
-      await _saveCache(stats);
+      // ✅ 只有成功获取数据后，才更新 state 和缓存
+      if (stats.isNotEmpty) {
+        await _saveCache(stats);
+        state = AsyncValue.data(stats);
+        debugPrint('[Arena] Refresh success - new data applied.');
+      } else {
+        debugPrint('[Arena] Refresh returned empty data - keeping old cache.');
+      }
 
       _isRefreshing = false;
-      state = AsyncValue.data(stats);
-      debugPrint('[Arena] Refresh success.');
     } catch (e, stack) {
       _isRefreshing = false;
       debugPrint('[Arena] Error in refresh: $e');
-      // 出错时，如果有旧数据，则保留旧数据并打日志，不显示大报错界面
+      
+      // ✅ 出错时，保留旧数据，不显示错误界面
       if (state.hasValue) {
-        debugPrint('[Arena] Keeping stale data due to error.');
-        state = AsyncValue.data(state.value!);
+        debugPrint('[Arena] Network error - keeping stale data for display.');
+        // 不改变 state，继续显示旧数据
       } else {
+        // 完全没有数据时才显示错误
+        debugPrint('[Arena] No cached data available - showing error.');
         state = AsyncValue.error(e, stack);
       }
     }
@@ -175,12 +219,12 @@ final arenaProvider = Provider((ref) {
       loading: () => <SoftwareVersion>[],
       error: (_, __) => <SoftwareVersion>[]);
 
-  // 监听原始统计数据 (从 trip_stats_summary 获取)
+  // ✅ 监听原始统计数据 - 关键优化：loading 和 error 时保留旧值
   final statsAsync = ref.watch(arenaStatsProvider);
   final rawStats = statsAsync.when(
       data: (d) => d,
-      loading: () => <String, dynamic>{},
-      error: (_, __) => <String, dynamic>{});
+      loading: () => statsAsync.valueOrNull ?? <String, dynamic>{}, // 保留旧数据
+      error: (_, __) => statsAsync.valueOrNull ?? <String, dynamic>{}); // 保留旧数据
 
   return ArenaService(ref, brands, versions, rawStats);
 });
@@ -236,9 +280,7 @@ class ArenaService {
       final lowerName = brandName.toLowerCase();
       if (brandMap.containsKey(lowerName)) {
         final local = brandMap[lowerName]!;
-        // 核心修复：如果在统计数据中发现了该品牌，强制将其设为启用，确保 UI 显示
-        local.isEnabled = true;
-
+        // 只有当本地已启用该品牌时，才更新其云端信息
         if (local.logoUrl == null || local.logoUrl!.isEmpty) {
           local.logoUrl = cloudLogoUrl;
         }
@@ -246,18 +288,11 @@ class ArenaService {
           local.cloudId = brandRecord.id;
         }
       } else {
-        // 如果本地没有，但在统计数据中有记录，说明该品牌有历史数据，强制显示
-        final newBrand = Brand()
-          ..name = brandName
-          ..displayName = brandName
-          ..cloudId = brandRecord.id
-          ..logoUrl = cloudLogoUrl
-          ..isEnabled = true;
-        brandMap[lowerName] = newBrand;
+        // 如果本地没有该品牌，不再强制创建并显示，除非未来通过设置开启
       }
     }
 
-    // 2. 最终过滤：只显示已启用的品牌 (或者统计数据中强制发现的)
+    // 2. 最终过滤：只显示已启用的品牌 (遵守用户在设置中的选择)
     final result = brandMap.values.where((b) => b.isEnabled).toList();
 
     result.sort((a, b) {

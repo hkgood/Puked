@@ -41,7 +41,7 @@ class SensorWaveform extends StatelessWidget {
                     )),
                 if (showAxes && data.isNotEmpty)
                   Text(
-                    "${data.last.toStringAsFixed(2)}G",
+                    "${(data.last / 9.80665).toStringAsFixed(2)}G",
                     style: TextStyle(
                       color: color,
                       fontSize: 10,

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/features/recording/providers/vehicle_provider.dart';
+import 'package:puked/services/logo_cache_service.dart';
+import 'dart:io';
 
 class BrandLogo extends ConsumerWidget {
   final String? brandName;
@@ -14,25 +16,28 @@ class BrandLogo extends ConsumerWidget {
 
   // 内置已知有本地 SVG 的品牌列表，避免盲目尝试加载不存在的资源
   static const Set<String> _localBrands = {
-    'Tesla',
-    'Xpeng',
-    'LiAuto',
-    'Nio',
-    'Xiaomi',
-    'Huawei',
-    'Zeekr',
-    'Onvo',
     'ApolloGo',
-    'PONYai',
-    'WeRide',
-    'Waymo',
-    'Zoox',
-    'Wayve',
-    'Momenta',
-    'Nvidia',
-    'Horizon',
     'Deeproute',
-    'Leapmotor'
+    'Horizon',
+    'Huawei',
+    'Leapmotor',
+    'LiAuto',
+    'Momenta',
+    'Nio',
+    'Nvidia',
+    'Onvo',
+    'PONYai',
+    'Tesla',
+    'Waymo',
+    'Wayve',
+    'WeRide',
+    'Xiaomi',
+    'Xpeng',
+    'Zeekr',
+    'Zoox',
+    'lynk&co',
+    'others',
+    'zyt',
   };
 
   const BrandLogo({
@@ -103,14 +108,42 @@ class BrandLogo extends ConsumerWidget {
         Widget buildIcon() {
           // 1. 优先使用传入的覆盖 URL (最高优先级，解决云端同步一致性)
           if (overrideLogoUrl != null && overrideLogoUrl!.isNotEmpty) {
-            return SvgPicture.network(
-              overrideLogoUrl!,
-              fit: BoxFit.contain,
-              colorFilter: effectiveColor != null
-                  ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
-                  : null,
-              placeholderBuilder: (context) =>
-                  _buildFallback(context, isInfinity ? null : size),
+            // 尝试从缓存加载，如果缓存未命中再从网络加载
+            return FutureBuilder<String?>(
+              future: ref.read(logoCacheServiceProvider).getCachedLogoPath(brand.name),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  // 从缓存加载（File 或 Asset）
+                  final cachedPath = snapshot.data!;
+                  if (cachedPath.startsWith('assets/')) {
+                    return SvgPicture.asset(
+                      cachedPath,
+                      fit: BoxFit.contain,
+                      colorFilter: effectiveColor != null
+                          ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                          : null,
+                    );
+                  } else {
+                    return SvgPicture.file(
+                      File(cachedPath),
+                      fit: BoxFit.contain,
+                      colorFilter: effectiveColor != null
+                          ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                          : null,
+                    );
+                  }
+                }
+                // 缓存未命中，从网络加载
+                return SvgPicture.network(
+                  overrideLogoUrl!,
+                  fit: BoxFit.contain,
+                  colorFilter: effectiveColor != null
+                      ? ColorFilter.mode(effectiveColor, BlendMode.srcIn)
+                      : null,
+                  placeholderBuilder: (context) =>
+                      _buildFallback(context, isInfinity ? null : size),
+                );
+              },
             );
           }
 

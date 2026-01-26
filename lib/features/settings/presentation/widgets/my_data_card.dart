@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/settings/providers/my_stats_provider.dart';
@@ -14,6 +15,9 @@ import 'package:puked/common/theme/app_theme.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 
 class MyDataCard extends ConsumerStatefulWidget {
   const MyDataCard({super.key});
@@ -24,6 +28,164 @@ class MyDataCard extends ConsumerStatefulWidget {
 
 class _MyDataCardState extends ConsumerState<MyDataCard> {
   final ScreenshotController _screenshotController = ScreenshotController();
+  bool _isCompressing = false; // 批量压缩状态标记
+
+  /// 批量压缩数据库中所有用户的车辆认证图片
+  Future<void> _compressAllCertificationImages() async {
+    if (_isCompressing) return;
+
+    final auth = ref.read(authProvider);
+    final pb = ref.read(pbServiceProvider).pb;
+    
+    // 确认对话框
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('批量压缩认证图片'),
+        content: const Text(
+          '此操作将压缩所有用户的车辆认证图片（长边>2000px），处理时间较长，确认执行？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isCompressing = true);
+
+    try {
+      // 获取所有用户
+      final usersRecords = await pb.collection('users').getFullList(
+        sort: '-created',
+      );
+
+      int totalProcessed = 0;
+      int totalCompressed = 0;
+      int totalSkipped = 0;
+      int totalFailed = 0;
+
+      for (final user in usersRecords) {
+        final certImages = user.getListValue<String>('certification_images');
+        if (certImages.isEmpty) continue;
+
+        for (final imageFileName in certImages) {
+          totalProcessed++;
+          
+          try {
+            // 1. 下载原图
+            final imageUrl = pb.files.getUrl(user, imageFileName).toString();
+            final response = await http.get(Uri.parse(imageUrl));
+            if (response.statusCode != 200) {
+              debugPrint('[压缩] 下载失败: $imageFileName');
+              totalFailed++;
+              continue;
+            }
+
+            final originalBytes = response.bodyBytes;
+            
+            // 2. 检测尺寸
+            final decodedImage = await decodeImageFromList(originalBytes);
+            final width = decodedImage.width;
+            final height = decodedImage.height;
+            final longerSide = width > height ? width : height;
+
+            // 3. 跳过已满足条件的图片
+            if (longerSide <= 2000) {
+              debugPrint('[压缩] 跳过: $imageFileName (${width}x$height)');
+              totalSkipped++;
+              continue;
+            }
+
+            // 4. 执行压缩
+            final tempDir = await getTemporaryDirectory();
+            final originalFile = File('${tempDir.path}/$imageFileName');
+            await originalFile.writeAsBytes(originalBytes);
+
+            int targetWidth, targetHeight;
+            if (width > height) {
+              targetWidth = 2000;
+              targetHeight = (height * 2000 / width).round();
+            } else {
+              targetHeight = 2000;
+              targetWidth = (width * 2000 / height).round();
+            }
+
+            final ext = path.extension(imageFileName).toLowerCase();
+            final isJpg = ext == '.jpg' || ext == '.jpeg';
+
+            final compressedBytes = await FlutterImageCompress.compressWithFile(
+              originalFile.path,
+              minWidth: targetWidth,
+              minHeight: targetHeight,
+              quality: isJpg ? 90 : 100,
+            );
+
+            if (compressedBytes == null) {
+              totalFailed++;
+              continue;
+            }
+
+            // 5. 重新上传（覆盖原文件）
+            final compressedFile = File('${tempDir.path}/compressed_$imageFileName');
+            await compressedFile.writeAsBytes(compressedBytes);
+
+            final multipartFile = await http.MultipartFile.fromPath(
+              'certification_images',
+              compressedFile.path,
+              filename: imageFileName, // 保持原文件名
+            );
+
+            await pb.collection('users').update(
+              user.id,
+              files: [multipartFile],
+            );
+
+            totalCompressed++;
+            debugPrint('[压缩] 成功: $imageFileName (${width}x$height -> ${targetWidth}x$targetHeight)');
+
+            // 清理临时文件
+            await originalFile.delete();
+            await compressedFile.delete();
+          } catch (e) {
+            debugPrint('[压缩] 处理失败 $imageFileName: $e');
+            totalFailed++;
+          }
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '压缩完成！处理: $totalProcessed 张，压缩: $totalCompressed 张，跳过: $totalSkipped 张，失败: $totalFailed 张',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('批量压缩失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCompressing = false);
+    }
+  }
 
   Future<void> _shareStatsCard(
       MyStats stats, I18n i18n, Rect? sharePositionOrigin) async {
@@ -131,8 +293,9 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                               backgroundColor: Theme.of(context)
                                   .colorScheme
                                   .primaryContainer, // 添加背景色
+                              // 核心修复：使用 CachedNetworkImageProvider 缓存头像
                               backgroundImage: pb.currentAvatarUrl != null
-                                  ? NetworkImage(pb.currentAvatarUrl!)
+                                  ? CachedNetworkImageProvider(pb.currentAvatarUrl!)
                                   : null,
                               child: pb.currentAvatarUrl == null
                                   ? Icon(
@@ -398,6 +561,23 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                   ),
                 ),
                 const Spacer(),
+                // 【新增】图片压缩按钮 (仅SuperUser可见)
+                if (ref.watch(authProvider).isSuperUser)
+                  IconButton(
+                    icon: _isCompressing
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colorScheme.primary,
+                            ),
+                          )
+                        : Icon(Icons.image_outlined,
+                            size: 20, color: colorScheme.primary),
+                    onPressed: _isCompressing ? null : _compressAllCertificationImages,
+                    tooltip: '压缩认证图片',
+                  ),
                 // 刷新按钮 (直接失效缓存，强制重新拉取 user_stats)
                 IconButton(
                   icon: Icon(Icons.refresh_rounded,
@@ -624,24 +804,53 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     final sortedEntries = stats.brandDistribution.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return sortedEntries.map((entry) {
+    // 核心修复：智能防碰撞布局算法
+    // 根据品牌数量和扇区大小，动态调整 Logo 距离
+    final brandCount = sortedEntries.length;
+    double currentAngle = 0.0; // 累积角度 (用于计算每个 Logo 的位置)
+
+    final sections = <PieChartSectionData>[];
+    
+    for (int i = 0; i < sortedEntries.length; i++) {
+      final entry = sortedEntries[i];
       final color = chartColors[colorIndex % chartColors.length];
       colorIndex++;
 
       final percentage = entry.value / total;
+      final angleSize = percentage * 360; // 该扇区的角度大小
 
-      return PieChartSectionData(
+      // 防碰撞策略：
+      // 1. 小扇区(<10%): 使用更大的距离避让 (1.8)
+      // 2. 中扇区(10%-20%): 中等距离 (1.5)
+      // 3. 大扇区(>20%): 正常距离 (1.3)
+      // 4. 品牌数量多时(>5个): 整体增加距离，使用分层布局
+      double badgeDistance;
+      if (brandCount > 5) {
+        // 品牌多时: 奇偶分层布局，避免集中碰撞
+        badgeDistance = (i % 2 == 0) ? 1.5 : 1.9;
+      } else if (percentage < 0.1) {
+        badgeDistance = 1.8;
+      } else if (percentage < 0.2) {
+        badgeDistance = 1.5;
+      } else {
+        badgeDistance = 1.3;
+      }
+
+      sections.add(PieChartSectionData(
         color: color,
         value: entry.value,
         radius: 28,
         showTitle: false,
-        // 移除 5% 的过滤门槛，让所有品牌都显示 badge
         badgeWidget: _buildBrandBadge(
             entry.key, entry.value, AppLocalizations.of(context)!,
             forceLight: forceLight, fontFallback: systemFallback),
-        badgePositionPercentageOffset: 1.4,
-      );
-    }).toList();
+        badgePositionPercentageOffset: badgeDistance,
+      ));
+
+      currentAngle += angleSize;
+    }
+
+    return sections;
   }
 
   Widget _buildBrandBadge(

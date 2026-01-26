@@ -827,7 +827,7 @@ abstract class AppLocalizations {
   /// No description provided for @stop_trip.
   ///
   /// In en, this message translates to:
-  /// **'STOP TRIP'**
+  /// **'LONG PRESS TO STOP'**
   String get stop_trip;
 
   /// No description provided for @calibrating.
@@ -1019,7 +1019,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboarding_step4.
   ///
   /// In en, this message translates to:
-  /// **'Stop the vehicle, tap \'End Trip\' before picking up'**
+  /// **'Stop vehicle, long press \'Long Press to Stop\' button (0.8s) before picking up'**
   String get onboarding_step4;
 
   /// No description provided for @onboarding_step5.
@@ -1525,6 +1525,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Event Details'**
   String get event_list;
+
+  /// No description provided for @event_statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Details'**
+  String get event_statistics;
+
+  /// No description provided for @auto_negative_events.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Detected'**
+  String get auto_negative_events;
+
+  /// No description provided for @manual_marked_events.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Marks'**
+  String get manual_marked_events;
+
+  /// No description provided for @total_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} Total'**
+  String total_count(Object value);
 
   /// No description provided for @min.
   ///
@@ -2161,126 +2185,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Selecting fastest mirror...'**
   String get selecting_best_mirror;
-
-  /// No description provided for @user_management.
-  ///
-  /// In en, this message translates to:
-  /// **'User Management'**
-  String get user_management;
-
-  /// No description provided for @user_management_desc.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage system users and permissions'**
-  String get user_management_desc;
-
-  /// No description provided for @admin_functions.
-  ///
-  /// In en, this message translates to:
-  /// **'Admin Functions'**
-  String get admin_functions;
-
-  /// No description provided for @search_users.
-  ///
-  /// In en, this message translates to:
-  /// **'Search by name or email'**
-  String get search_users;
-
-  /// No description provided for @no_users_found.
-  ///
-  /// In en, this message translates to:
-  /// **'No users found'**
-  String get no_users_found;
-
-  /// No description provided for @no_search_results.
-  ///
-  /// In en, this message translates to:
-  /// **'No search results'**
-  String get no_search_results;
-
-  /// No description provided for @access_denied.
-  ///
-  /// In en, this message translates to:
-  /// **'Access Denied'**
-  String get access_denied;
-
-  /// No description provided for @superuser_only.
-  ///
-  /// In en, this message translates to:
-  /// **'This feature is only available to super administrators'**
-  String get superuser_only;
-
-  /// No description provided for @user_info.
-  ///
-  /// In en, this message translates to:
-  /// **'User Information'**
-  String get user_info;
-
-  /// No description provided for @permissions.
-  ///
-  /// In en, this message translates to:
-  /// **'Permissions'**
-  String get permissions;
-
-  /// No description provided for @user_id.
-  ///
-  /// In en, this message translates to:
-  /// **'User ID'**
-  String get user_id;
-
-  /// No description provided for @email_verified.
-  ///
-  /// In en, this message translates to:
-  /// **'Email Verified'**
-  String get email_verified;
-
-  /// No description provided for @audit_status.
-  ///
-  /// In en, this message translates to:
-  /// **'Verification Status'**
-  String get audit_status;
-
-  /// No description provided for @pro_status.
-  ///
-  /// In en, this message translates to:
-  /// **'Pro User'**
-  String get pro_status;
-
-  /// No description provided for @superuser_status.
-  ///
-  /// In en, this message translates to:
-  /// **'Super Administrator'**
-  String get superuser_status;
-
-  /// No description provided for @kol_permission.
-  ///
-  /// In en, this message translates to:
-  /// **'Expert Permission'**
-  String get kol_permission;
-
-  /// No description provided for @kol_permission_desc.
-  ///
-  /// In en, this message translates to:
-  /// **'When enabled, user can access expert features (voice labeling, high frame rate recording, etc.)'**
-  String get kol_permission_desc;
-
-  /// No description provided for @yes.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes'**
-  String get yes;
-
-  /// No description provided for @no.
-  ///
-  /// In en, this message translates to:
-  /// **'No'**
-  String get no;
-
-  /// No description provided for @update_success.
-  ///
-  /// In en, this message translates to:
-  /// **'Update successful'**
-  String get update_success;
 }
 
 class _AppLocalizationsDelegate

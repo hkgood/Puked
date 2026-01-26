@@ -5,6 +5,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:puked/services/update_service.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/features/auth/presentation/login_screen.dart';
@@ -20,7 +21,6 @@ import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:puked/features/settings/presentation/widgets/my_data_card.dart';
 import 'package:puked/features/arena/providers/arena_provider.dart';
 import 'package:puked/features/settings/presentation/voice_recording_info_screen.dart';
-import 'package:puked/features/admin/presentation/user_management_screen.dart';
 import '../providers/settings_provider.dart';
 
 // 版本信息 Provider
@@ -28,24 +28,45 @@ final packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
   return await PackageInfo.fromPlatform();
 });
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 页面构建时静默刷新用户信息和统计数据
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (ref.read(authProvider).isAuthenticated) {
-        ref.read(authProvider.notifier).refreshUserFromServer();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
 
-        // 核心修复：增加判断，防止死循环。只有在没有值且不在加载时才自动刷新。
-        final stats = ref.read(arenaStatsProvider);
-        if (!stats.hasValue && !stats.isLoading) {
-          ref.read(arenaStatsProvider.notifier).refresh(force: false);
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _hasInitialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // 🔥 只在第一次进入页面时刷新，避免重复触发
+    if (!_hasInitialized) {
+      _hasInitialized = true;
+      
+      // 延迟执行，确保Widget树已构建完成
+      Future.microtask(() {
+        if (!mounted) return;
+        
+        final auth = ref.read(authProvider);
+        if (auth.isAuthenticated) {
+          // 静默刷新用户信息（如果需要）
+          ref.read(authProvider.notifier).refreshUserFromServer();
+          
+          // 检查统计数据是否需要初始化
+          final stats = ref.read(arenaStatsProvider);
+          if (!stats.hasValue && !stats.isLoading) {
+            ref.read(arenaStatsProvider.notifier).refresh(force: false);
+          }
         }
-      }
-    });
+      });
+    }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final auth = ref.watch(authProvider);
     final i18n = ref.watch(i18nProvider);
@@ -90,13 +111,13 @@ class SettingsScreen extends ConsumerWidget {
                               backgroundColor: Theme.of(context)
                                   .colorScheme
                                   .primaryContainer, // 添加背景色
+                              // 核心修复：使用 CachedNetworkImageProvider 缓存头像
                               backgroundImage: ref
                                           .watch(pbServiceProvider)
                                           .currentAvatarUrl !=
                                       null
-                                  ? NetworkImage(ref
-                                      .watch(pbServiceProvider)
-                                      .currentAvatarUrl!)
+                                  ? CachedNetworkImageProvider(
+                                      ref.watch(pbServiceProvider).currentAvatarUrl!)
                                   : null,
                               child: ref
                                           .watch(pbServiceProvider)
@@ -496,35 +517,6 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // 3.5. 管理员功能卡片 (仅 SuperUser 可见)
-              if (auth.isSuperUser) ...[
-                _buildCard(
-                  context,
-                  title: i18n.t('admin_functions'),
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.people,
-                          color: Theme.of(context).colorScheme.primary),
-                      title: Text(i18n.t('user_management'),
-                          style: const TextStyle(fontSize: 14)),
-                      subtitle: Text(
-                        i18n.t('user_management_desc'),
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      trailing: const Icon(Icons.chevron_right, size: 20),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const UserManagementScreen(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-
               // 4. 关于与支持卡片
               _buildCard(
                 context,
@@ -740,9 +732,9 @@ class SettingsScreen extends ConsumerWidget {
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: image.path,
       aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      // 核心优化：限制最大尺寸和压缩质量
-      maxWidth: 512,
-      maxHeight: 512,
+      // 核心优化：限制最大尺寸和压缩质量（头像256x256即可满足显示需求）
+      maxWidth: 256,
+      maxHeight: 256,
       compressFormat: ImageCompressFormat.jpg,
       compressQuality: 85,
       uiSettings: [

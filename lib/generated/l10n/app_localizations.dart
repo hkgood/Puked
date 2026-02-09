@@ -176,6 +176,54 @@ abstract class AppLocalizations {
   /// **'KOL Exclusive: Record 10Hz sensor data for more details'**
   String get high_frame_rate_desc;
 
+  /// No description provided for @video_recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Negative Event Videos (Beta)'**
+  String get video_recording;
+
+  /// No description provided for @video_recording_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Record 5-second video when negative events occur'**
+  String get video_recording_desc;
+
+  /// No description provided for @camera_permission_needed.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera permission needed'**
+  String get camera_permission_needed;
+
+  /// No description provided for @camera_init_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to initialize camera'**
+  String get camera_init_failed;
+
+  /// No description provided for @camera_preview_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get preview'**
+  String get camera_preview_failed;
+
+  /// No description provided for @camera_starting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting camera...'**
+  String get camera_starting;
+
+  /// No description provided for @camera_preview_placeholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera Preview Placeholder'**
+  String get camera_preview_placeholder;
+
+  /// No description provided for @camera_preview_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview requires native implementation\nVideo recording still works normally'**
+  String get camera_preview_hint;
+
   /// No description provided for @current_version.
   ///
   /// In en, this message translates to:
@@ -655,6 +703,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Comfort Top10'**
   String get arena_top10_title;
+
+  /// No description provided for @weekly_comfort_ranking.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly Comfort Ranking'**
+  String get weekly_comfort_ranking;
+
+  /// No description provided for @weekly_comfort_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Best comfort by scenario this week'**
+  String get weekly_comfort_desc;
+
+  /// No description provided for @weekly_mileage_ranking.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly Mileage Ranking'**
+  String get weekly_mileage_ranking;
+
+  /// No description provided for @weekly_mileage_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Total mileage recorded this week'**
+  String get weekly_mileage_desc;
 
   /// No description provided for @arena_total_mileage_title.
   ///
@@ -1993,6 +2065,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Speed (km/h) below which deceleration is downgraded to Jerk'**
   String get low_speed_jerk_limit_hint;
+
+  /// No description provided for @trend_filter_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend Filter'**
+  String get trend_filter_section;
+
+  /// No description provided for @enable_trend_filter_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Trend Filter'**
+  String get enable_trend_filter_label;
+
+  /// No description provided for @enable_trend_filter_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter out gentle decel/accel events before detection (recommended)'**
+  String get enable_trend_filter_hint;
+
+  /// No description provided for @trend_change_threshold_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend Change Threshold'**
+  String get trend_change_threshold_label;
+
+  /// No description provided for @trend_change_threshold_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min threshold for accel difference between first/second half'**
+  String get trend_change_threshold_hint;
+
+  /// No description provided for @min_std_dev_threshold_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Std Dev Threshold (Backup)'**
+  String get min_std_dev_threshold_label;
+
+  /// No description provided for @min_std_dev_threshold_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min Y-axis acceleration standard deviation (auxiliary metric)'**
+  String get min_std_dev_threshold_hint;
+
+  /// No description provided for @min_range_threshold_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Range Threshold (Backup)'**
+  String get min_range_threshold_label;
+
+  /// No description provided for @min_range_threshold_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Min Y-axis acceleration range (auxiliary metric)'**
+  String get min_range_threshold_hint;
 
   /// No description provided for @recording_voice.
   ///

@@ -20,7 +20,7 @@ class AlgorithmToggle extends ConsumerWidget {
     final voiceState = ref.watch(voiceRecordingProvider);
     final l10n = AppLocalizations.of(context)!;
     final auth = ref.watch(authProvider);
-    
+
     // 语音打标功能：仅对通过认证的 Pro 用户开放
     if (!auth.isPro) return const SizedBox.shrink();
 

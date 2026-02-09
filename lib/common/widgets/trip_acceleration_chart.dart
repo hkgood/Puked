@@ -115,8 +115,8 @@ class TripAccelerationChart extends StatelessWidget {
     if (trajectory.isEmpty) return results;
 
     // 优先使用传感器数据，如果没有则回退到GPS计算
-    bool hasSensorData = trajectory.any((p) => 
-      (isLongitudinal && p.ay != null) || (!isLongitudinal && p.ax != null));
+    bool hasSensorData = trajectory.any((p) =>
+        (isLongitudinal && p.ay != null) || (!isLongitudinal && p.ax != null));
 
     if (hasSensorData) {
       // 使用传感器记录的加速度数据（已经是m/s²）
@@ -137,7 +137,8 @@ class TripAccelerationChart extends StatelessWidget {
         final p1 = trajectory[i - 1];
         final p2 = trajectory[i];
 
-        final dt = p2.timestamp.difference(p1.timestamp).inMilliseconds / 1000.0;
+        final dt =
+            p2.timestamp.difference(p1.timestamp).inMilliseconds / 1000.0;
         if (dt <= 0) continue;
 
         if (isLongitudinal) {

@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:puked/common/config/constants.dart';
 import 'package:puked/common/widgets/trip_map_view.dart';
+import 'package:puked/common/widgets/camera_preview_widget.dart';
 import 'package:puked/features/recording/providers/recording_provider.dart';
 import 'package:puked/features/recording/providers/voice_recording_provider.dart';
+import 'package:puked/features/settings/providers/settings_provider.dart';
 import 'package:puked/features/recording/presentation/widgets/gps_status_tag.dart';
 import 'package:puked/features/recording/presentation/widgets/algorithm_toggle.dart';
 import 'package:puked/features/recording/presentation/widgets/stats_capsule.dart';
@@ -77,16 +79,36 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         if (next != null && next.isNotEmpty) {
           final l10n = AppLocalizations.of(context)!;
           final i18n = I18n(l10n);
-          
+
+          debugPrint('[Recording] Received alert message: $next');
+
+          // 清理错误key：移除可能存在的 "Exception: " 前缀（防御性编程）
+          String cleanKey = next.trim();
+          if (cleanKey.toLowerCase().startsWith('exception:')) {
+            cleanKey = cleanKey.substring(cleanKey.indexOf(':') + 1).trim();
+            debugPrint('[Recording] Cleaned to: $cleanKey');
+          }
+
           // 根据错误key翻译成对应语言的错误消息
           String errorMessage;
           try {
-            errorMessage = i18n.t(next);
+            errorMessage = i18n.t(cleanKey);
+            debugPrint('[Recording] Translated message: $errorMessage');
+
+            // 如果翻译返回的还是原始key，说明没有找到翻译
+            if (errorMessage == cleanKey) {
+              debugPrint(
+                  '[Recording] Translation returned same key, using fallback');
+              // 使用通用错误描述
+              errorMessage = l10n.calibration_failed_desc;
+            }
           } catch (e) {
-            // 如果翻译失败，使用原始消息
-            errorMessage = next;
+            // 如果翻译失败，使用通用错误描述
+            debugPrint(
+                '[Recording] Translation error for key: $cleanKey, error: $e');
+            errorMessage = l10n.calibration_failed_desc;
           }
-          
+
           showDialog(
             context: context,
             barrierDismissible: false,
@@ -140,7 +162,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                         ],
                       );
                     } else {
-                      return _buildLandscapeLayout(context, ref, recordingState);
+                      return _buildLandscapeLayout(
+                          context, ref, recordingState);
                     }
                   },
                 ),
@@ -331,6 +354,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       bool isBackground = false,
       Offset centerOffset = Offset.zero}) {
     return LayoutBuilder(builder: (context, constraints) {
+      // 检查是否启用视频录制
+      final settings = ref.watch(settingsProvider);
+      final isVideoEnabled = settings.isVideoRecordingEnabled;
+
       return Stack(
         children: [
           Container(
@@ -351,19 +378,33 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
                   : BorderRadius.circular(AppConstants.defaultBorderRadius),
               child: Consumer(builder: (context, ref, child) {
                 final voiceState = ref.watch(voiceRecordingProvider);
-                return TripMapView(
-                  trajectory: state.trajectory,
-                  events: state.events,
-                  currentPosition: state.currentPosition,
-                  centerOffset: centerOffset,
-                  onLongPress: () {
-                    if (state.isRecording && voiceState.isEnabled) {
-                      ref
-                          .read(voiceRecordingProvider.notifier)
-                          .startRecording();
-                    }
-                  },
-                );
+
+                // 如果启用视频录制，显示摄像头预览；否则显示地图
+                if (isVideoEnabled) {
+                  return CameraPreviewWidget(
+                    onLongPress: () {
+                      if (state.isRecording && voiceState.isEnabled) {
+                        ref
+                            .read(voiceRecordingProvider.notifier)
+                            .startRecording();
+                      }
+                    },
+                  );
+                } else {
+                  return TripMapView(
+                    trajectory: state.trajectory,
+                    events: state.events,
+                    currentPosition: state.currentPosition,
+                    centerOffset: centerOffset,
+                    onLongPress: () {
+                      if (state.isRecording && voiceState.isEnabled) {
+                        ref
+                            .read(voiceRecordingProvider.notifier)
+                            .startRecording();
+                      }
+                    },
+                  );
+                }
               }),
             ),
           ),
@@ -466,8 +507,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         ),
         SafeArea(
           child: Padding(
-            padding:
-                const EdgeInsets.fromLTRB(spacing / 2, spacing, spacing, spacing),
+            padding: const EdgeInsets.fromLTRB(
+                spacing / 2, spacing, spacing, spacing),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -660,7 +701,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             child: RecordingStat(
                 label: l10n.speed,
                 value: l10n.speed_unit(
-                    (state.currentSpeed * AppConstants.msToKmh).toStringAsFixed(0)),
+                    (state.currentSpeed * AppConstants.msToKmh)
+                        .toStringAsFixed(0)),
                 icon: Icons.speed,
                 compact: true),
           ),

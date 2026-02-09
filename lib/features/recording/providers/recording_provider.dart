@@ -25,6 +25,7 @@ import 'package:puked/services/amap_service.dart';
 import 'package:puked/services/location_service.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/algorithm_config_service.dart';
+import 'package:puked/services/video_recording_service.dart';
 import 'package:puked/common/utils/i18n.dart';
 
 // 实时传感器流
@@ -37,6 +38,9 @@ final sensorStreamProvider = StreamProvider<SensorData>((ref) {
 final inertialNavigationEngineProvider =
     Provider<InertialNavigationEngine>((ref) => InertialNavigationEngine());
 final amapServiceProvider = Provider<AmapService>((ref) => AmapService());
+
+// 用于区分"未传参"和"传入null"的哨兵对象
+const _undefined = Object();
 
 class RecordingState {
   final bool isRecording;
@@ -94,7 +98,7 @@ class RecordingState {
     DateTime? lastSensorTime,
     LatLng? lastInsLocation,
     bool? isInsActive,
-    String? alertMessage,
+    Object? alertMessage = _undefined, // 使用哨兵对象来区分"未传参"和"传入null"
   }) {
     return RecordingState(
       isRecording: isRecording ?? this.isRecording,
@@ -113,7 +117,9 @@ class RecordingState {
       lastSensorTime: lastSensorTime ?? this.lastSensorTime,
       lastInsLocation: lastInsLocation ?? this.lastInsLocation,
       isInsActive: isInsActive ?? this.isInsActive,
-      alertMessage: alertMessage ?? this.alertMessage,
+      alertMessage: alertMessage == _undefined
+          ? this.alertMessage
+          : alertMessage as String?, // 允许真正设置为 null
     );
   }
 }
@@ -139,12 +145,25 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
   DateTime? _lastGpsTime;
   DateTime? _recordingStartTime;
-  
+
   // 高帧率记录相关
   DateTime? _lastSensorRecordTime;
-  
+
   // 缓存最新的传感器数据，用于附加到GPS轨迹点
   SensorData? _latestSensorData;
+
+  // ✅ 缓存最后一个有效的GPS位置，用于高频记录时的坐标填充
+  Position? _lastValidGpsPosition;
+
+  // 速度平滑：GPS 作为目标，显示速度为指数平滑向目标收敛（避免 INS 融合导致的跳变）
+  double _targetSpeed = 0.0; // m/s，来自 GPS
+  double _smoothedSpeed = 0.0; // m/s，用于显示的平滑速度
+  DateTime? _lastSpeedUpdate; // 上次更新 _targetSpeed 的时间
+
+  static const double _speedSmoothAlpha = 0.15; // 平滑系数
+  static const double _speedSmoothAlphaFast = 0.3; // 首帧/刚收 GPS 时略大，加快收敛
+  static const double _speedUpdateThreshold = 0.01; // 仅变化超过此值才写 state，减少重建
+  static const double _maxValidSpeedMs = 150.0; // ~540 km/h，过滤异常 GPS
 
   AlgorithmConfig get _config => _ref.read(algorithmConfigProvider);
 
@@ -266,9 +285,11 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       _gpsStabilityCounter = 0;
     }
 
-    bool isGpsTrulyStable = _gpsStabilityCounter >= 3 || position.accuracy < 15.0;
+    bool isGpsTrulyStable =
+        _gpsStabilityCounter >= 3 || position.accuracy < 15.0;
 
-    if (state.isInsActive && !isGpsTrulyStable && position.accuracy > 60.0) return;
+    if (state.isInsActive && !isGpsTrulyStable && position.accuracy > 60.0)
+      return;
 
     bool isInGrace = state.isRecording &&
         _recordingStartTime != null &&
@@ -289,10 +310,24 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       if (dt > 0.1 && (d / dt) > 80.0) return;
     }
 
+    // 速度平滑：仅用 GPS 更新目标速度，不直接写 state.currentSpeed（由 _handleSensorData 平滑更新）
+    final newIsInsActive = !isGpsTrulyStable &&
+        position.accuracy > AppConstants.insTriggerAccuracy;
+    if (state.isInsActive && !newIsInsActive) {
+      _smoothedSpeed = state.currentSpeed; // 退出 INS 时从当前显示速度向新 GPS 收敛
+    }
+    final speedMs = position.speed;
+    if (speedMs.isFinite && speedMs >= 0 && speedMs <= _maxValidSpeedMs) {
+      _targetSpeed = speedMs;
+      if (_lastSpeedUpdate == null) {
+        _smoothedSpeed = _targetSpeed; // 首次 GPS：避免从 0 跳变
+      }
+    }
+    _lastSpeedUpdate = now;
+
     state = state.copyWith(
       currentPosition: position,
-      isInsActive:
-          !isGpsTrulyStable && position.accuracy > AppConstants.insTriggerAccuracy,
+      isInsActive: newIsInsActive,
       isLowConfidenceGPS: position.accuracy > 40.0,
     );
 
@@ -301,6 +336,28 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     _lastLocationTime = now;
     _locationUpdateCount++;
 
+    // ✅ 关键修复：先计算里程，再更新位置变量（避免"先更新后使用"错误）
+    if (state.isRecording && state.currentTrip != null) {
+      if (_lastReliableGpsPosition != null && isReliable) {
+        // 使用【旧的】可靠位置和【新的】当前位置计算距离
+        final d = _locationService.calculateDistance(
+            _lastReliableGpsPosition!.latitude,
+            _lastReliableGpsPosition!.longitude,
+            position.latitude,
+            position.longitude);
+        if (d < 100) {
+          // 过滤异常跳变（>100米）
+          state = state.copyWith(currentDistance: state.currentDistance + d);
+          debugPrint(
+              '📏 [Distance] Updated: ${(state.currentDistance / 1000).toStringAsFixed(3)} km (+${d.toStringAsFixed(1)}m)');
+        } else {
+          debugPrint(
+              '⚠️ [Distance] Rejected abnormal jump: ${d.toStringAsFixed(1)}m');
+        }
+      }
+    }
+
+    // ✅ 里程计算完成后，才更新位置变量
     if (isReliable) {
       _insEngine.observeGPS(
         LatLng(position.latitude, position.longitude),
@@ -308,22 +365,17 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         position.accuracy,
       );
       _lastReliableGpsPosition = position;
+
+      // ✅ 同时更新有效GPS缓存（用于高频传感器记录）
+      if (position.latitude.abs() > 0.001 && position.longitude.abs() > 0.001) {
+        _lastValidGpsPosition = position;
+      }
     }
 
     if (state.isRecording && state.currentTrip != null) {
-      if (_lastLocationTime != null && _lastReliableGpsPosition != null) {
-        final d = _locationService.calculateDistance(
-            _lastReliableGpsPosition!.latitude,
-            _lastReliableGpsPosition!.longitude,
-            position.latitude,
-            position.longitude);
-        if (isReliable && d < 100) {
-          state = state.copyWith(currentDistance: state.currentDistance + d);
-        }
-      }
-
       if (isReliable || isInGrace) {
-        final lastPoint = state.trajectory.isEmpty ? null : state.trajectory.last;
+        final lastPoint =
+            state.trajectory.isEmpty ? null : state.trajectory.last;
         if (lastPoint == null ||
             _locationService.calculateDistance(lastPoint.lat, lastPoint.lng,
                     position.latitude, position.longitude) >
@@ -336,7 +388,7 @@ class RecordingNotifier extends StateNotifier<RecordingState>
             ..speed = position.speed
             ..timestamp = now
             ..isLowConfidence = position.accuracy > 40.0;
-          
+
           // ✅ 1Hz 传感器数据记录：将最新的传感器数据附加到GPS轨迹点
           if (_latestSensorData != null) {
             point.ax = _latestSensorData!.processedAccel.x;
@@ -345,16 +397,22 @@ class RecordingNotifier extends StateNotifier<RecordingState>
             point.gx = _latestSensorData!.processedGyro.x;
             point.gy = _latestSensorData!.processedGyro.y;
             point.gz = _latestSensorData!.processedGyro.z;
-            
+
             debugPrint('🗺️ [1Hz GPS] Trajectory point with sensor data saved');
-            debugPrint('   ax=${point.ax?.toStringAsFixed(3)}, ay=${point.ay?.toStringAsFixed(3)}, az=${point.az?.toStringAsFixed(3)}');
-            debugPrint('   gx=${point.gx?.toStringAsFixed(3)}, gy=${point.gy?.toStringAsFixed(3)}, gz=${point.gz?.toStringAsFixed(3)}');
+            debugPrint(
+                '   ax=${point.ax?.toStringAsFixed(3)}, ay=${point.ay?.toStringAsFixed(3)}, az=${point.az?.toStringAsFixed(3)}');
+            debugPrint(
+                '   gx=${point.gx?.toStringAsFixed(3)}, gy=${point.gy?.toStringAsFixed(3)}, gz=${point.gz?.toStringAsFixed(3)}');
           } else {
-            debugPrint('⚠️ [1Hz GPS] Trajectory point saved WITHOUT sensor data (sensor not ready)');
+            debugPrint(
+                '⚠️ [1Hz GPS] Trajectory point saved WITHOUT sensor data (sensor not ready)');
           }
-          
-          debugPrint('💾 [DB Write] Saving trajectory point to database (ax=${point.ax}, ay=${point.ay})');
-          _storage.addTrajectoryPoint(state.currentTrip!.id, point);
+
+          // ✅ 保存轨迹点时同时更新数据库中的distance字段
+          debugPrint(
+              '💾 [DB Write] Saving trajectory point with distance=${(state.currentDistance / 1000).toStringAsFixed(3)}km');
+          _storage.addTrajectoryPoint(state.currentTrip!.id, point,
+              distance: state.currentDistance / 1000);
           state = state.copyWith(trajectory: [...state.trajectory, point]);
         }
       }
@@ -393,7 +451,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     if (!state.isRecording || state.currentTrip == null) return;
 
     final eventTime = timestamp ?? DateTime.now();
-    final fragment = _engine.getLookbackBuffer(AppConstants.lookbackBufferSeconds,
+    final fragment = _engine.getLookbackBuffer(
+        AppConstants.lookbackBufferSeconds,
         targetHz: AppConstants.targetSensorHz,
         endTime: eventTime);
 
@@ -431,10 +490,30 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     await _storage.saveEvent(state.currentTrip!.id, event);
     state = state.copyWith(events: [...state.events, event]);
 
-    // 播放提示音 (所有来源均遵守设置开关)
+    // 🎥 视频录制：如果启用了视频录制，保存前5秒视频
     final settings = _ref.read(settingsProvider);
+    if (settings.isVideoRecordingEnabled) {
+      final videoService = _ref.read(videoRecordingServiceProvider);
+      final videoPath = await videoService.captureEventVideo(
+        eventId: event.uuid,
+        duration: 5,
+      );
+
+      if (videoPath != null) {
+        debugPrint(
+            '[Recording] 🎥 Video saved for event ${event.uuid}: $videoPath');
+        // TODO: 将视频路径保存到 RecordedEvent 中（需要扩展数据模型）
+        // event.videoPath = videoPath;
+      } else {
+        debugPrint(
+            '[Recording] ⚠️ Failed to save video for event ${event.uuid}');
+      }
+    }
+
+    // 播放提示音 (所有来源均遵守设置开关)
     if (settings.isEventSoundEnabled) {
-      debugPrint('[Recording] 🔊 Playing event sound. Source: $source, Volume: 1.0');
+      debugPrint(
+          '[Recording] 🔊 Playing event sound. Source: $source, Volume: 1.0');
       _audioPlayer.play(
         AssetSource('sound/events.mp3'),
         volume: 1.0, // 统一调大音量
@@ -450,15 +529,34 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     try {
       state = state.copyWith(isCalibrating: true);
       await WakelockPlus.enable();
-      await _engine.calibrate(currentSpeedMs: state.currentPosition?.speed ?? 0.0);
+      await _engine.calibrate(
+          currentSpeedMs: state.currentPosition?.speed ?? 0.0);
       await _storage.init();
       final trip = await _storage.startTrip(
-          carModel: carModel, notes: notes, algorithm: state.algorithmMode.name);
+          carModel: carModel,
+          notes: notes,
+          algorithm: state.algorithmMode.name);
 
+      // ✅ 初始化所有关键时间戳和位置变量
       _recordingStartTime = DateTime.now();
       _lastGpsTime = DateTime.now();
+      _lastLocationTime = DateTime.now();
+      _lastSensorRecordTime = null; // 重置传感器记录时间
       _gpsStabilityCounter = 0;
       _insEngine.reset();
+
+      // ✅ 初始化位置变量，用于里程计算
+      if (state.currentPosition != null) {
+        _lastReliableGpsPosition = state.currentPosition;
+        _lastValidGpsPosition = state.currentPosition;
+      }
+
+      // 速度平滑：新行程从当前 GPS 速度开始，避免上一行程残留
+      final initialSpeed = state.currentPosition?.speed ?? 0.0;
+      _targetSpeed =
+          initialSpeed.isFinite && initialSpeed >= 0 ? initialSpeed : 0.0;
+      _smoothedSpeed = _targetSpeed;
+      _lastSpeedUpdate = DateTime.now();
 
       if (state.currentPosition != null) {
         final startPoint = TrajectoryPoint()
@@ -476,14 +574,42 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           (prev, next) => next.whenData(_handleSensorData),
           fireImmediately: true);
 
+      _engine.setRecording(true);
+
+      // ✅ 初始化行程状态，重置所有计数器
       state = state.copyWith(
-          isRecording: true, isCalibrating: false, currentTrip: trip, events: []);
+        isRecording: true,
+        isCalibrating: false,
+        currentTrip: trip,
+        events: [],
+        currentDistance: 0.0, // 重置里程
+        maxGForce: 0.0, // 重置峰值G力
+      );
+
+      // 🎥 如果启用了视频录制，启动视频录制服务
+      final settings = _ref.read(settingsProvider);
+      if (settings.isVideoRecordingEnabled) {
+        final videoService = _ref.read(videoRecordingServiceProvider);
+        final started = await videoService.startRecording(
+          resolution: '1080p',
+          fps: 60,
+          bufferDuration: 10,
+        );
+
+        if (started) {
+          debugPrint('[Recording] 🎥 Video recording started');
+        } else {
+          debugPrint('[Recording] ⚠️ Failed to start video recording');
+        }
+      }
     } catch (e) {
       // 提取错误消息的key（去除 "Exception: " 前缀）
       String errorKey = e.toString();
+      debugPrint('[Recording] Caught calibration error: $errorKey');
       if (errorKey.startsWith('Exception: ')) {
         errorKey = errorKey.substring('Exception: '.length);
       }
+      debugPrint('[Recording] Cleaned error key: $errorKey');
       state = state.copyWith(isCalibrating: false, alertMessage: errorKey);
     }
   }
@@ -501,44 +627,22 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     // 缓存最新的传感器数据，供GPS轨迹点使用（1Hz记录）
     _latestSensorData = sensorData;
-    
+
     // 🔍 DEBUG: 验证传感器数据缓存
-    debugPrint('🔄 [Sensor Cache] Updated: ax=${sensorData.processedAccel.x.toStringAsFixed(3)}, ay=${sensorData.processedAccel.y.toStringAsFixed(3)}, az=${sensorData.processedAccel.z.toStringAsFixed(3)}');
+    debugPrint(
+        '🔄 [Sensor Cache] Updated: ax=${sensorData.processedAccel.x.toStringAsFixed(3)}, ay=${sensorData.processedAccel.y.toStringAsFixed(3)}, az=${sensorData.processedAccel.z.toStringAsFixed(3)}');
 
     _insEngine.predict(sensorData);
-    _motionProcessor.process(
-        sensorData, _insEngine.currentSpeed, state.currentPosition, state.isInsActive);
 
-    // --- KOL 专属：高帧率数据记录 (10Hz) ---
-    final settings = _ref.read(settingsProvider);
-    if (settings.isHighFrameRateEnabled && state.currentTrip != null) {
-      if (_lastSensorRecordTime == null ||
-          now.difference(_lastSensorRecordTime!).inMilliseconds >= 100) {
-        _lastSensorRecordTime = now;
-
-        // 创建包含传感器数据的轨迹点
-        // 注意：为了防止内存溢出和 UI 卡顿，高频点仅持久化，不进入 state.trajectory
-        final displaySpeed = state.isInsActive
-            ? _insEngine.currentSpeed
-            : (state.currentPosition?.speed ?? 0.0);
-
-        final sensorPoint = TrajectoryPoint()
-          ..timestamp = now
-          ..lat = state.currentPosition?.latitude ?? 0
-          ..lng = state.currentPosition?.longitude ?? 0
-          ..altitude = state.currentPosition?.altitude ?? 0
-          ..speed = displaySpeed
-          ..isLowConfidence = state.isLowConfidenceGPS
-          ..ax = sensorData.processedAccel.x
-          ..ay = sensorData.processedAccel.y
-          ..az = sensorData.processedAccel.z
-          ..gx = sensorData.processedGyro.x
-          ..gy = sensorData.processedGyro.y
-          ..gz = sensorData.processedGyro.z;
-
-        _storage.addTrajectoryPointBatched(state.currentTrip!.id, sensorPoint);
-        
-        debugPrint('📡 [10Hz] Queued sensor data: ay=${sensorData.processedAccel.y.toStringAsFixed(3)}');
+    // 速度平滑：仅当非 INS 时用平滑值更新 state.currentSpeed（INS 时由 _handleInsTick 写入）
+    if (!state.isInsActive) {
+      final dtMs = _lastSpeedUpdate != null
+          ? now.difference(_lastSpeedUpdate!).inMilliseconds
+          : 0;
+      final alpha = dtMs < 100 ? _speedSmoothAlphaFast : _speedSmoothAlpha;
+      _smoothedSpeed = _smoothedSpeed * (1.0 - alpha) + _targetSpeed * alpha;
+      if ((state.currentSpeed - _smoothedSpeed).abs() > _speedUpdateThreshold) {
+        state = state.copyWith(currentSpeed: _smoothedSpeed);
       }
     }
 
@@ -551,32 +655,144 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         _handleInsTick();
       }
     } else {
-      final bool isMissing =
-          _lastGpsTime != null && now.difference(_lastGpsTime!) > AppConstants.gpsTimeout;
-      final bool isUnreliable =
-          (state.currentPosition?.accuracy ?? 0) > AppConstants.insTriggerAccuracy;
+      final bool isMissing = _lastGpsTime != null &&
+          now.difference(_lastGpsTime!) > AppConstants.gpsTimeout;
+      final bool isUnreliable = (state.currentPosition?.accuracy ?? 0) >
+          AppConstants.insTriggerAccuracy;
       if (_insEngine.isInitialized && (isMissing || isUnreliable)) {
         state = state.copyWith(isInsActive: true);
+      }
+    }
+
+    // 静止判断只用 GPS 速度，避免 INS 在手机角度变化时误报 1～5 导致「无法校准」的死循环
+    final speedForStationary = (state.isInsActive || _lastSpeedUpdate == null)
+        ? 999.0 // INS 或无 GPS：视为非静止，不触发自动校准
+        : _targetSpeed;
+    _engine.updateSpeed(speedForStationary);
+
+    _motionProcessor.process(sensorData, state.currentSpeed,
+        state.currentPosition, state.isInsActive);
+
+    // --- 传感器数据记录 ---
+    // 高帧率模式 (10Hz) 或 普通模式 (1Hz)
+    final settings = _ref.read(settingsProvider);
+    final recordIntervalMs = settings.isHighFrameRateEnabled ? 100 : 1000;
+
+    if (state.currentTrip != null) {
+      if (_lastSensorRecordTime == null ||
+          now.difference(_lastSensorRecordTime!).inMilliseconds >=
+              recordIntervalMs) {
+        _lastSensorRecordTime = now;
+
+        // 创建包含传感器数据的轨迹点
+        // 注意：为了防止内存溢出和 UI 卡顿，高频点仅持久化，不进入 state.trajectory
+        final displaySpeed = state.isInsActive
+            ? _insEngine.currentSpeed
+            : (state.currentPosition?.speed ?? 0.0);
+
+        // ✅ 使用最后有效的GPS位置，如果当前GPS无效
+        final gpsToUse = (state.currentPosition != null &&
+                state.currentPosition!.latitude.abs() > 0.001 &&
+                state.currentPosition!.longitude.abs() > 0.001)
+            ? state.currentPosition
+            : _lastValidGpsPosition;
+
+        // ✅ 只有在有有效GPS时才记录轨迹点
+        if (gpsToUse != null) {
+          final sensorPoint = TrajectoryPoint()
+            ..timestamp = now
+            ..lat = gpsToUse.latitude
+            ..lng = gpsToUse.longitude
+            ..altitude = gpsToUse.altitude
+            ..speed = displaySpeed
+            ..isLowConfidence = state.isLowConfidenceGPS
+            ..ax = sensorData.processedAccel.x
+            ..ay = sensorData.processedAccel.y
+            ..az = sensorData.processedAccel.z
+            ..gx = sensorData.processedGyro.x
+            ..gy = sensorData.processedGyro.y
+            ..gz = sensorData.processedGyro.z;
+
+          _storage.addTrajectoryPointBatched(
+              state.currentTrip!.id, sensorPoint);
+
+          if (settings.isHighFrameRateEnabled) {
+            debugPrint(
+                '📡 [10Hz] Queued sensor data with GPS: lat=${gpsToUse.latitude.toStringAsFixed(6)}');
+          } else {
+            debugPrint(
+                '📡 [1Hz] Queued sensor data with GPS: lat=${gpsToUse.latitude.toStringAsFixed(6)}');
+          }
+        } else {
+          // GPS完全丢失，跳过此次记录
+          debugPrint(
+              '⚠️ [${settings.isHighFrameRateEnabled ? "10Hz" : "1Hz"}] Skipped: No valid GPS available');
+        }
       }
     }
   }
 
   Future<void> stopRecording() async {
     if (!state.isRecording) return;
+
+    // 🎥 如果启用了视频录制，停止视频录制服务
+    final settings = _ref.read(settingsProvider);
+    if (settings.isVideoRecordingEnabled) {
+      final videoService = _ref.read(videoRecordingServiceProvider);
+      final stopped = await videoService.stopRecording();
+
+      if (stopped) {
+        debugPrint('[Recording] 🎥 Video recording stopped');
+      } else {
+        debugPrint('[Recording] ⚠️ Failed to stop video recording');
+      }
+    }
+
     _sensorSub?.close();
     _sensorSub = null;
-    
+
+    _engine.setRecording(false);
+
     // 确保所有待写入的批量数据被flush
     if (state.currentTrip != null) {
       await _storage.flushPendingPoints(state.currentTrip!.id);
     }
-    
+
     await _storage.endTrip(state.currentTrip!.id);
     await WakelockPlus.disable();
-    state = state.copyWith(isRecording: false, currentTrip: null);
+
+    // ✅ 完全清理所有状态，准备下一次行程
+    state = state.copyWith(
+      isRecording: false,
+      currentTrip: null,
+      trajectory: [], // 清空轨迹列表
+      events: [], // 清空事件列表
+      currentDistance: 0.0, // 重置里程
+      currentSpeed: 0.0, // 重置速度
+      maxGForce: 0.0, // 重置峰值G力
+      currentGForce: 0.0, // 重置当前G力
+      isInsActive: false, // 重置INS状态
+      lastInsLocation: null, // 清空INS位置
+    );
+
+    // ✅ 清理内部缓存变量
+    _lastValidGpsPosition = null;
+    _lastReliableGpsPosition = null;
+    _lastSensorRecordTime = null;
+    _latestSensorData = null;
+    _targetSpeed = 0.0;
+    _smoothedSpeed = 0.0;
+    _lastSpeedUpdate = null;
+
+    debugPrint('✅ [Recording] Stopped and cleaned up all state');
   }
 
-  void clearAlert() => state = state.copyWith(alertMessage: null);
+  void clearAlert() {
+    debugPrint(
+        '[Recording] clearAlert called, current alertMessage: ${state.alertMessage}');
+    state = state.copyWith(alertMessage: null);
+    debugPrint('[Recording] alertMessage after clear: ${state.alertMessage}');
+  }
 
   @override
   void dispose() {

@@ -110,7 +110,9 @@ class BrandLogo extends ConsumerWidget {
           if (overrideLogoUrl != null && overrideLogoUrl!.isNotEmpty) {
             // 尝试从缓存加载，如果缓存未命中再从网络加载
             return FutureBuilder<String?>(
-              future: ref.read(logoCacheServiceProvider).getCachedLogoPath(brand.name),
+              future: ref
+                  .read(logoCacheServiceProvider)
+                  .getCachedLogoPath(brand.name),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null) {
                   // 从缓存加载（File 或 Asset）

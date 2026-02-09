@@ -102,7 +102,8 @@ class VoiceRecordingNotifier extends StateNotifier<VoiceRecordingState> {
         } else if (status == "DOWNLOAD_FAILED" || status == "INIT_FAILED") {
           state = state.copyWith(
             isDownloading: false,
-            voiceStatus: _ref.read(i18nProvider).t('voice_engine_config_failed'),
+            voiceStatus:
+                _ref.read(i18nProvider).t('voice_engine_config_failed'),
             isError: true,
           );
           _clearStatusAfterDelay();
@@ -159,7 +160,7 @@ class VoiceRecordingNotifier extends StateNotifier<VoiceRecordingState> {
       },
       onFinalResult: (category, text) {
         if (!state.isRecording) return;
-        
+
         if (text.isNotEmpty) {
           _handleVoiceEvent(category, text);
         }
@@ -192,11 +193,11 @@ class VoiceRecordingNotifier extends StateNotifier<VoiceRecordingState> {
 
     // 触发主记录器的事件标记
     await _ref.read(recordingProvider.notifier).tagEvent(
-      type,
-      source: 'PRO',
-      notes: text,
-      voiceText: text,
-    );
+          type,
+          source: 'PRO',
+          notes: text,
+          voiceText: text,
+        );
 
     HapticFeedback.vibrate();
   }

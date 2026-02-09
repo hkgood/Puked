@@ -60,38 +60,85 @@ class CloudTripService {
     };
 
     // 4. 智能审核：判断行程是否需要人工审核
-    final avgSpeed = double.tryParse(metrics['avg_speed_kmh']?.toString() ?? '0') ?? 0;
-    final distanceKm = double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
+    final avgSpeed =
+        double.tryParse(metrics['avg_speed_kmh']?.toString() ?? '0') ?? 0;
+    final distanceKm =
+        double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
     final eventCount = metrics['event_count'] as int? ?? 0;
-    
+    final durationMin = metrics['duration_min'] as int? ?? 0;
+
     // 判断是否为异常数据（需要审核）
     bool isAbnormal = false;
     String abnormalReason = '';
-    
-    // 条件 1: 平均时速超过 120 km/h
+
+    // ===== P0 级别检测（逻辑错误修复） =====
+
+    // 条件 1: 平均时速过高（可能是GPS漂移、数据错误）
     if (avgSpeed > 120) {
       isAbnormal = true;
-      abnormalReason = '平均时速异常 (${avgSpeed.toStringAsFixed(1)} km/h)';
+      abnormalReason = '平均时速异常高 (${avgSpeed.toStringAsFixed(1)} km/h)';
       debugPrint('[TripAudit] 🚨 异常检测: $abnormalReason');
     }
-    
-    // 条件 2: 负体验密度过低（每5公里少于1次，可能是传感器故障）
+
+    // 条件 2: 平均时速过低（可能是停车状态误录、GPS漂移）
+    if (!isAbnormal && avgSpeed < 5 && distanceKm > 0.5) {
+      isAbnormal = true;
+      abnormalReason = '平均时速异常低 (${avgSpeed.toStringAsFixed(1)} km/h)';
+      debugPrint('[TripAudit] 🚨 异常检测: $abnormalReason');
+    }
+
+    // 条件 3: 负体验密度过高（修复逻辑错误：应该过滤密度过高而非过低）
     if (!isAbnormal && eventCount > 0 && distanceKm > 0) {
-      final kmPerEvent = distanceKm / eventCount;
-      if (kmPerEvent > 5) {
+      final eventsPerKm = eventCount / distanceKm;
+      if (eventsPerKm > 2.0) {
+        // 每公里超过2次事件
         isAbnormal = true;
-        abnormalReason = '负体验密度过低 (${kmPerEvent.toStringAsFixed(1)} km/事件)';
+        abnormalReason = '负体验密度异常高 (${eventsPerKm.toStringAsFixed(2)} 次/km)';
         debugPrint('[TripAudit] 🚨 异常检测: $abnormalReason');
       }
     }
-    
+
+    // ===== P1 级别检测（常见异常场景） =====
+
+    // 条件 4: 行程距离过短（可能是测试数据、误触发）
+    if (!isAbnormal && distanceKm < 0.5) {
+      isAbnormal = true;
+      abnormalReason = '行程距离过短 (${distanceKm.toStringAsFixed(2)} km)';
+      debugPrint('[TripAudit] 🚨 异常检测: $abnormalReason');
+    }
+
+    // 条件 5: 行程时长过短（可能是误触发）
+    if (!isAbnormal && durationMin < 3 && distanceKm > 0.5) {
+      isAbnormal = true;
+      abnormalReason = '行程时长过短 (${durationMin} 分钟)';
+      debugPrint('[TripAudit] 🚨 异常检测: $abnormalReason');
+    }
+
+    // 条件 6: 长距离零事件（可能是传感器失效）
+    if (!isAbnormal && distanceKm > 10 && eventCount == 0) {
+      isAbnormal = true;
+      abnormalReason = '长距离零事件 (${distanceKm.toStringAsFixed(1)} km)';
+      debugPrint('[TripAudit] 🚨 异常检测: $abnormalReason');
+    }
+
+    // 条件 7: 连续20秒内超过5个负体验事件（传感器故障、算法过敏）
+    if (!isAbnormal && eventCount > 5) {
+      final burstEvents = _detectEventBurst(trip.events.toList());
+      if (burstEvents > 5) {
+        isAbnormal = true;
+        abnormalReason = '短时间内事件爆发 (20秒内${burstEvents}个事件)';
+        debugPrint('[TripAudit] 🚨 异常检测: $abnormalReason');
+      }
+    }
+
     // 异常行程默认不公开，需管理员审核
     final isPublic = !isAbnormal;
     if (isAbnormal) {
       debugPrint('[TripAudit] ⚠️ 行程已标记为需审核: $abnormalReason');
-      debugPrint('[TripAudit] 📊 数据详情: 距离=${distanceKm}km, 事件=${eventCount}, 时速=${avgSpeed}km/h');
+      debugPrint(
+          '[TripAudit] 📊 数据详情: 距离=${distanceKm}km, 事件=${eventCount}, 时速=${avgSpeed}km/h');
     }
-    
+
     // 5. 上传到 PocketBase 'trips' 集合
     try {
       final record = await _pbService.pb.collection('trips').create(
@@ -228,10 +275,12 @@ class CloudTripService {
               if (startTimeStr.isNotEmpty) {
                 startTime = DateTime.parse(startTimeStr).toLocal();
               } else {
-                startTime = DateTime.parse(record.get<String>('created')).toLocal();
+                startTime =
+                    DateTime.parse(record.get<String>('created')).toLocal();
               }
             } catch (e) {
-              debugPrint('[PukedSync] Date parse error for record ${record.id}: $e');
+              debugPrint(
+                  '[PukedSync] Date parse error for record ${record.id}: $e');
               startTime = DateTime.now();
             }
 
@@ -249,13 +298,14 @@ class CloudTripService {
               ..eventCount = eventCount
               ..isUploaded = true
               ..isLocalMissing = true
-              ..cloudMetrics = metricsJson  // ✅ 使用cloudMetrics存储云端数据
-              ..metricsJson = metricsJson;   // 兼容性：同时保存到metricsJson
+              ..cloudMetrics = metricsJson // ✅ 使用cloudMetrics存储云端数据
+              ..metricsJson = metricsJson; // 兼容性：同时保存到metricsJson
 
             await storage.savePlaceholderTrip(placeholder);
             newPlaceholders++;
           } catch (e, stack) {
-            debugPrint('[PukedSync] Error processing record ${record.id}: $e\n$stack');
+            debugPrint(
+                '[PukedSync] Error processing record ${record.id}: $e\n$stack');
           }
         } else {
           // 本地有，同步更新状态
@@ -266,16 +316,17 @@ class CloudTripService {
               final metricsRaw = record.get('metrics');
               final Map<String, dynamic> metrics =
                   metricsRaw is Map<String, dynamic> ? metricsRaw : {};
-              
+
               // ✅ 更新cloudMetrics以获得最新的云端统计数据
               final metricsJsonStr = jsonEncode(metrics);
               await storage.updateTripWithCloudMetrics(
                   localTrip.id, record.id, metricsJsonStr);
-              
+
               updatedCount++;
             }
           } catch (e) {
-            debugPrint('[PukedSync] Error updating local trip ${localTrip.id}: $e');
+            debugPrint(
+                '[PukedSync] Error updating local trip ${localTrip.id}: $e');
           }
         }
       }
@@ -383,10 +434,14 @@ class CloudTripService {
             ),
         _pbService.pb.collection('trip_stats_summary').getFullList(
               filter: 'period_type="weekly"',
-              expand: 'user',
+              expand: 'brand,software_version,user',
               sort: '-total_distance',
-              // ✅ 周榜只需要更少的字段
-              fields: 'id,total_distance,period_value,user,'
+              // ✅ 周榜需要 brand, software_version, user 的完整信息
+              fields:
+                  'id,key,total_distance,total_events,period_value,scenario,speed_dist,'
+                  'brand,software_version,user,'
+                  'expand.brand.id,expand.brand.name,expand.brand.logo,'
+                  'expand.software_version.id,expand.software_version.versionString,'
                   'expand.user.id,expand.user.name,expand.user.username,expand.user.avatar',
             ),
       ]);
@@ -538,6 +593,44 @@ class CloudTripService {
     }
   }
 
+  /// 检测事件爆发：20秒内的最大事件数
+  /// 返回滑动窗口内的最大事件计数
+  int _detectEventBurst(List<RecordedEvent> events) {
+    if (events.length < 6) return 0;
+
+    // 按时间戳排序事件
+    final sortedEvents = events.toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    int maxBurstCount = 0;
+    const burstWindowSeconds = 20;
+
+    // 滑动窗口检测
+    for (int i = 0; i < sortedEvents.length; i++) {
+      final windowStart = sortedEvents[i].timestamp;
+      final windowEnd =
+          windowStart.add(const Duration(seconds: burstWindowSeconds));
+
+      int burstCount = 0;
+      for (int j = i; j < sortedEvents.length; j++) {
+        if (sortedEvents[j].timestamp.isBefore(windowEnd)) {
+          burstCount++;
+        } else {
+          break;
+        }
+      }
+
+      if (burstCount > maxBurstCount) {
+        maxBurstCount = burstCount;
+      }
+
+      // 优化：如果已经找到足够大的爆发，提前退出
+      if (maxBurstCount > 10) break;
+    }
+
+    return maxBurstCount;
+  }
+
   Map<String, int> _buildEventBreakdown(Trip trip) {
     final Map<String, int> breakdown = {
       'rapidAcceleration': 0,
@@ -556,6 +649,13 @@ class CloudTripService {
 
   /// 构建导出的 Map 数据 (逻辑来源于 ExportService)
   Map<String, dynamic> _buildTripExportData(Trip trip) {
+    // 🔧 关键修复：按时间戳排序轨迹点（与 ExportService 保持一致）
+    final sortedTrajectory = trip.trajectory.toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    debugPrint(
+        "DEBUG: [CloudTripService] Sorted ${sortedTrajectory.length} trajectory points");
+
     return {
       "version": "1.0.0",
       "trip_id": trip.uuid,
@@ -569,7 +669,7 @@ class CloudTripService {
         "notes": trip.notes ?? "",
         "event_count": trip.eventCount,
       },
-      "trajectory": trip.trajectory
+      "trajectory": sortedTrajectory
           .map((p) => {
                 "ts": p.timestamp.millisecondsSinceEpoch / 1000.0,
                 "lat": p.lat,

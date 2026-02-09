@@ -41,7 +41,8 @@ class EventHistoryPopup extends ConsumerWidget {
               color: isDark
                   ? Colors.black.withValues(alpha: 0.6)
                   : Colors.white.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(AppConstants.smallBorderRadius),
+              borderRadius:
+                  BorderRadius.circular(AppConstants.smallBorderRadius),
               border: Border.all(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.1)

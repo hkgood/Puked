@@ -41,20 +41,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     // 🔥 只在第一次进入页面时刷新，避免重复触发
     if (!_hasInitialized) {
       _hasInitialized = true;
-      
+
       // 延迟执行，确保Widget树已构建完成
       Future.microtask(() {
         if (!mounted) return;
-        
+
         final auth = ref.read(authProvider);
         if (auth.isAuthenticated) {
           // 静默刷新用户信息（如果需要）
           ref.read(authProvider.notifier).refreshUserFromServer();
-          
+
           // 检查统计数据是否需要初始化
           final stats = ref.read(arenaStatsProvider);
           if (!stats.hasValue && !stats.isLoading) {
@@ -116,8 +116,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                           .watch(pbServiceProvider)
                                           .currentAvatarUrl !=
                                       null
-                                  ? CachedNetworkImageProvider(
-                                      ref.watch(pbServiceProvider).currentAvatarUrl!)
+                                  ? CachedNetworkImageProvider(ref
+                                      .watch(pbServiceProvider)
+                                      .currentAvatarUrl!)
                                   : null,
                               child: ref
                                           .watch(pbServiceProvider)
@@ -473,6 +474,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: (value) => ref
                           .read(settingsProvider.notifier)
                           .setEventSoundEnabled(value),
+                    ),
+                  ),
+
+                  // 记录负体验视频
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(i18n.t('video_recording'),
+                        style: const TextStyle(fontSize: 14)),
+                    subtitle: Text(
+                      i18n.t('video_recording_desc'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: _SquareSwitch(
+                      value: settings.isVideoRecordingEnabled,
+                      onChanged: (value) => ref
+                          .read(settingsProvider.notifier)
+                          .setVideoRecordingEnabled(value),
                     ),
                   ),
 

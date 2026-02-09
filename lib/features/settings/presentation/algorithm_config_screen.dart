@@ -369,6 +369,62 @@ class AlgorithmConfigScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                _buildGroup(
+                  context,
+                  i18n.t('trend_filter_section'),
+                  [
+                    _buildItem(
+                      i18n.t('enable_trend_filter_label'),
+                      config.enableTrendFilter ? 'ON' : 'OFF',
+                      '',
+                      subtitle: i18n.t('enable_trend_filter_hint'),
+                      onTap: isSuperUser
+                          ? () {
+                              final newConfig = config.copyWith(
+                                  enableTrendFilter: !config.enableTrendFilter);
+                              ref
+                                  .read(algorithmConfigProvider.notifier)
+                                  .updateConfig(newConfig);
+                            }
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('trend_change_threshold_label'),
+                      config.trendChangeThreshold,
+                      '',
+                      subtitle: i18n.t('trend_change_threshold_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(
+                              context,
+                              ref,
+                              i18n,
+                              'trendChangeThreshold',
+                              config.trendChangeThreshold)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('min_std_dev_threshold_label'),
+                      config.minStdDevThreshold,
+                      '',
+                      subtitle: i18n.t('min_std_dev_threshold_hint'),
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'minStdDevThreshold', config.minStdDevThreshold)
+                          : null,
+                    ),
+                    _buildItem(
+                      i18n.t('min_range_threshold_label'),
+                      config.minRangeThreshold,
+                      'm/s²',
+                      subtitle: i18n.t('min_range_threshold_hint'),
+                      isLast: true,
+                      onTap: isSuperUser
+                          ? () => _showEditDialog(context, ref, i18n,
+                              'minRangeThreshold', config.minRangeThreshold)
+                          : null,
+                    ),
+                  ],
+                ),
               ]),
             ),
           ),
@@ -493,6 +549,15 @@ class AlgorithmConfigScreen extends ConsumerWidget {
               break;
             case 'minAccelForJerk':
               newConfig = config.copyWith(minAccelForJerk: newValue);
+              break;
+            case 'trendChangeThreshold':
+              newConfig = config.copyWith(trendChangeThreshold: newValue);
+              break;
+            case 'minStdDevThreshold':
+              newConfig = config.copyWith(minStdDevThreshold: newValue);
+              break;
+            case 'minRangeThreshold':
+              newConfig = config.copyWith(minRangeThreshold: newValue);
               break;
             default:
               return;

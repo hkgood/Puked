@@ -48,6 +48,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get high_frame_rate_desc => 'KOL 专属：记录 10Hz 传感器数据以提升记录细节';
 
   @override
+  String get video_recording => '记录负体验视频 (Beta)';
+
+  @override
+  String get video_recording_desc => '打开后，发生负体验事件时录制5秒视频';
+
+  @override
+  String get camera_permission_needed => '需要摄像头权限';
+
+  @override
+  String get camera_init_failed => '初始化摄像头失败';
+
+  @override
+  String get camera_preview_failed => '获取预览失败';
+
+  @override
+  String get camera_starting => '正在启动摄像头...';
+
+  @override
+  String get camera_preview_placeholder => '摄像头预览占位';
+
+  @override
+  String get camera_preview_hint => '预览功能需原生开发完成\n视频录制功能仍可正常工作';
+
+  @override
   String get current_version => '当前版本';
 
   @override
@@ -296,6 +320,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get arena_top10_title => '舒适度 TOP10';
+
+  @override
+  String get weekly_comfort_ranking => '周度舒适度排名';
+
+  @override
+  String get weekly_comfort_desc => '本周各场景最佳舒适度';
+
+  @override
+  String get weekly_mileage_ranking => '周度里程排名';
+
+  @override
+  String get weekly_mileage_desc => '本周累计记录里程';
 
   @override
   String get arena_total_mileage_title => '总里程';
@@ -992,6 +1028,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get low_speed_jerk_limit_hint => '低于此车速 (km/h) 时，急刹车将强制降级为顿挫记录';
+
+  @override
+  String get trend_filter_section => '趋势过滤 (Trend Filter)';
+
+  @override
+  String get enable_trend_filter_label => '启用趋势过滤';
+
+  @override
+  String get enable_trend_filter_hint => '在检测前过滤温和减速/加速事件（推荐开启）';
+
+  @override
+  String get trend_change_threshold_label => '趋势变化阈值';
+
+  @override
+  String get trend_change_threshold_hint => '加速度前后半段差值的最小阈值，低于此值视为温和事件';
+
+  @override
+  String get min_std_dev_threshold_label => '标准差阈值（备用）';
+
+  @override
+  String get min_std_dev_threshold_hint => 'Y轴加速度标准差的最小阈值（辅助指标）';
+
+  @override
+  String get min_range_threshold_label => '跨度阈值（备用）';
+
+  @override
+  String get min_range_threshold_hint => 'Y轴加速度跨度的最小阈值（辅助指标）';
 
   @override
   String get recording_voice => '正在录音...';

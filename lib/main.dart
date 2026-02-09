@@ -47,12 +47,12 @@ void main() async {
     try {
       // 清理可能卡住的下载状态
       await UpdateService.cleanupStaleDownloadState();
-      
+
       await container.read(storageServiceProvider).init();
-      
+
       // 启动后尝试同步元数据
       await container.read(metadataSyncServiceProvider).syncBrandsFromCloud();
-      
+
       // 【新增】Logo 预加载：首次启动或版本更新时下载所有 Logo 到缓存
       final logoCache = container.read(logoCacheServiceProvider);
       if (logoCache.needsPreload) {
@@ -66,7 +66,7 @@ void main() async {
       } else {
         debugPrint('[Main] Logo 缓存已是最新，跳过预加载');
       }
-      
+
       // 主动触发一次 Arena 统计快照加载
       await container.read(arenaStatsProvider.notifier).refresh();
     } catch (e) {

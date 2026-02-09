@@ -59,18 +59,6 @@ class SensorEngine {
   bool _autoCalibrationInProgress = false;
   DateTime? _lastAutoCalibrationTime;
 
-  /// 仅在「已开始行程」时为 true，由 RecordingProvider 在 start/stopRecording 时设置
-  bool _isRecording = false;
-
-  /// 连续自动校准失败次数，用于失败后退避
-  int _consecutiveAutoCalibrationFailures = 0;
-
-  /// 基础冷却时间（秒）
-  static const int _autoCalibrationCooldownSeconds = 15;
-
-  /// 连续失败 2 次后的退避冷却时间（秒），彻底避免持续重试
-  static const int _autoCalibrationBackoffSeconds = 60;
-
   StreamSubscription? _accelSub;
   StreamSubscription? _gyroSub;
   StreamSubscription? _magSub;
@@ -79,23 +67,6 @@ class SensorEngine {
   bool get isRunning => _isRunning;
   DateTime get lastSensorEventTime => _lastSensorEventTime;
   int get sensorEventCount => _sensorEventCount;
-
-  /// 由 RecordingProvider 在开始/停止行程时调用，仅行程中才允许自动校准
-  void setRecording(bool recording) {
-    _isRecording = recording;
-    if (!recording) {
-      _consecutiveAutoCalibrationFailures = 0;
-    }
-  }
-
-  /// 由 RecordingProvider 传入「仅用于静止判断」的速度 (m/s)。
-  /// 必须为 GPS 速度：INS 在手机角度变化时会误报 1～5，若用 INS 会形成「不静止→不校准→继续漂移」的死循环。
-  void updateSpeed(double speedMs) {
-    _lastKnownSpeed = speedMs;
-  }
-
-  /// 上次自动校准完成时间（用于调试或 UI 显示「上次校准：xx 秒前」）
-  DateTime? get lastAutoCalibrationTime => _lastAutoCalibrationTime;
 
   // 广播流，供 UI 订阅
   final _dataController = StreamController<SensorData>.broadcast();
@@ -160,17 +131,13 @@ class SensorEngine {
     if (_medianBuffer.length >= 3) {
       final prev = _medianBuffer.elementAt(_medianBuffer.length - 2);
       final jumpMagnitude = (smoothedAccel - prev).length;
-
+      
       // 降低阈值到 10 m/s² 以便在原地晃动时也能检测到
       if (jumpMagnitude > 10.0) {
-        debugPrint(
-            '🔴 OVERFLOW! Jump: ${jumpMagnitude.toStringAsFixed(2)} m/s²');
-        debugPrint(
-            '   ax: ${prev.x.toStringAsFixed(3)} → ${smoothedAccel.x.toStringAsFixed(3)} (Δ${(smoothedAccel.x - prev.x).toStringAsFixed(3)})');
-        debugPrint(
-            '   ay: ${prev.y.toStringAsFixed(3)} → ${smoothedAccel.y.toStringAsFixed(3)} (Δ${(smoothedAccel.y - prev.y).toStringAsFixed(3)})');
-        debugPrint(
-            '   az: ${prev.z.toStringAsFixed(3)} → ${smoothedAccel.z.toStringAsFixed(3)} (Δ${(smoothedAccel.z - prev.z).toStringAsFixed(3)})');
+        debugPrint('🔴 OVERFLOW! Jump: ${jumpMagnitude.toStringAsFixed(2)} m/s²');
+        debugPrint('   ax: ${prev.x.toStringAsFixed(3)} → ${smoothedAccel.x.toStringAsFixed(3)} (Δ${(smoothedAccel.x - prev.x).toStringAsFixed(3)})');
+        debugPrint('   ay: ${prev.y.toStringAsFixed(3)} → ${smoothedAccel.y.toStringAsFixed(3)} (Δ${(smoothedAccel.y - prev.y).toStringAsFixed(3)})');
+        debugPrint('   az: ${prev.z.toStringAsFixed(3)} → ${smoothedAccel.z.toStringAsFixed(3)} (Δ${(smoothedAccel.z - prev.z).toStringAsFixed(3)})');
         debugPrint('   ✅ FILTERED: Using previous value');
         smoothedAccel = prev.clone(); // 用前一个值替代异常值
       }
@@ -192,13 +159,9 @@ class SensorEngine {
       rotatedGyro = yawMatrix.transformed(rotatedGyro);
     }
 
-    // Stage 4: 俯仰保护 (Pitch Guard) — 上坡 + 下坡误触发抑制
-    // 上坡：急刹误触 — Y 偏负且存在俯仰时，补偿使 |Y| 减小
+    // Stage 4: “点头”保护 (Pitch Guard)
+    // 物理补偿：如果正在急刹车 (Y < -2.0) 且陀螺仪检测到明显的俯仰 (Gyro.x)
     if (processedAccel.y < -2.0 && rotatedGyro.x.abs() > 0.05) {
-      processedAccel.y += (rotatedGyro.x * 0.3).clamp(-0.8, 0.8);
-    }
-    // 下坡/进地库：急加速误触 — Y 偏正且存在俯仰时，补偿使 Y 减小
-    if (processedAccel.y > 2.0 && rotatedGyro.x.abs() > 0.05) {
       processedAccel.y += (rotatedGyro.x * 0.3).clamp(-0.8, 0.8);
     }
 
@@ -208,15 +171,12 @@ class SensorEngine {
 
     // 🔍 DEBUG: 持续监控 processedAccel 的值，检测并过滤溢出
     final accelMagnitude = processedAccel.length;
-    if (accelMagnitude > 50.0) {
-      // 5G 以上绝对是异常
+    if (accelMagnitude > 50.0) {  // 5G 以上绝对是异常
       debugPrint('🚨 CRITICAL OVERFLOW in processedAccel!');
-      debugPrint(
-          '   Magnitude: ${accelMagnitude.toStringAsFixed(2)} m/s² (${(accelMagnitude / 9.80665).toStringAsFixed(2)} G)');
-      debugPrint(
-          '   Values: (${processedAccel.x.toStringAsFixed(3)}, ${processedAccel.y.toStringAsFixed(3)}, ${processedAccel.z.toStringAsFixed(3)})');
+      debugPrint('   Magnitude: ${accelMagnitude.toStringAsFixed(2)} m/s² (${(accelMagnitude / 9.80665).toStringAsFixed(2)} G)');
+      debugPrint('   Values: (${processedAccel.x.toStringAsFixed(3)}, ${processedAccel.y.toStringAsFixed(3)}, ${processedAccel.z.toStringAsFixed(3)})');
       debugPrint('   ✅ CLAMPING to zero (treating as sensor failure)');
-
+      
       // 过滤策略：超过 5G 的数据认为是传感器故障，直接归零
       processedAccel = Vector3.zero();
     }
@@ -237,14 +197,11 @@ class SensorEngine {
     if (!_isHeadingAligned && _buffer.length > 60) {
       _learnHeading(processedAccel);
     }
-
+    
     // 🔍 DEBUG: 每隔一段时间输出当前状态
-    if (_sensorEventCount % 300 == 0) {
-      // 约每5秒输出一次（60Hz * 5s = 300）
-      debugPrint(
-          '📊 [Sensor Status] Aligned: $_isHeadingAligned, YawOffset: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
-      debugPrint(
-          '   Current processedAccel: (${processedAccel.x.toStringAsFixed(3)}, ${processedAccel.y.toStringAsFixed(3)}, ${processedAccel.z.toStringAsFixed(3)})');
+    if (_sensorEventCount % 300 == 0) {  // 约每5秒输出一次（60Hz * 5s = 300）
+      debugPrint('📊 [Sensor Status] Aligned: $_isHeadingAligned, YawOffset: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
+      debugPrint('   Current processedAccel: (${processedAccel.x.toStringAsFixed(3)}, ${processedAccel.y.toStringAsFixed(3)}, ${processedAccel.z.toStringAsFixed(3)})');
     }
 
     // 更新缓冲区
@@ -255,9 +212,6 @@ class SensorEngine {
 
     // 推送到 UI 层
     _dataController.add(data);
-
-    // 静止检测并可能触发自动校准（依赖 RecordingProvider 通过 updateSpeed 传入的速度）
-    _checkStationaryAndTriggerAutoCalibration(_lastKnownSpeed, now);
   }
 
   Vector3 _calculateMedian(List<Vector3> samples) {
@@ -278,48 +232,42 @@ class SensorEngine {
       _stationaryStartTime = null;
       return false;
     }
-
+    
     _stationaryStartTime ??= now;
     final stationaryDuration = now.difference(_stationaryStartTime!);
-
-    return stationaryDuration.inSeconds >= 1; // 连续静止1秒
+    
+    return stationaryDuration.inSeconds >= 1;  // 连续静止1秒
   }
 
   /// ✅ 检查静止状态并触发自动校准
   void _checkStationaryAndTriggerAutoCalibration(double speedMs, DateTime now) {
     _lastKnownSpeed = speedMs;
-
-    // 仅允许在「已开始行程」后触发，未点开始行程时不校准
-    if (!_isRecording) return;
-
+    
     // 如果不是静止状态，重置计时器
     if (!_isVehicleStationary(speedMs, now)) {
       _autoCalibrationInProgress = false;
       return;
     }
-
+    
     // 检查是否已经在进行自动校准
     if (_autoCalibrationInProgress) return;
-
+    
     // 检查静止时长是否达到3秒
     final stationaryDuration = now.difference(_stationaryStartTime!);
     if (stationaryDuration.inSeconds < 3) return;
-
-    // 冷却：只要发生过失败就用长冷却（60s），成功后才用基础冷却（15s），彻底避免失败后持续重试
-    final cooldownSec = _consecutiveAutoCalibrationFailures >= 1
-        ? _autoCalibrationBackoffSeconds
-        : _autoCalibrationCooldownSeconds;
+    
+    // 检查距离上次自动校准的时间间隔（避免频繁校准）
     if (_lastAutoCalibrationTime != null) {
       final timeSinceLastCalib = now.difference(_lastAutoCalibrationTime!);
-      if (timeSinceLastCalib.inSeconds < cooldownSec) {
-        return;
+      if (timeSinceLastCalib.inSeconds < 10) {
+        return; // 10秒内不重复校准
       }
     }
-
+    
     // 触发自动校准（静默模式）
     _autoCalibrationInProgress = true;
     debugPrint('🔄 [Auto-Calibration] Triggering silent recalibration...');
-
+    
     // 异步执行，不阻塞主流程
     _performAutoCalibration(speedMs).then((_) {
       _autoCalibrationInProgress = false;
@@ -329,18 +277,21 @@ class SensorEngine {
     });
   }
 
-  /// ✅ 执行自动校准（静默模式，复用主校准逻辑）
+  /// ✅ 执行自动校准（从缓冲区提取数据）
   Future<void> _performAutoCalibration(double currentSpeedMs) async {
     try {
-      await calibrate(currentSpeedMs: currentSpeedMs);
+      // 提取最近2秒的数据进行校准
+      await _calibrateInternal(
+        currentSpeedMs: currentSpeedMs,
+        mode: CalibrationMode.auto,
+        durationSeconds: 2,
+      );
+      
       _lastAutoCalibrationTime = DateTime.now();
-      _consecutiveAutoCalibrationFailures = 0;
       debugPrint('✅ [Auto-Calibration] Successfully recalibrated!');
     } catch (e) {
       debugPrint('⚠️ [Auto-Calibration] Rejected: $e');
-      _lastAutoCalibrationTime = DateTime.now();
-      _consecutiveAutoCalibrationFailures++;
-      // 连续失败时由调用方用长冷却（60s）限制，此处不再额外逻辑
+      // 校准失败时不影响现有状态，静默丢弃
     }
   }
 
@@ -350,20 +301,18 @@ class SensorEngine {
     // 1. 车辆加速时，加速度矢量指向车头方向
     // 2. 车头可能朝任意方向（东南西北），不能假设朝北
     // 3. 通过累积加速度样本，统计主导方向，自动对齐Y轴
-
+    
     // 1. 计算水平面加速度的模长
-    final double horizontalMag =
-        math.sqrt(accel.x * accel.x + accel.y * accel.y);
-
+    final double horizontalMag = math.sqrt(accel.x * accel.x + accel.y * accel.y);
+    
     // 2. 只要水平加速度足够大（>1.5 m/s²），就记录样本
     // ⚠️ 关键修复：移除 accel.y > 0 的限制！
     if (horizontalMag > 1.5) {
       _headingLearningBuffer.addLast(accel.clone());
-
+      
       if (_headingLearningBuffer.length >= 20) {
-        debugPrint(
-            '🧭 [Heading Learning] Analyzing ${_headingLearningBuffer.length} acceleration samples...');
-
+        debugPrint('🧭 [Heading Learning] Analyzing ${_headingLearningBuffer.length} acceleration samples...');
+        
         // 3. 计算所有样本的平均加速度向量
         double sumX = 0;
         double sumY = 0;
@@ -373,24 +322,22 @@ class SensorEngine {
         }
         final avgX = sumX / _headingLearningBuffer.length;
         final avgY = sumY / _headingLearningBuffer.length;
-
-        debugPrint(
-            '   Average acceleration vector: (${avgX.toStringAsFixed(3)}, ${avgY.toStringAsFixed(3)})');
-
+        
+        debugPrint('   Average acceleration vector: (${avgX.toStringAsFixed(3)}, ${avgY.toStringAsFixed(3)})');
+        
         // 4. 计算平均方向相对于地理北方（+Y轴）的角度
         final avgAngle = math.atan2(avgX, avgY);
         final angleDeg = avgAngle * 180 / math.pi;
-
-        debugPrint(
-            '   Angle from geographic North: ${angleDeg.toStringAsFixed(1)}°');
-
+        
+        debugPrint('   Angle from geographic North: ${angleDeg.toStringAsFixed(1)}°');
+        
         // 5. 关键决策：根据平均Y分量判断车辆主要前进方向
         if (avgY.abs() < 0.5 && avgX.abs() > 1.0) {
           // 情况A：车头主要朝东或朝西（Y分量很小）
           _dynamicYawOffset = -avgAngle;
           debugPrint('   🚗 Vehicle heading EAST/WEST (X-dominant)');
-          debugPrint(
-              '   Applied Yaw correction: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
+          debugPrint('   Applied Yaw correction: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
+          
         } else if (avgY < -0.5) {
           // 情况B：车头朝南方向（Y分量显著为负）
           // 需要180度翻转 + 角度修正
@@ -400,22 +347,20 @@ class SensorEngine {
             _dynamicYawOffset = -(avgAngle + math.pi);
           }
           debugPrint('   🔄 Vehicle heading SOUTH (Y-negative)');
-          debugPrint(
-              '   Applied 180° flip + correction: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
+          debugPrint('   Applied 180° flip + correction: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
+          
         } else {
           // 情况C：车头朝北方向（Y分量为正）
           _dynamicYawOffset = -avgAngle;
           debugPrint('   ✅ Vehicle heading NORTH (Y-positive)');
-          debugPrint(
-              '   Applied normal correction: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
+          debugPrint('   Applied normal correction: ${(_dynamicYawOffset * 180 / math.pi).toStringAsFixed(1)}°');
         }
-
+        
         _isHeadingAligned = true;
         _headingLearningBuffer.clear();
-
+        
         debugPrint('🎯 ========== Heading Alignment COMPLETE ==========');
-        debugPrint(
-            '   Final transform: Geographic → Vehicle coordinate system');
+        debugPrint('   Final transform: Geographic → Vehicle coordinate system');
         debugPrint('   Y-axis now points to vehicle FORWARD direction');
       }
     }
@@ -428,7 +373,14 @@ class SensorEngine {
       throw Exception("calibration_failed_stationary");
     }
 
-    // 1. 先采样与校验，不先清空状态；任一校验失败则 throw，保持上一次校准值不变
+    // 1. 彻底清空旧的校准状态，确保二次校准不受干扰
+    _isCalibrated = false;
+    _rotationMatrix = Matrix3.identity();
+    _staticGravityRaw = Vector3.zero();
+    _dynamicYawOffset = 0.0;
+    _isHeadingAligned = false;
+    _headingLearningBuffer.clear();
+
     List<Vector3> accelSamples = [];
     List<Vector3> magSamples = [];
     List<double> gyroMagnitudes = [];
@@ -477,20 +429,23 @@ class SensorEngine {
       throw Exception("sensor_error");
     }
 
-    // 4. 全部校验通过后再覆盖：先重置航向学习状态，再写入新旋转与重力，失败时上面已 throw，旧值保持不变
+    // 4. 构建 3D 姿态矩阵 (支持水平倾斜/Yaw 对齐)
+    // 第一性原理：利用重力确定垂直面，利用磁力计锁定水平参考
     final unitZ = gMean.normalized();
+
+    // 计算 X 轴：磁场与重力的叉乘得到“水平东向”
     Vector3 unitX = mMean.cross(unitZ).normalized();
+    // 鲁棒性：如果磁力计失效或与重力共线，退回到默认参考
     if (unitX.length < 0.1) {
       Vector3 reference =
           unitZ.y.abs() > 0.9 ? Vector3(1, 0, 0) : Vector3(0, 1, 0);
       unitX = reference.cross(unitZ).normalized();
     }
-    final unitY = unitZ.cross(unitX).normalized();
-    final rot = Matrix3.columns(unitX, unitY, unitZ);
 
-    _dynamicYawOffset = 0.0;
-    _isHeadingAligned = false;
-    _headingLearningBuffer.clear();
+    // 计算 Y 轴：Z 和 X 叉乘得到“水平北向”
+    final unitY = unitZ.cross(unitX).normalized();
+
+    final rot = Matrix3.columns(unitX, unitY, unitZ);
     _rotationMatrix = rot.isIdentity() ? rot : Matrix3.copy(rot)
       ..invert();
     _staticGravityRaw = gMean.clone();
@@ -527,9 +482,7 @@ class SensorEngine {
     final start = end.subtract(Duration(seconds: seconds));
 
     // 根据时间戳从缓冲区筛选数据
-    final rawList = _buffer
-        .where((d) => d.timestamp.isAfter(start) && d.timestamp.isBefore(end))
-        .toList();
+    final rawList = _buffer.where((d) => d.timestamp.isAfter(start) && d.timestamp.isBefore(end)).toList();
 
     // 执行跳格采样
     List<SensorData> downsampled = [];

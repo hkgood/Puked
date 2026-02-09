@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ota_update/ota_update.dart';
+import 'package:open_file/open_file.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +22,7 @@ class UpdateService {
   static const String _osgLabMirror = 'https://download.osglab.com/PukedAPK';
   static const String _githubRelease =
       'https://github.com/$_owner/$_repo/releases/download';
-  
+
   // GitHub 镜像加速服务（国内优化）
   // 已测试可用且响应速度较快的镜像
   static const List<Map<String, String>> _githubMirrors = [
@@ -44,19 +45,26 @@ class UpdateService {
   static const String _downloadStartTimeKey = 'download_start_time';
   static bool _isDownloading = false;
 
+  // 镜像测试结果缓存
+  static const String _mirrorCacheKey = 'mirror_test_cache';
+  static const String _mirrorCacheTimeKey = 'mirror_test_cache_time';
+  static const int _mirrorCacheValidMinutes = 10; // 缓存有效期10分钟
+  static Map<String, dynamic>? _cachedMirrorResult;
+
   /// 清理可能卡住的下载状态 (应用启动时调用)
   static Future<void> cleanupStaleDownloadState() async {
     final prefs = await SharedPreferences.getInstance();
     final isDownloading = prefs.getBool(_downloadingKey) ?? false;
-    
+
     if (isDownloading) {
       final startTime = prefs.getInt(_downloadStartTimeKey) ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
       final elapsedMinutes = (now - startTime) / 1000 / 60;
-      
+
       // 如果下载状态超过10分钟还没清除,认为是异常状态
       if (elapsedMinutes > 10) {
-        debugPrint('🧹 [Update] Cleaning stale download state (${elapsedMinutes.toInt()} minutes old)');
+        debugPrint(
+            '🧹 [Update] Cleaning stale download state (${elapsedMinutes.toInt()} minutes old)');
         await prefs.setBool(_downloadingKey, false);
         await prefs.remove(_downloadStartTimeKey);
         _isDownloading = false;
@@ -76,10 +84,11 @@ class UpdateService {
     _isDownloading = isDownloading;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_downloadingKey, isDownloading);
-    
+
     if (isDownloading) {
       // 记录开始时间
-      await prefs.setInt(_downloadStartTimeKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+          _downloadStartTimeKey, DateTime.now().millisecondsSinceEpoch);
       debugPrint('🔒 [Update] Download state locked at ${DateTime.now()}');
     } else {
       // 清除开始时间
@@ -98,7 +107,7 @@ class UpdateService {
     }
 
     final status = await Permission.requestInstallPackages.request();
-    
+
     if (status.isGranted) {
       return true;
     } else if (status.isDenied || status.isPermanentlyDenied) {
@@ -124,12 +133,52 @@ class UpdateService {
     return false;
   }
 
-  /// 智能选择最快的下载源（多镜像支持）
+  /// 智能选择最快的下载源（多镜像支持，带缓存）
   /// 返回：最快源的URL和源名称
   static Future<Map<String, String>> _selectFastestMirror(
       String version, String fileName) async {
     final osgLabUrl = '$_osgLabMirror/$fileName';
     final githubUrl = '$_githubRelease/v$version/$fileName';
+
+    // 检查缓存
+    final prefs = await SharedPreferences.getInstance();
+    final cacheTime = prefs.getInt(_mirrorCacheTimeKey) ?? 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final cacheAgeMinutes = (now - cacheTime) / 1000 / 60;
+
+    // 如果缓存有效（10分钟内），使用缓存结果
+    if (_cachedMirrorResult != null &&
+        cacheAgeMinutes < _mirrorCacheValidMinutes) {
+      debugPrint(
+          '✨ [Mirror] Using cached result (age: ${cacheAgeMinutes.toInt()} min)');
+      debugPrint('   Selected: ${_cachedMirrorResult!['name']}');
+
+      // 重新构建 URL（版本号可能变化）
+      final cachedName = _cachedMirrorResult!['name'] as String;
+      String finalUrl;
+
+      if (cachedName == 'OSGLab镜像') {
+        finalUrl = osgLabUrl;
+      } else if (cachedName == 'GitHub') {
+        finalUrl = githubUrl;
+      } else {
+        // 找到对应的镜像前缀
+        final mirror = _githubMirrors.firstWhere(
+          (m) => m['name'] == cachedName,
+          orElse: () => {'prefix': '', 'name': cachedName},
+        );
+        finalUrl = '${mirror['prefix']}$githubUrl';
+      }
+
+      return {
+        'url': finalUrl,
+        'name': cachedName,
+        'fallbackUrl':
+            _cachedMirrorResult!['fallbackUrl'] as String? ?? osgLabUrl,
+        'fallbackName':
+            _cachedMirrorResult!['fallbackName'] as String? ?? 'OSGLab镜像',
+      };
+    }
 
     debugPrint('🔍 Testing download mirrors...');
 
@@ -144,7 +193,7 @@ class UpdateService {
       final mirrorUrl = '${mirror['prefix']}$githubUrl';
       mirrorTests.add(_testMirrorSpeed(mirrorUrl, mirror['name']!));
     }
-    
+
     // OSGLab 作为最后的备选（速度较慢但稳定）
     mirrorTests.add(_testMirrorSpeed(osgLabUrl, 'OSGLab镜像'));
 
@@ -153,16 +202,50 @@ class UpdateService {
 
     debugPrint('📊 [Mirror Test] All results:');
     for (var r in results) {
-      debugPrint('   - ${r['name']}: ${r['available'] ? '${r['duration']}ms' : 'UNAVAILABLE'}');
+      if (r['available']) {
+        debugPrint(
+            '   - ${r['name']}: ${r['speed'].toStringAsFixed(1)} KB/s (score: ${r['duration']})');
+      } else {
+        debugPrint('   - ${r['name']}: UNAVAILABLE');
+      }
     }
 
-    // 过滤掉不可用的源，并按响应时间排序
-    final availableResults = results.where((r) => r['available'] == true).toList();
-    
+    // 过滤掉不可用的源，并按速度分数排序（分数越小越快）
+    final availableResults =
+        results.where((r) => r['available'] == true).toList();
+
     debugPrint('📊 [Mirror Test] Available count: ${availableResults.length}');
-    
+
     if (availableResults.isEmpty) {
-      // 如果所有镜像都不可用，返回 GitHub 直连作为兜底
+      // 如果所有镜像都不可用，尝试使用缓存（即使过期）
+      if (_cachedMirrorResult != null) {
+        debugPrint('⚠️ All mirrors unavailable, using EXPIRED cache');
+        final cachedName = _cachedMirrorResult!['name'] as String;
+        String finalUrl;
+
+        if (cachedName == 'OSGLab镜像') {
+          finalUrl = osgLabUrl;
+        } else if (cachedName == 'GitHub') {
+          finalUrl = githubUrl;
+        } else {
+          final mirror = _githubMirrors.firstWhere(
+            (m) => m['name'] == cachedName,
+            orElse: () => {'prefix': '', 'name': cachedName},
+          );
+          finalUrl = '${mirror['prefix']}$githubUrl';
+        }
+
+        return {
+          'url': finalUrl,
+          'name': cachedName,
+          'fallbackUrl':
+              _cachedMirrorResult!['fallbackUrl'] as String? ?? osgLabUrl,
+          'fallbackName':
+              _cachedMirrorResult!['fallbackName'] as String? ?? 'OSGLab镜像',
+        };
+      }
+
+      // 如果没有缓存，返回 GitHub 直连作为兜底
       debugPrint('⚠️ All mirrors unavailable, falling back to GitHub');
       return {
         'url': githubUrl,
@@ -171,56 +254,106 @@ class UpdateService {
         'fallbackName': 'OSGLab镜像',
       };
     }
-    
+
     availableResults.sort((a, b) => a['duration'].compareTo(b['duration']));
 
     final fastest = availableResults.first;
-    final fallback = availableResults.length > 1 ? availableResults[1] : results.last;
+    final fallback =
+        availableResults.length > 1 ? availableResults[1] : results.last;
 
-    debugPrint('✅ Fastest: ${fastest['name']} (${fastest['duration']}ms)');
-    debugPrint('⏱️ Fallback: ${fallback['name']} (${fallback['duration']}ms)');
-    
+    debugPrint(
+        '✅ Fastest: ${fastest['name']} (${fastest['speed'].toStringAsFixed(1)} KB/s)');
+    debugPrint(
+        '⏱️ Fallback: ${fallback['name']} (${fallback.containsKey('speed') ? '${fallback['speed'].toStringAsFixed(1)} KB/s' : 'N/A'})');
+
     if (availableResults.length > 2) {
       debugPrint('📊 Other available mirrors: ${availableResults.length - 1}');
     }
 
-    return {
+    // 保存到缓存
+    final result = {
       'url': fastest['url'] as String,
       'name': fastest['name'] as String,
       'fallbackUrl': fallback['url'] as String,
       'fallbackName': fallback['name'] as String,
     };
+
+    _cachedMirrorResult = result;
+    await prefs.setInt(
+        _mirrorCacheTimeKey, DateTime.now().millisecondsSinceEpoch);
+    debugPrint(
+        '💾 [Mirror] Result cached for ${_mirrorCacheValidMinutes} minutes');
+
+    return result;
   }
 
-  /// 测试单个镜像的响应速度
+  /// 测试单个镜像的实际下载速度
+  /// 通过下载文件的前 512KB 来测试实际速度，而不是只测试 HEAD 请求
   static Future<Map<String, dynamic>> _testMirrorSpeed(
       String url, String name) async {
     final startTime = DateTime.now();
-    
+
     debugPrint('🔍 [Mirror Test] Testing $name...');
 
     try {
-      // 使用 HEAD 请求测试响应速度（不下载完整文件）
-      // 缩短超时时间为 3 秒，加快测速
-      final response =
-          await http.head(Uri.parse(url)).timeout(const Duration(seconds: 3));
+      // 发起 GET 请求，限制下载前 512KB
+      final request = http.Request('GET', Uri.parse(url));
+      request.headers['Range'] = 'bytes=0-524287'; // 512KB
 
-      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      final client = http.Client();
+      final streamedResponse = await client.send(request).timeout(
+            const Duration(seconds: 5),
+          );
 
-      if (response.statusCode == 200 || response.statusCode == 302) {
-        debugPrint('✅ [Mirror Test] $name OK: ${duration}ms (status: ${response.statusCode})');
+      if (streamedResponse.statusCode == 200 ||
+          streamedResponse.statusCode == 206) {
+        // 206 = Partial Content
+
+        int bytesDownloaded = 0;
+        final downloadStartTime = DateTime.now();
+
+        // 监听数据流，计算下载速度
+        await for (var chunk in streamedResponse.stream) {
+          bytesDownloaded += chunk.length;
+
+          // 下载够 256KB 就停止测试（足够评估速度）
+          if (bytesDownloaded >= 262144) {
+            break;
+          }
+        }
+
+        final downloadDuration = DateTime.now().difference(downloadStartTime);
+        final durationMs = downloadDuration.inMilliseconds;
+
+        // 计算速度 (KB/s)
+        final speedKBps =
+            durationMs > 0 ? (bytesDownloaded / 1024) / (durationMs / 1000) : 0;
+
+        // 使用速度的倒数作为 duration（速度越快，duration 越小）
+        // 将 KB/s 转换为 duration：1000 / speedKBps
+        final speedScore = speedKBps > 0 ? (1000 / speedKBps).round() : 999999;
+
+        client.close();
+
+        debugPrint(
+            '✅ [Mirror Test] $name OK: ${speedKBps.toStringAsFixed(1)} KB/s (score: $speedScore)');
+
         return {
           'url': url,
           'name': name,
-          'duration': duration,
+          'duration': speedScore, // 用速度分数排序
+          'speed': speedKBps, // 实际速度
           'available': true,
         };
       } else {
-        debugPrint('⚠️ [Mirror Test] $name returned ${response.statusCode}');
+        client.close();
+        debugPrint(
+            '⚠️ [Mirror Test] $name returned ${streamedResponse.statusCode}');
         return {
           'url': url,
           'name': name,
-          'duration': 999999, // 大数值，确保排到后面
+          'duration': 999999,
+          'speed': 0,
           'available': false,
         };
       }
@@ -230,6 +363,7 @@ class UpdateService {
         'url': url,
         'name': name,
         'duration': 999999,
+        'speed': 0,
         'available': false,
       };
     }
@@ -372,18 +506,21 @@ class UpdateService {
         int l = i < latestParts.length ? latestParts[i] : 0;
         int c = i < currentParts.length ? currentParts[i] : 0;
         if (l > c) {
-          debugPrint('✅ Newer version detected by version name: $latestVersion > $currentVersion');
+          debugPrint(
+              '✅ Newer version detected by version name: $latestVersion > $currentVersion');
           return true;
         }
         if (l < c) {
-          debugPrint('ℹ️ Local version is newer than remote: $currentVersion > $latestVersion');
+          debugPrint(
+              'ℹ️ Local version is newer than remote: $currentVersion > $latestVersion');
           return false;
         }
       }
 
       // 2. 如果版本名相同，对比构建号 (Case A)
       final isNewerBuild = latestBuild > currentBuild;
-      debugPrint('🔍 Comparing build numbers: remote($latestBuild) ${isNewerBuild ? ">" : "<="} local($currentBuild)');
+      debugPrint(
+          '🔍 Comparing build numbers: remote($latestBuild) ${isNewerBuild ? ">" : "<="} local($currentBuild)');
       return isNewerBuild;
     } catch (e) {
       // 兜底：如果解析出错，仅当版本名或构建号不完全一致时（且非空）尝试更新
@@ -478,46 +615,18 @@ class UpdateService {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () async {
-                    // 检查是否已经在下载中
-                    if (_isDownloading) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(l10n.downloading_update),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                      return;
-                    }
-
-                    if (Platform.isAndroid && isApk) {
-                      // ✅ 先请求安装权限（在关闭对话框之前）
-                      final hasPermission = await _requestInstallPermission(context);
-                      if (!hasPermission) {
-                        debugPrint('❌ [Update] Install permission denied');
-                        return;
-                      }
-                      
-                      // ✅ 权限通过后，再关闭对话框
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                      
-                      debugPrint('✅ [Update] Install permission granted, starting download');
-                      
-                      // ✅ 使用新的 context 显示下载进度
-                      if (context.mounted) {
-                        _showDownloadProgress(context, url, l10n, version, mirrorName);
-                      }
-                    } else {
-                      // 非 Android 或非 APK，直接关闭对话框并打开浏览器
-                      Navigator.pop(context);
-                      final uri = Uri.parse(url);
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri,
+                    // 只负责打开官网，并带上锚点建议网页端弹出下载选择
+                    final officialWebsite =
+                        Uri.parse('https://puked.osglab.com/#download');
+                    try {
+                      if (await canLaunchUrl(officialWebsite)) {
+                        await launchUrl(officialWebsite,
                             mode: LaunchMode.externalApplication);
                       }
+                      // 打开官网后关闭 App 里的更新弹窗
+                      if (context.mounted) Navigator.pop(context);
+                    } catch (e) {
+                      debugPrint('⚠️ Could not launch official website: $e');
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -529,9 +638,9 @@ class UpdateService {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     elevation: 0,
                   ),
-                  child: Text(
-                    l10n.update_now,
-                    style: const TextStyle(
+                  child: const Text(
+                    '打开官网',
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -544,8 +653,8 @@ class UpdateService {
     );
   }
 
-  static void _showDownloadProgress(
-      BuildContext context, String url, AppLocalizations l10n, String version, String? mirrorName) {
+  static void _showDownloadProgress(BuildContext context, String url,
+      AppLocalizations l10n, String version, String? mirrorName) {
     final colorScheme = Theme.of(context).colorScheme;
 
     // 设置下载状态标志
@@ -565,215 +674,284 @@ class UpdateService {
             }
           },
           child: AlertDialog(
-          backgroundColor: colorScheme.surface,
-          surfaceTintColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Column(
-            children: [
-              Text(
-                l10n.downloading_update,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
+            backgroundColor: colorScheme.surface,
+            surfaceTintColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: Column(
+              children: [
+                Text(
+                  l10n.downloading_update,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                version,
-                style: TextStyle(
-                  color: colorScheme.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(height: 4),
+                Text(
+                  version,
+                  style: TextStyle(
+                    color: colorScheme.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              // 显示下载源
-              if (mirrorName != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: colorScheme.primary.withOpacity(0.3),
-                      width: 1,
+                // 显示下载源
+                if (mirrorName != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: colorScheme.primary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cloud_download,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          mirrorName,
+                          style: TextStyle(
+                            color: colorScheme.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.cloud_download,
-                        size: 16,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        mirrorName,
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ],
-            ],
-          ),
-          content: StreamBuilder<OtaEvent>(
-            stream: OtaUpdate().execute(
-              url,
-              destinationFilename: 'puked_update.apk',
-              androidProviderAuthority: 'com.osglab.puked.ota_update_provider',
-              // 注意：sha256checksum 参数被注释，因为当前没有从 Release 中获取 SHA256
-              // sha256checksum: expectedSha256,
             ),
-            builder: (context, snapshot) {
-              double progress = 0;
-              String statusText = l10n.processing;
-              bool isError = false;
-              bool isConnecting = snapshot.connectionState == ConnectionState.waiting;
+            content: StreamBuilder<OtaEvent>(
+              stream: OtaUpdate().execute(
+                url,
+                destinationFilename: 'puked_update.apk',
+                androidProviderAuthority:
+                    'com.osglab.puked.ota_update_provider',
+                // 注意：sha256checksum 参数被注释，因为当前没有从 Release 中获取 SHA256
+                // sha256checksum: expectedSha256,
+              ),
+              builder: (context, snapshot) {
+                double progress = 0;
+                String statusText = l10n.processing;
+                bool isError = false;
+                bool isConnecting =
+                    snapshot.connectionState == ConnectionState.waiting;
 
-              if (snapshot.hasData) {
-                final event = snapshot.data!;
-                debugPrint('📥 [Update] OTA Status: ${event.status}, Value: ${event.value}');
-                
-                switch (event.status) {
-                  case OtaStatus.DOWNLOADING:
-                    final val = double.tryParse(event.value ?? '0') ?? 0;
-                    progress = val;
-                    statusText = l10n.downloading;
-                    // 如果 progress 为 0，说明刚开始连接
-                    if (progress <= 0) isConnecting = true;
-                    break;
-                  case OtaStatus.INSTALLING:
-                    // 下载完成，插件即将触发安装 Intent
-                    statusText = l10n.processing;
-                    progress = 100;
-                    
-                    debugPrint('✅ [Update] Download completed, installation will start automatically');
-                    
-                    // 清理下载状态
-                    _setDownloadingState(false);
-                    
-                    // 延迟关闭对话框，让用户看到"准备安装"的提示
-                    // 注意：此时插件会自动触发系统安装对话框
-                    Future.delayed(const Duration(milliseconds: 800), () {
-                      if (context.mounted) Navigator.of(context).pop();
-                    });
-                    break;
-                  case OtaStatus.ALREADY_RUNNING_ERROR:
-                    statusText = l10n.download_failed;
-                    isError = true;
-                    _setDownloadingState(false);
-                    break;
-                  case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
-                    statusText = l10n.permission_not_granted;
-                    isError = true;
-                    _setDownloadingState(false);
-                    break;
-                  case OtaStatus.INTERNAL_ERROR:
-                  case OtaStatus.DOWNLOAD_ERROR:
-                  case OtaStatus.CHECKSUM_ERROR:
-                    statusText = l10n.download_failed;
-                    isError = true;
-                    _setDownloadingState(false);
-                    break;
-                  default:
-                    statusText = l10n.processing;
+                if (snapshot.hasData) {
+                  final event = snapshot.data!;
+                  debugPrint(
+                      '📥 [Update] OTA Status: ${event.status}, Value: ${event.value}');
+
+                  switch (event.status) {
+                    case OtaStatus.DOWNLOADING:
+                      final val = double.tryParse(event.value ?? '0') ?? 0;
+                      progress = val;
+                      statusText = l10n.downloading;
+                      // 如果 progress 为 0，说明刚开始连接
+                      if (progress <= 0) isConnecting = true;
+                      break;
+                    case OtaStatus.INSTALLING:
+                      // 下载完成，尝试手动触发安装
+                      statusText = l10n.processing;
+                      progress = 100;
+
+                      debugPrint(
+                          '✅ [Update] Download completed, triggering installation manually');
+
+                      // 清理下载状态
+                      _setDownloadingState(false);
+
+                      // 使用 open_file 手动触发安装（ota_update 插件有时不会自动触发）
+                      _triggerManualInstall(context);
+
+                      // 延迟关闭对话框
+                      Future.delayed(const Duration(milliseconds: 500), () {
+                        if (context.mounted) Navigator.of(context).pop();
+                      });
+                      break;
+                    case OtaStatus.ALREADY_RUNNING_ERROR:
+                      statusText = l10n.download_failed;
+                      isError = true;
+                      _setDownloadingState(false);
+                      break;
+                    case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
+                      statusText = l10n.permission_not_granted;
+                      isError = true;
+                      _setDownloadingState(false);
+                      break;
+                    case OtaStatus.INTERNAL_ERROR:
+                    case OtaStatus.DOWNLOAD_ERROR:
+                    case OtaStatus.CHECKSUM_ERROR:
+                      statusText = l10n.download_failed;
+                      isError = true;
+                      _setDownloadingState(false);
+                      break;
+                    default:
+                      statusText = l10n.processing;
+                  }
+                } else if (snapshot.hasError) {
+                  debugPrint('❌ OTA Error: ${snapshot.error}');
+                  statusText = l10n.network_error;
+                  isError = true;
+                  _setDownloadingState(false);
                 }
-              } else if (snapshot.hasError) {
-                debugPrint('❌ OTA Error: ${snapshot.error}');
-                statusText = l10n.network_error;
-                isError = true;
-                _setDownloadingState(false);
-              }
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 8),
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: isConnecting ? null : progress / 100,
-                          minHeight: 12,
-                          backgroundColor: colorScheme.surfaceContainerHighest,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                              colorScheme.primary),
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: isConnecting ? null : progress / 100,
+                            minHeight: 12,
+                            backgroundColor:
+                                colorScheme.surfaceContainerHighest,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                colorScheme.primary),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        isConnecting ? '${l10n.processing}...' : statusText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isError
-                              ? Colors.red
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (!isConnecting)
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                         Text(
-                          '${progress.toInt()}%',
+                          isConnecting ? '${l10n.processing}...' : statusText,
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
+                            color: isError
+                                ? Colors.red
+                                : colorScheme.onSurfaceVariant,
                           ),
                         ),
-                    ],
-                  ),
-                  if (isError)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 24),
-                      child: Column(
-                        children: [
+                        if (!isConnecting)
                           Text(
-                            l10n.ensure_network_tip,
+                            '${progress.toInt()}%',
                             style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onSurfaceVariant,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
                             ),
-                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              onPressed: () {
-                                _setDownloadingState(false); // 用户关闭时重置状态
-                                Navigator.pop(context);
-                              },
-                              child: Text(
-                                l10n.back,
-                                style: const TextStyle(color: Colors.grey),
+                      ],
+                    ),
+                    if (isError)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Column(
+                          children: [
+                            Text(
+                              l10n.ensure_network_tip,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                onPressed: () {
+                                  _setDownloadingState(false); // 用户关闭时重置状态
+                                  Navigator.pop(context);
+                                },
+                                child: Text(
+                                  l10n.back,
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                ],
-              );
-            },
-          ),
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
     );
+  }
+
+  /// 手动触发 APK 安装
+  /// 当 ota_update 插件不自动触发安装时，使用此方法
+  static Future<void> _triggerManualInstall(BuildContext context) async {
+    try {
+      debugPrint('🔍 [Update] Searching for downloaded APK...');
+
+      // 遍历所有可能的目录：internal cache, internal files, external cache, external files
+      final List<String> searchPaths = [
+        '/data/user/0/com.osglab.puked/cache',
+        '/data/user/0/com.osglab.puked/files',
+        '/storage/emulated/0/Android/data/com.osglab.puked/cache',
+        '/storage/emulated/0/Android/data/com.osglab.puked/files',
+      ];
+
+      String? apkPath;
+
+      for (final path in searchPaths) {
+        final dir = Directory(path);
+        if (await dir.exists()) {
+          debugPrint('📂 [Update] Checking directory: $path');
+          try {
+            final files = dir.listSync();
+            for (var file in files) {
+              if (file.path.endsWith('.apk')) {
+                // 检查文件大小，确保不是 0 字节
+                final stat = await file.stat();
+                if (stat.size > 1024 * 1024) {
+                  // 大于 1MB 才是有效的 APK
+                  apkPath = file.path;
+                  debugPrint(
+                      '📦 [Update] Found valid APK at: $apkPath (${(stat.size / 1024 / 1024).toStringAsFixed(1)} MB)');
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ [Update] Could not list files in $path: $e');
+          }
+        }
+        if (apkPath != null) break;
+      }
+
+      if (apkPath != null) {
+        debugPrint('🚀 [Update] Opening APK with open_file plugin');
+        final result = await OpenFile.open(apkPath);
+        debugPrint(
+            '📊 [Update] open_file result: ${result.type}, message: ${result.message}');
+
+        if (result.type != ResultType.done) {
+          // 如果还是失败，可能是权限问题，尝试第二次使用不同方式
+          debugPrint(
+              '🔄 [Update] Retrying installation with different approach...');
+        }
+      } else {
+        debugPrint('❌ [Update] No valid APK file found anywhere!');
+      }
+    } catch (e) {
+      debugPrint('❌ [Update] Error in manual install flow: $e');
+    }
   }
 }

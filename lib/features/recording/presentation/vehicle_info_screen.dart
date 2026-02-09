@@ -159,19 +159,20 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
     try {
       final originalFile = File(originalImage.path);
       final originalBytes = await originalFile.readAsBytes();
-      
+
       // 解码图片以获取原始尺寸
       final decodedImage = await decodeImageFromList(originalBytes);
       final originalWidth = decodedImage.width;
       final originalHeight = decodedImage.height;
 
       // 判断是否需要压缩
-      final longerSide = originalWidth > originalHeight ? originalWidth : originalHeight;
+      final longerSide =
+          originalWidth > originalHeight ? originalWidth : originalHeight;
       if (longerSide <= 2000) {
         // 尺寸已满足要求，仅做质量压缩
         final ext = path.extension(originalImage.path).toLowerCase();
         final isJpg = ext == '.jpg' || ext == '.jpeg';
-        
+
         final compressedBytes = await FlutterImageCompress.compressWithFile(
           originalImage.path,
           quality: isJpg ? 90 : 100, // JPG压缩90%，PNG保持100%
@@ -217,7 +218,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       final compressedFile = File('${tempDir.path}/$fileName');
       await compressedFile.writeAsBytes(compressedBytes);
 
-      debugPrint('[VehicleInfo] 图片压缩成功: ${originalWidth}x${originalHeight} -> ${targetWidth}x${targetHeight}');
+      debugPrint(
+          '[VehicleInfo] 图片压缩成功: ${originalWidth}x${originalHeight} -> ${targetWidth}x${targetHeight}');
       return XFile(compressedFile.path);
     } catch (e) {
       debugPrint('[VehicleInfo] 图片压缩失败: $e');

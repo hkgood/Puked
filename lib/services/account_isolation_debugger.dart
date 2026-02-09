@@ -2,15 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:puked/services/user_session_manager.dart';
 
 /// 账号隔离调试助手
-/// 
+///
 /// 用于在开发和测试阶段验证数据是否正确隔离
 class AccountIsolationDebugger {
   /// 验证显示的数据是否属于当前登录用户
-  /// 
+  ///
   /// [dataUserId] 数据关联的用户ID
   /// [dataDescription] 数据描述（用于日志）
   /// [sessionManager] 会话管理器实例
-  /// 
+  ///
   /// 返回：true表示数据所有权正确，false表示检测到数据混乱
   static bool validateDataOwnership({
     required String? dataUserId,
@@ -19,20 +19,20 @@ class AccountIsolationDebugger {
   }) {
     final currentUserId = sessionManager.currentUserId;
     final isValid = sessionManager.validateDataOwnership(dataUserId);
-    
+
     if (!isValid) {
       debugPrint('⚠️ [ACCOUNT_ISOLATION_ERROR] Data ownership mismatch!');
       debugPrint('   Data: $dataDescription');
       debugPrint('   Current User: ${currentUserId ?? "not logged in"}');
       debugPrint('   Data User: ${dataUserId ?? "null"}');
       debugPrint('   Stack trace: ${StackTrace.current}');
-      
+
       // 在开发模式下，可以选择抛出异常来快速发现问题
       if (kDebugMode) {
         // throw StateError('Data ownership validation failed: $dataDescription');
       }
     }
-    
+
     return isValid;
   }
 
@@ -78,7 +78,7 @@ class AccountIsolationDebugger {
   /// 生成会话诊断报告
   static String generateSessionReport(UserSessionManager sessionManager) {
     final info = sessionManager.getSessionInfo();
-    
+
     final buffer = StringBuffer();
     buffer.writeln('=== Session Diagnostic Report ===');
     buffer.writeln('Current User ID: ${info['currentUserId'] ?? "none"}');
@@ -86,7 +86,7 @@ class AccountIsolationDebugger {
     buffer.writeln('Is Switching: ${info['isSwitching']}');
     buffer.writeln('Generated: ${DateTime.now()}');
     buffer.writeln('================================');
-    
+
     return buffer.toString();
   }
 

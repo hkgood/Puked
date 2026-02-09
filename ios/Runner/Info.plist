@@ -39,11 +39,11 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Puked 需要访问您的相册，以便您可以为记录的行程上传车辆或路况照片。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Puked 需要访问您的相册，以便您可以保存行程详情截图。</string>
+	<string>Puked 需要保存行程视频到相册，以便您可以查看负体验事件发生时的录像。您也可以保存行程详情截图。</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Puked 需要访问您的相机，以便您可以拍摄并上传车辆或路况照片。</string>
+	<string>Puked 需要使用摄像头录制行车视频，以便在发生负体验事件时记录前5秒画面。您也可以拍摄并上传车辆或路况照片。</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Puked 需要访问您的麦克风，以便在拍摄视频时记录声音。</string>
+	<string>Puked 需要访问您的麦克风，以便使用语音记录负体验事件。</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

@@ -37,6 +37,12 @@ class AlgorithmConfig {
   final double maxBumpAllowed; // 最大允许垂直冲击 (m/s²)，约 4G
   final double minAccelForJerk; // Jerk 触发的最小加速度基准 (m/s²)
 
+  // --- 趋势过滤参数 (v13+ 新增，用于过滤温和减速/加速) ---
+  final double trendChangeThreshold; // 趋势变化阈值 (默认 0.40)
+  final bool enableTrendFilter; // 是否启用趋势过滤 (默认 true)
+  final double minStdDevThreshold; // 标准差阈值（备用，默认 0.22）
+  final double minRangeThreshold; // 跨度阈值（备用，默认 0.71）
+
   final int version;
   final String updatedAt;
   final String? id; // PocketBase Record ID
@@ -69,6 +75,10 @@ class AlgorithmConfig {
     required this.maxWobbleSpanAllowed,
     required this.maxBumpAllowed,
     required this.minAccelForJerk,
+    required this.trendChangeThreshold,
+    required this.enableTrendFilter,
+    required this.minStdDevThreshold,
+    required this.minRangeThreshold,
     required this.version,
     required this.updatedAt,
     this.id,
@@ -127,6 +137,10 @@ class AlgorithmConfig {
       maxWobbleSpanAllowed: toDouble(json['max_wobble_span_allowed'], 20.0),
       maxBumpAllowed: toDouble(json['max_bump_allowed'], 40.0),
       minAccelForJerk: toDouble(json['min_accel_for_jerk'], 2.5),
+      trendChangeThreshold: toDouble(json['trend_change_threshold'], 0.40),
+      enableTrendFilter: json['enable_trend_filter'] ?? true,
+      minStdDevThreshold: toDouble(json['min_std_dev_threshold'], 0.22),
+      minRangeThreshold: toDouble(json['min_range_threshold'], 0.71),
       version: findInt(json['version'], 0),
       updatedAt: (json['updated'] ??
           json['updatedAt'] ??
@@ -164,6 +178,10 @@ class AlgorithmConfig {
       'max_wobble_span_allowed': maxWobbleSpanAllowed,
       'max_bump_allowed': maxBumpAllowed,
       'min_accel_for_jerk': minAccelForJerk,
+      'trend_change_threshold': trendChangeThreshold,
+      'enable_trend_filter': enableTrendFilter,
+      'min_std_dev_threshold': minStdDevThreshold,
+      'min_range_threshold': minRangeThreshold,
       'version': version,
       'updatedAt': updatedAt,
       'id': id,
@@ -198,6 +216,10 @@ class AlgorithmConfig {
     double? maxWobbleSpanAllowed,
     double? maxBumpAllowed,
     double? minAccelForJerk,
+    double? trendChangeThreshold,
+    bool? enableTrendFilter,
+    double? minStdDevThreshold,
+    double? minRangeThreshold,
     int? version,
     String? updatedAt,
     String? id,
@@ -233,6 +255,10 @@ class AlgorithmConfig {
       maxWobbleSpanAllowed: maxWobbleSpanAllowed ?? this.maxWobbleSpanAllowed,
       maxBumpAllowed: maxBumpAllowed ?? this.maxBumpAllowed,
       minAccelForJerk: minAccelForJerk ?? this.minAccelForJerk,
+      trendChangeThreshold: trendChangeThreshold ?? this.trendChangeThreshold,
+      enableTrendFilter: enableTrendFilter ?? this.enableTrendFilter,
+      minStdDevThreshold: minStdDevThreshold ?? this.minStdDevThreshold,
+      minRangeThreshold: minRangeThreshold ?? this.minRangeThreshold,
       version: version ?? this.version,
       updatedAt: updatedAt ?? this.updatedAt,
       id: id ?? this.id,
@@ -269,6 +295,10 @@ class AlgorithmConfig {
       maxWobbleSpanAllowed: 20.0,
       maxBumpAllowed: 40.0,
       minAccelForJerk: 2.5,
+      trendChangeThreshold: 0.40,
+      enableTrendFilter: true,
+      minStdDevThreshold: 0.22,
+      minRangeThreshold: 0.71,
       version: 11,
       updatedAt: '2026-01-17T05:57:56.966Z',
     );

@@ -36,7 +36,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
 
     final auth = ref.read(authProvider);
     final pb = ref.read(pbServiceProvider).pb;
-    
+
     // 确认对话框
     final confirmed = await showDialog<bool>(
       context: context,
@@ -65,8 +65,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     try {
       // 获取所有用户
       final usersRecords = await pb.collection('users').getFullList(
-        sort: '-created',
-      );
+            sort: '-created',
+          );
 
       int totalProcessed = 0;
       int totalCompressed = 0;
@@ -79,7 +79,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
 
         for (final imageFileName in certImages) {
           totalProcessed++;
-          
+
           try {
             // 1. 下载原图
             final imageUrl = pb.files.getUrl(user, imageFileName).toString();
@@ -91,7 +91,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
             }
 
             final originalBytes = response.bodyBytes;
-            
+
             // 2. 检测尺寸
             final decodedImage = await decodeImageFromList(originalBytes);
             final width = decodedImage.width;
@@ -135,7 +135,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
             }
 
             // 5. 重新上传（覆盖原文件）
-            final compressedFile = File('${tempDir.path}/compressed_$imageFileName');
+            final compressedFile =
+                File('${tempDir.path}/compressed_$imageFileName');
             await compressedFile.writeAsBytes(compressedBytes);
 
             final multipartFile = await http.MultipartFile.fromPath(
@@ -150,7 +151,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
             );
 
             totalCompressed++;
-            debugPrint('[压缩] 成功: $imageFileName (${width}x$height -> ${targetWidth}x$targetHeight)');
+            debugPrint(
+                '[压缩] 成功: $imageFileName (${width}x$height -> ${targetWidth}x$targetHeight)');
 
             // 清理临时文件
             await originalFile.delete();
@@ -295,7 +297,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                                   .primaryContainer, // 添加背景色
                               // 核心修复：使用 CachedNetworkImageProvider 缓存头像
                               backgroundImage: pb.currentAvatarUrl != null
-                                  ? CachedNetworkImageProvider(pb.currentAvatarUrl!)
+                                  ? CachedNetworkImageProvider(
+                                      pb.currentAvatarUrl!)
                                   : null,
                               child: pb.currentAvatarUrl == null
                                   ? Icon(
@@ -575,7 +578,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
                           )
                         : Icon(Icons.image_outlined,
                             size: 20, color: colorScheme.primary),
-                    onPressed: _isCompressing ? null : _compressAllCertificationImages,
+                    onPressed:
+                        _isCompressing ? null : _compressAllCertificationImages,
                     tooltip: '压缩认证图片',
                   ),
                 // 刷新按钮 (直接失效缓存，强制重新拉取 user_stats)
@@ -810,7 +814,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     double currentAngle = 0.0; // 累积角度 (用于计算每个 Logo 的位置)
 
     final sections = <PieChartSectionData>[];
-    
+
     for (int i = 0; i < sortedEntries.length; i++) {
       final entry = sortedEntries[i];
       final color = chartColors[colorIndex % chartColors.length];

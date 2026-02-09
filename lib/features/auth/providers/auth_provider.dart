@@ -58,7 +58,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // 启动时如果 Token 有效，静默刷新用户信息以确保 UI 数据最新
     if (state.isTokenValid && _pbService.currentUserId != null) {
       // 初始化会话管理器
-      _ref.read(userSessionManagerProvider).initialize(_pbService.currentUserId);
+      _ref
+          .read(userSessionManagerProvider)
+          .initialize(_pbService.currentUserId);
       refreshUserFromServer();
     }
   }
@@ -67,19 +69,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _pbService.pb.collection('users').authWithPassword(email, password);
-      
+
       final newUserId = _pbService.currentUserId;
-      
+
       // 更新状态
       state = state.copyWith(
         isLoading: false,
         user: _pbService.currentUser,
         isTokenValid: _pbService.isAuthenticated,
       );
-      
+
       // 🔥 关键：通知会话管理器用户已登录
       if (newUserId != null) {
-        await _ref.read(userSessionManagerProvider).startSession(newUserId, null);
+        await _ref
+            .read(userSessionManagerProvider)
+            .startSession(newUserId, null);
       }
     } on ClientException catch (_) {
       // 设置一个标准化的错误 Key
@@ -138,15 +142,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     _isLoggingOut = true;
-    
+
     try {
-      
       // 🔥 关键步骤1：先通知会话管理器结束会话（这会触发所有Provider清理）
       await _ref.read(userSessionManagerProvider).endSession(null);
-      
+
       // 步骤2：清除PocketBase的认证状态
       await _pbService.logout();
-      
+
       // 步骤3：重置本地状态为未登录
       state = AuthState(isTokenValid: false);
     } catch (e) {
@@ -223,7 +226,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (_isLoggingOut) {
       return;
     }
-    
+
     // 防御性检查2: 如果未登录，立即返回
     if (!_pbService.isAuthenticated) {
       if (state.isTokenValid) {
@@ -235,7 +238,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // 防御性检查3: 验证当前用户ID与会话管理器一致
     final currentUserId = _pbService.currentUserId;
     final sessionUserId = _ref.read(userSessionManagerProvider).currentUserId;
-    
+
     if (currentUserId != sessionUserId) {
       return;
     }

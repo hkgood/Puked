@@ -62,17 +62,13 @@ class StatsCapsule extends ConsumerWidget {
                 ),
                 _buildVerticalDivider(context),
                 Expanded(
-                  child: _buildStatItem(
-                      context,
-                      state.currentGForce.toStringAsFixed(2),
-                      'G-FORCE',
+                  child: _buildStatItem(context,
+                      state.currentGForce.toStringAsFixed(2), 'G-FORCE',
                       unit: 'G'),
                 ),
                 _buildVerticalDivider(context),
                 Expanded(
-                  child: _buildStatItem(
-                      context,
-                      state.events.length.toString(),
+                  child: _buildStatItem(context, state.events.length.toString(),
                       l10n.neg_exp.toUpperCase(),
                       unit: l10n.pts_unit),
                 ),
@@ -88,8 +84,10 @@ class StatsCapsule extends ConsumerWidget {
       {String? unit}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
-    final unitColor = isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black54;
-    final labelColor = isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black45;
+    final unitColor =
+        isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black54;
+    final labelColor =
+        isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black45;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -138,8 +136,8 @@ class StatsCapsule extends ConsumerWidget {
 
   Widget _buildVerticalDivider(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dividerColor = isDark 
-        ? Colors.white.withValues(alpha: 0.1) 
+    final dividerColor = isDark
+        ? Colors.white.withValues(alpha: 0.1)
         : Colors.black.withValues(alpha: 0.1);
 
     return Container(

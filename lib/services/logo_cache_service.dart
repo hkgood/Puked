@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:puked/services/pocketbase_service.dart';
 
 /// Logo 缓存服务
-/// 
+///
 /// 职责：
 /// 1. 在 App 首次启动时，预加载所有已知品牌的云端 logo 到本地缓存
 /// 2. 提供缓存命中检查和 logo 路径获取
@@ -19,7 +19,8 @@ class LogoCacheService {
 
   static const _cacheVersionKey = 'logo_cache_version';
   static const _currentCacheVersion = 2; // 版本号：每次有新 logo 时递增
-  static const _preloadCompleteKey = 'logo_preload_complete_v$_currentCacheVersion';
+  static const _preloadCompleteKey =
+      'logo_preload_complete_v$_currentCacheVersion';
 
   // 已知本地内置的品牌（assets/logos/ 中的 SVG）
   static const Set<String> _localBrands = {
@@ -59,7 +60,7 @@ class LogoCacheService {
   }
 
   /// 预加载所有品牌 Logo
-  /// 
+  ///
   /// 策略：
   /// 1. 本地已有的品牌（assets）直接跳过
   /// 2. 云端品牌的 logo 下载到应用缓存目录
@@ -72,8 +73,8 @@ class LogoCacheService {
 
       // 1. 获取所有品牌
       final records = await _pbService.pb.collection('brands').getFullList(
-        sort: 'name',
-      );
+            sort: 'name',
+          );
 
       debugPrint('[LogoCache] 找到 ${records.length} 个品牌');
 
@@ -169,8 +170,8 @@ class LogoCacheService {
       final cachedFile = File('${cacheDir.path}/$brandName.svg');
 
       final response = await http.get(Uri.parse(logoUrl)).timeout(
-        const Duration(seconds: 10),
-      );
+            const Duration(seconds: 10),
+          );
 
       if (response.statusCode == 200) {
         await cachedFile.writeAsBytes(response.bodyBytes);
@@ -222,7 +223,7 @@ class LogoCacheService {
     // 分批处理：每批最多 maxConcurrent 个
     for (int i = 0; i < items.length; i += maxConcurrent) {
       final batch = items.skip(i).take(maxConcurrent).toList();
-      
+
       // 并发下载当前批次
       await Future.wait(
         batch.map((item) async {
@@ -236,8 +237,8 @@ class LogoCacheService {
   Future<bool> _downloadItem(Map<String, String> item) async {
     try {
       final response = await http.get(Uri.parse(item['url']!)).timeout(
-        const Duration(seconds: 15),
-      );
+            const Duration(seconds: 15),
+          );
 
       if (response.statusCode == 200) {
         final file = File(item['path']!);

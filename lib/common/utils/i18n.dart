@@ -62,6 +62,18 @@ class I18n {
         return _delegate.event_sound;
       case 'event_sound_desc':
         return _delegate.event_sound_desc;
+      case 'video_recording':
+        return _delegate.video_recording;
+      case 'video_recording_desc':
+        return _delegate.video_recording_desc;
+      case 'camera_permission_needed':
+        return _delegate.camera_permission_needed;
+      case 'camera_init_failed':
+        return _delegate.camera_init_failed;
+      case 'camera_preview_failed':
+        return _delegate.camera_preview_failed;
+      case 'camera_starting':
+        return _delegate.camera_starting;
       case 'high_frame_rate':
         return _delegate.high_frame_rate;
       case 'high_frame_rate_desc':
@@ -720,6 +732,24 @@ class I18n {
         return _delegate.low_speed_jerk_limit_label;
       case 'low_speed_jerk_limit_hint':
         return _delegate.low_speed_jerk_limit_hint;
+      case 'trend_filter_section':
+        return _delegate.trend_filter_section;
+      case 'enable_trend_filter_label':
+        return _delegate.enable_trend_filter_label;
+      case 'enable_trend_filter_hint':
+        return _delegate.enable_trend_filter_hint;
+      case 'trend_change_threshold_label':
+        return _delegate.trend_change_threshold_label;
+      case 'trend_change_threshold_hint':
+        return _delegate.trend_change_threshold_hint;
+      case 'min_std_dev_threshold_label':
+        return _delegate.min_std_dev_threshold_label;
+      case 'min_std_dev_threshold_hint':
+        return _delegate.min_std_dev_threshold_hint;
+      case 'min_range_threshold_label':
+        return _delegate.min_range_threshold_label;
+      case 'min_range_threshold_hint':
+        return _delegate.min_range_threshold_hint;
       case 'recording_voice':
         return _delegate.recording_voice;
       case 'pro_on':
@@ -791,6 +821,14 @@ class I18n {
         return _delegate.arena_brand_evolution_title('{}');
       case 'cloud_sync_result':
         return _delegate.cloud_sync_result('{}');
+      case 'weekly_comfort_ranking':
+        return _delegate.weekly_comfort_ranking;
+      case 'weekly_comfort_desc':
+        return _delegate.weekly_comfort_desc;
+      case 'weekly_mileage_ranking':
+        return _delegate.weekly_mileage_ranking;
+      case 'weekly_mileage_desc':
+        return _delegate.weekly_mileage_desc;
       default:
         return key; // 回退到 Key 本身
     }

@@ -29,7 +29,7 @@ class LocationService {
       locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 0,
-        intervalDuration: const Duration(seconds: 2),
+        intervalDuration: const Duration(milliseconds: 500),
         forceLocationManager: true,
         foregroundNotificationConfig: ForegroundNotificationConfig(
           notificationText: i18n.t('recording_notification_content'),
@@ -50,15 +50,18 @@ class LocationService {
     return Geolocator.getPositionStream(locationSettings: locationSettings);
   }
 
-  Future<Position> getCurrentPosition({LocationAccuracy accuracy = LocationAccuracy.medium}) async {
+  Future<Position> getCurrentPosition(
+      {LocationAccuracy accuracy = LocationAccuracy.medium}) async {
     return await Geolocator.getCurrentPosition(
       locationSettings: LocationSettings(accuracy: accuracy),
     );
   }
 
-  double calculateDistance(double startLat, double startLng, double endLat, double endLng) {
+  double calculateDistance(
+      double startLat, double startLng, double endLat, double endLng) {
     return Geolocator.distanceBetween(startLat, startLng, endLat, endLng);
   }
 }
 
-final locationServiceProvider = Provider<LocationService>((ref) => LocationService(ref));
+final locationServiceProvider =
+    Provider<LocationService>((ref) => LocationService(ref));

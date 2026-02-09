@@ -1,4 +1,4 @@
-source 'https://mirrors.tuna.tsinghua.edu.cn/git/CocoaPods/Specs.git'
+source 'https://cdn.cocoapods.org/'
 
 platform :ios, '13.0'
 
@@ -9,7 +9,16 @@ project 'Runner', {
 }
 
 def flutter_root
-  "/Users/maxliu/development/flutter"
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
 end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
@@ -49,6 +58,29 @@ post_install do |installer|
       # 忽略第三方库的警告转错误（解决 audioplayers 等废弃 API 导致的编译错误）
       config.build_settings['SWIFT_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
       config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+      
+      # ✨ 抑制第三方库的警告显示
+      # 抑制 C/Objective-C 的弃用警告和未初始化变量警告
+      config.build_settings['WARNING_CFLAGS'] ||= ['$(inherited)']
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-declarations'  # 弃用 API 警告
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-uninitialized'  # 未初始化变量警告
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-unused-variable'  # 未使用变量警告
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-implementations'  # 弃用实现警告
+      
+      # 抑制 Swift 的弃用警告
+      config.build_settings['OTHER_SWIFT_FLAGS'] ||= ['$(inherited)']
+      config.build_settings['OTHER_SWIFT_FLAGS'] << '-suppress-warnings'  # 抑制所有 Swift 警告
+      
+      # 🔧 生成 dSYM 文件用于崩溃报告符号化（TestFlight 需要）
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+      config.build_settings['DWARF_DSYM_FOLDER_PATH'] = '$(TARGET_BUILD_DIR)'
+      config.build_settings['DWARF_DSYM_FILE_NAME'] = '$(FULL_PRODUCT_NAME).dSYM'
+      
+      # 确保 Release 模式也生成调试符号
+      if config.name == 'Release' || config.name == 'Profile'
+        config.build_settings['COPY_PHASE_STRIP'] = 'NO'
+        config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+      end
     end
   end
 end

@@ -51,13 +51,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       await _currentTrip.events.load();
       if (mounted) setState(() {});
     }
-    
+
     // Lazy load event statistics (for legacy data compatibility)
     if (_currentTrip.eventStatsJson == null && _currentTrip.events.isNotEmpty) {
       debugPrint('[TripDetail] Missing statistics detected, calculating...');
       final storage = ref.read(storageServiceProvider);
       await storage.calculateEventStats(_currentTrip.id);
-      
+
       // Reload Trip
       final updatedTrip = await storage.getTripById(_currentTrip.id);
       if (updatedTrip != null && mounted) {
@@ -152,7 +152,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         debugPrint("[SaveImage] 🏁 插件返回结果: $result");
 
         if (result != null && result['isSuccess'] == true) {
-          debugPrint("[SaveImage] ✅ Image saved successfully! Filename: $fileName");
+          debugPrint(
+              "[SaveImage] ✅ Image saved successfully! Filename: $fileName");
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -264,7 +265,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             ElevatedButton(
               onPressed: () async {
                 await storage.updateEvent(
-                  _currentTrip.id,  // Add tripId parameter
+                  _currentTrip.id, // Add tripId parameter
                   e.id,
                   type: currentType,
                   voiceText: textController.text,
@@ -626,11 +627,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 0),
-                              child: SizedBox(
-                                height: 32, // Unified title height
-                                child: Row(
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 0),
+                            child: SizedBox(
+                              height: 32, // Unified title height
+                              child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
@@ -695,7 +696,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 0),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 0),
                               child: SizedBox(
                                 height: 32,
                                 child: Align(
@@ -708,30 +710,41 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            
+
                             // Auto-detected event statistics
                             _buildEventStatSection(
                               title: i18n.t('auto_negative_events'),
-                              stats: trip.eventStats!['auto'] as Map<String, dynamic>,
-                              totalCount: _sumStats(trip.eventStats!['auto'] as Map<String, dynamic>),
+                              stats: trip.eventStats!['auto']
+                                  as Map<String, dynamic>,
+                              totalCount: _sumStats(trip.eventStats!['auto']
+                                  as Map<String, dynamic>),
                               color: const Color(0xFFFF9500), // iOS Orange
                               i18n: i18n,
                               context: context,
                             ),
-                            
+
                             const Divider(height: 28),
-                            
+
                             // Manually marked event statistics
                             _buildEventStatSection(
                               title: i18n.t('manual_marked_events'),
                               stats: {
-                                'proDisengagement': (trip.eventStats!['pro'] as Map<String, dynamic>)['proDisengagement'] ?? 0,
-                                'proViolation': (trip.eventStats!['pro'] as Map<String, dynamic>)['proViolation'] ?? 0,
-                                'proExperience': (trip.eventStats!['pro'] as Map<String, dynamic>)['proExperience'] ?? 0,
+                                'proDisengagement': (trip.eventStats!['pro']
+                                            as Map<String, dynamic>)[
+                                        'proDisengagement'] ??
+                                    0,
+                                'proViolation': (trip.eventStats!['pro'] as Map<
+                                        String, dynamic>)['proViolation'] ??
+                                    0,
+                                'proExperience': (trip.eventStats!['pro']
+                                            as Map<String, dynamic>)[
+                                        'proExperience'] ??
+                                    0,
                                 'manual': trip.eventStats!['manual'] ?? 0,
                               },
-                              totalCount: _sumStats(trip.eventStats!['pro'] as Map<String, dynamic>) + 
-                                         (trip.eventStats!['manual'] as int? ?? 0),
+                              totalCount: _sumStats(trip.eventStats!['pro']
+                                      as Map<String, dynamic>) +
+                                  (trip.eventStats!['manual'] as int? ?? 0),
                               color: const Color(0xFF007AFF), // iOS Blue
                               i18n: i18n,
                               context: context,
@@ -740,8 +753,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         ),
                       ),
                     ),
-                  if (trip.eventStats != null)
-                    const SizedBox(height: 16),
+                  if (trip.eventStats != null) const SizedBox(height: 16),
 
                   // 3. Event List (in separate card)
                   if (events.isNotEmpty)

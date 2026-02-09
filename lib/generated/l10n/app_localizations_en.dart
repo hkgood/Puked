@@ -49,6 +49,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'KOL Exclusive: Record 10Hz sensor data for more details';
 
   @override
+  String get video_recording => 'Record Negative Event Videos (Beta)';
+
+  @override
+  String get video_recording_desc =>
+      'Record 5-second video when negative events occur';
+
+  @override
+  String get camera_permission_needed => 'Camera permission needed';
+
+  @override
+  String get camera_init_failed => 'Failed to initialize camera';
+
+  @override
+  String get camera_preview_failed => 'Failed to get preview';
+
+  @override
+  String get camera_starting => 'Starting camera...';
+
+  @override
+  String get camera_preview_placeholder => 'Camera Preview Placeholder';
+
+  @override
+  String get camera_preview_hint =>
+      'Preview requires native implementation\nVideo recording still works normally';
+
+  @override
   String get current_version => 'Current Version';
 
   @override
@@ -297,6 +323,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get arena_top10_title => 'Comfort Top10';
+
+  @override
+  String get weekly_comfort_ranking => 'Weekly Comfort Ranking';
+
+  @override
+  String get weekly_comfort_desc => 'Best comfort by scenario this week';
+
+  @override
+  String get weekly_mileage_ranking => 'Weekly Mileage Ranking';
+
+  @override
+  String get weekly_mileage_desc => 'Total mileage recorded this week';
 
   @override
   String get arena_total_mileage_title => 'Mileage by Brand';
@@ -1038,6 +1076,37 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get low_speed_jerk_limit_hint =>
       'Speed (km/h) below which deceleration is downgraded to Jerk';
+
+  @override
+  String get trend_filter_section => 'Trend Filter';
+
+  @override
+  String get enable_trend_filter_label => 'Enable Trend Filter';
+
+  @override
+  String get enable_trend_filter_hint =>
+      'Filter out gentle decel/accel events before detection (recommended)';
+
+  @override
+  String get trend_change_threshold_label => 'Trend Change Threshold';
+
+  @override
+  String get trend_change_threshold_hint =>
+      'Min threshold for accel difference between first/second half';
+
+  @override
+  String get min_std_dev_threshold_label => 'Std Dev Threshold (Backup)';
+
+  @override
+  String get min_std_dev_threshold_hint =>
+      'Min Y-axis acceleration standard deviation (auxiliary metric)';
+
+  @override
+  String get min_range_threshold_label => 'Range Threshold (Backup)';
+
+  @override
+  String get min_range_threshold_hint =>
+      'Min Y-axis acceleration range (auxiliary metric)';
 
   @override
   String get recording_voice => 'Recording...';

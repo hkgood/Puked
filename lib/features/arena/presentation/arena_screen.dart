@@ -19,6 +19,7 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
   bool _groupByBrand = true; // 卡片1的 toggle
   bool _leaderboardWeekly = true; // 里程榜 toggle
   String _rankingScenario = 'city'; // 场景排名 toggle
+  String _weeklyScenario = 'city'; // 🆕 周度场景排名 toggle
   String? _card2Brand;
   String? _card3Brand;
   String? _card3Version;
@@ -227,6 +228,12 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                             ],
                           ),
                         ),
+                      // 🆕 周度卡片区域 - 置顶显示
+                      _buildWeeklyComfortRankingCard(arena, i18n),
+                      const SizedBox(height: 16),
+                      _buildWeeklyMileageCard(arena, i18n),
+                      const SizedBox(height: 16),
+                      // 全时段卡片
                       _buildCard1(arena, i18n),
                       const SizedBox(height: 16),
                       _buildScenarioRankingCard(arena, i18n),
@@ -403,7 +410,8 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                           // 核心修复：使用 CachedNetworkImageProvider 缓存头像
                           image: item.avatarUrl != null
                               ? DecorationImage(
-                                  image: CachedNetworkImageProvider(item.avatarUrl!),
+                                  image: CachedNetworkImageProvider(
+                                      item.avatarUrl!),
                                   fit: BoxFit.cover,
                                 )
                               : null,
@@ -473,6 +481,373 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🆕 --- 周度城区/高速舒适度排名 ---
+  Widget _buildWeeklyComfortRankingCard(ArenaService arena, dynamic i18n) {
+    final data = arena.getWeeklyScenarioRankingData(scenario: _weeklyScenario);
+    final maxVal = data.isNotEmpty ? (data.first.kmPerEvent ?? 1.0) : 1.0;
+    final titleKey = 'weekly_comfort_ranking';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(i18n.t(titleKey), style: _headerStyle(context)),
+                      const SizedBox(height: 2),
+                      Text(i18n.t('weekly_comfort_desc'),
+                          style: _unitStyle(context)),
+                    ],
+                  ),
+                ),
+                // 场景切换器
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildScenarioToggleItem(i18n.t('city'), 'city',
+                          isWeekly: true),
+                      _buildScenarioToggleItem(i18n.t('highway'), 'highway',
+                          isWeekly: true),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (data.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    i18n.t('no_data_for_brand'),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.outline,
+                        fontSize: 12),
+                  ),
+                ),
+              )
+            else
+              ...data.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final val = item.kmPerEvent ?? 0.0;
+                final ratio = val / (maxVal * 1.2);
+                const double barHeight = 16.0;
+                const double nameFontSize = 13.0;
+                const double spacingBetween = 4.0;
+                const double logoSize = 42.0;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      BrandLogo(
+                        brandName: item.brand,
+                        overrideLogoUrl: item.logoUrl,
+                        size: logoSize,
+                        padding: 8,
+                        showBackground: true,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  item.displayName,
+                                  style: const TextStyle(
+                                    fontSize: nameFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  val.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: spacingBetween),
+                            Stack(
+                              alignment: Alignment.centerLeft,
+                              children: [
+                                Container(
+                                  height: barHeight,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: ratio.clamp(0.08, 1.0),
+                                  child: Container(
+                                    height: barHeight,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          const Color(0xFF34C759), // 绿色 - 周度特征色
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🆕 --- 周度品牌累计里程排名 ---
+  Widget _buildWeeklyMileageCard(ArenaService arena, dynamic i18n) {
+    final data = arena.getWeeklyMileageData();
+    final maxTotalKm = data.isNotEmpty ? (data.first.totalKm ?? 1.0) : 1.0;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- 标题行 + 图例右对齐 ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(i18n.t('weekly_mileage_ranking'),
+                          style: _headerStyle(context)),
+                      const SizedBox(height: 2),
+                      Text(i18n.t('weekly_mileage_desc'),
+                          style: _unitStyle(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                // 柔和配色图例：单行展示，避免折行
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildLegendItem('>80', const Color(0xFF007AFF)),
+                      const SizedBox(width: 6),
+                      _buildLegendItem('50-80', const Color(0xFF7ABCFF)),
+                      const SizedBox(width: 6),
+                      _buildLegendItem('20-50', const Color(0xFFADEBB3)),
+                      const SizedBox(width: 6),
+                      _buildLegendItem('<20', const Color(0xFFF9E79F)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (data.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    i18n.t('no_data_for_brand'),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.outline,
+                        fontSize: 12),
+                  ),
+                ),
+              )
+            else
+              ...data.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final totalKm = item.totalKm ?? 0.0;
+                final ratio = totalKm / (maxTotalKm * 1.1);
+                const double barHeight = 10.0;
+                const double nameFontSize = 13.0;
+                const double spacingBetween = 6.0;
+                const double logoSize = 42.0;
+
+                final breakdown = item.breakdown ?? {};
+                final highway = breakdown['highway'] ?? 0.0;
+                final smooth = breakdown['smooth'] ?? 0.0;
+                final urban = breakdown['urban'] ?? 0.0;
+                final congested = breakdown['congested'] ?? 0.0;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                      BrandLogo(
+                        brandName: item.brand,
+                        overrideLogoUrl: item.logoUrl,
+                        size: logoSize,
+                        padding: 8,
+                        showBackground: true,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  item.displayName.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: nameFontSize,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                Text(
+                                  '${totalKm.toStringAsFixed(1)} km',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: spacingBetween),
+                            FractionallySizedBox(
+                              widthFactor: ratio.clamp(0.01, 1.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(5),
+                                child: Container(
+                                  height: barHeight,
+                                  width: double.infinity,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFF2F2F7),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      if (highway > 0)
+                                        Expanded(
+                                          flex: (highway * 1000)
+                                              .toInt()
+                                              .clamp(1, 999999),
+                                          child: Container(
+                                              color: const Color(0xFF007AFF)),
+                                        ),
+                                      if (smooth > 0)
+                                        Expanded(
+                                          flex: (smooth * 1000)
+                                              .toInt()
+                                              .clamp(1, 999999),
+                                          child: Container(
+                                              color: const Color(0xFF7ABCFF)),
+                                        ),
+                                      if (urban > 0)
+                                        Expanded(
+                                          flex: (urban * 1000)
+                                              .toInt()
+                                              .clamp(1, 999999),
+                                          child: Container(
+                                              color: const Color(0xFFADEBB3)),
+                                        ),
+                                      if (congested > 0)
+                                        Expanded(
+                                          flex: (congested * 1000)
+                                              .toInt()
+                                              .clamp(1, 999999),
+                                          child: Container(
+                                              color: const Color(0xFFF9E79F)),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -850,10 +1225,18 @@ class _ArenaScreenState extends ConsumerState<ArenaScreen> {
     );
   }
 
-  Widget _buildScenarioToggleItem(String label, String value) {
-    final isSelected = _rankingScenario == value;
+  Widget _buildScenarioToggleItem(String label, String value,
+      {bool isWeekly = false}) {
+    final isSelected =
+        isWeekly ? _weeklyScenario == value : _rankingScenario == value;
     return GestureDetector(
-      onTap: () => setState(() => _rankingScenario = value),
+      onTap: () => setState(() {
+        if (isWeekly) {
+          _weeklyScenario = value;
+        } else {
+          _rankingScenario = value;
+        }
+      }),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(

@@ -38,11 +38,11 @@ class ArenaStatsNotifier
 
   ArenaStatsNotifier(this.ref) : super(const AsyncValue.loading()) {
     _init();
-    
+
     // 🔥 监听会话变更，在账号切换时清理缓存
     ref.read(userSessionManagerProvider).sessionChanges.listen((event) {
       debugPrint('[Arena] Session event: $event');
-      
+
       switch (event.type) {
         case SessionEventType.logout:
         case SessionEventType.switched:
@@ -50,12 +50,12 @@ class ArenaStatsNotifier
           _clearCache();
           state = const AsyncValue.loading();
           break;
-          
+
         case SessionEventType.started:
           // 新账号登录 - 加载该账号的数据
           refresh(force: false, isSilent: false);
           break;
-          
+
         case SessionEventType.restored:
           // 会话恢复 - 已在 _init 中处理
           break;
@@ -192,7 +192,7 @@ class ArenaStatsNotifier
     } catch (e, stack) {
       _isRefreshing = false;
       debugPrint('[Arena] Error in refresh: $e');
-      
+
       // ✅ 出错时，保留旧数据，不显示错误界面
       if (state.hasValue) {
         debugPrint('[Arena] Network error - keeping stale data for display.');
@@ -322,6 +322,10 @@ class ArenaService {
       'leaderboard_total': [],
       'leaderboard_weekly': [],
       'brand_options': [],
+      // 🆕 周度排名相关
+      'ranking_city_weekly': [],
+      'ranking_highway_weekly': [],
+      'mileage_weekly': [],
       'global_summary': {
         'globalTotalMileage': 0.0,
         'totalUsers': 0,
@@ -334,6 +338,11 @@ class ArenaService {
     final versionMap = <String, dynamic>{};
     final userTotalMap = <String, dynamic>{};
     final userWeeklyMap = <String, dynamic>{};
+
+    // 🆕 周度数据专用Map
+    final brandCityWeeklyMap = <String, dynamic>{};
+    final brandHighwayWeeklyMap = <String, dynamic>{};
+    final brandWeeklyMileageMap = <String, dynamic>{};
 
     if (allSummary.isEmpty) return stats;
 
@@ -539,6 +548,80 @@ class ArenaService {
 
       for (final s in weeklySummary
           .where((s) => s.getStringValue('period_value') == latestWeek)) {
+        // 🆕 提取品牌周度数据（对齐Web端）
+        final brandId = s.getStringValue('brand');
+        final brandRecord = s.expand['brand']?.firstOrNull;
+        final brandName = brandRecord?.getStringValue('name') ?? 'Unknown';
+
+        // 提取 Logo URL
+        String? brandLogoUrl;
+        final logoFile = brandRecord?.getStringValue('logo') ?? '';
+        if (logoFile.isNotEmpty && brandRecord != null) {
+          brandLogoUrl = _ref
+              .read(pbServiceProvider)
+              .pb
+              .files
+              .getUrl(brandRecord, logoFile)
+              .toString();
+        }
+
+        final totalDistance = (s.get<num>('total_distance') ?? 0).toDouble();
+        final totalEvents = (s.get<num>('total_events') ?? 0).toInt();
+
+        // 🆕 解析速度分布 (用于周度里程排名的分段条)
+        final speedDist = s.get<Map<String, dynamic>?>('speed_dist') ?? {};
+        double h = 0, sm = 0, u = 0, c = 0;
+        if (speedDist.isNotEmpty) {
+          h = (speedDist['highway'] as num? ?? 0).toDouble();
+          sm = (speedDist['smooth'] as num? ?? 0).toDouble();
+          u = (speedDist['urban'] as num? ?? 0).toDouble();
+          c = (speedDist['congested'] as num? ?? 0).toDouble();
+        }
+
+        // 🆕 累计品牌周度总里程（用于mileage_weekly）
+        brandWeeklyMileageMap.putIfAbsent(
+            brandId,
+            () => {
+                  'id': brandId,
+                  'name': brandName,
+                  'logoUrl': brandLogoUrl,
+                  'totalKm': 0.0,
+                  'mileage_buckets': {
+                    'h80': 0.0,
+                    'm5080': 0.0,
+                    'l2050': 0.0,
+                    'c20': 0.0
+                  }
+                });
+        final weeklyMileage = brandWeeklyMileageMap[brandId];
+        weeklyMileage['totalKm'] += totalDistance;
+        weeklyMileage['mileage_buckets']['h80'] += h;
+        weeklyMileage['mileage_buckets']['m5080'] += sm;
+        weeklyMileage['mileage_buckets']['l2050'] += u;
+        weeklyMileage['mileage_buckets']['c20'] += c;
+
+        // 🆕 按场景分类（用于周度舒适度排名）
+        final keyStr = s.getStringValue('key');
+        final scenario = s.getStringValue('scenario').isNotEmpty
+            ? s.getStringValue('scenario')
+            : (keyStr.contains('_highway_') ? 'highway' : 'city');
+
+        final targetMap =
+            scenario == 'highway' ? brandHighwayWeeklyMap : brandCityWeeklyMap;
+        targetMap.putIfAbsent(
+            brandId,
+            () => {
+                  'id': brandId,
+                  'name': brandName,
+                  'logoUrl': brandLogoUrl,
+                  'km': 0.0,
+                  'events': 0
+                });
+        final scenarioData = targetMap[brandId];
+        scenarioData['km'] += totalDistance;
+        scenarioData['events'] += totalEvents;
+
+        // 用户周榜（保持原有逻辑）
         final userId = s.getStringValue('user');
         if (userId.isEmpty) continue;
 
@@ -666,6 +749,56 @@ class ArenaService {
     stats['leaderboard_weekly'] =
         (stats['leaderboard_weekly'] as List).take(10).toList();
 
+    // 🆕 周度场景舒适度排名
+    stats['ranking_city_weekly'] = brandCityWeeklyMap.values
+        .where((b) => (b['km'] as num) >= (rankingThreshold / 2))
+        .map((b) => {
+              'label': b['name'],
+              'brand': b['name'],
+              'brandId': b['id'],
+              'logoUrl': b['logoUrl'],
+              'kmPerEvent': b['events'] > 0 ? b['km'] / b['events'] : b['km']
+            })
+        .toList()
+      ..sort(
+          (a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_city_weekly'] =
+        (stats['ranking_city_weekly'] as List).take(10).toList();
+
+    stats['ranking_highway_weekly'] = brandHighwayWeeklyMap.values
+        .where((b) => (b['km'] as num) >= (rankingThreshold / 2))
+        .map((b) => {
+              'label': b['name'],
+              'brand': b['name'],
+              'brandId': b['id'],
+              'logoUrl': b['logoUrl'],
+              'kmPerEvent': b['events'] > 0 ? b['km'] / b['events'] : b['km']
+            })
+        .toList()
+      ..sort(
+          (a, b) => (b['kmPerEvent'] as num).compareTo(a['kmPerEvent'] as num));
+    stats['ranking_highway_weekly'] =
+        (stats['ranking_highway_weekly'] as List).take(10).toList();
+
+    // 🆕 周度总里程排名（带速度分段）
+    stats['mileage_weekly'] = brandWeeklyMileageMap.values
+        .map((b) => {
+              'brand': b['name'],
+              'brandKey': b['id'],
+              'logoUrl': b['logoUrl'],
+              'totalKm': b['totalKm'],
+              'breakdown': {
+                'highway': b['mileage_buckets']['h80'],
+                'smooth': b['mileage_buckets']['m5080'],
+                'urban': b['mileage_buckets']['l2050'],
+                'congested': b['mileage_buckets']['c20']
+              }
+            })
+        .toList()
+      ..sort((a, b) => (b['totalKm'] as num).compareTo(a['totalKm'] as num));
+    stats['mileage_weekly'] =
+        (stats['mileage_weekly'] as List).take(10).toList();
+
     stats['brand_options'] = brandMap.values
         .map((b) => {'key': b['id'], 'name': b['name']})
         .toList();
@@ -771,6 +904,38 @@ class ArenaService {
     if (list == null) return [];
 
     return list.map((item) => _mapToBrandData(item)).toList();
+  }
+
+  // 🆕 获取周度场景舒适度排名数据
+  List<BrandData> getWeeklyScenarioRankingData({required String scenario}) {
+    final list = _processedStats[scenario == 'city'
+        ? 'ranking_city_weekly'
+        : 'ranking_highway_weekly'] as List?;
+    if (list == null) return [];
+
+    return list.map((item) => _mapToBrandData(item)).toList();
+  }
+
+  // 🆕 获取周度里程排名数据
+  List<BrandData> getWeeklyMileageData() {
+    final list = _processedStats['mileage_weekly'] as List?;
+    if (list == null) return [];
+
+    return list.map((item) {
+      final map = item as Map<String, dynamic>;
+
+      final rawBreakdown = map['breakdown'] as Map<String, dynamic>? ?? {};
+      final Map<String, double> breakdown =
+          rawBreakdown.map((k, v) => MapEntry(k, (v as num).toDouble()));
+
+      return BrandData(
+        brand: map['brandKey'] ?? '',
+        brandName: map['brand'] ?? '',
+        logoUrl: map['logoUrl'],
+        totalKm: (map['totalKm'] as num?)?.toDouble(),
+        breakdown: breakdown,
+      );
+    }).toList();
   }
 
   BrandData _mapToBrandData(dynamic item) {

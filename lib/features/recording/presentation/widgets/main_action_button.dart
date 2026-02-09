@@ -51,9 +51,9 @@ class _MainActionButtonState extends ConsumerState<MainActionButton>
   Future<void> _handleStopRecording() async {
     final state = ref.read(recordingProvider);
     final tripId = state.currentTrip?.id;
-    
+
     await ref.read(recordingProvider.notifier).stopRecording();
-    
+
     if (tripId != null && mounted) {
       Navigator.push(
         context,
@@ -62,7 +62,7 @@ class _MainActionButtonState extends ConsumerState<MainActionButton>
         ),
       );
     }
-    
+
     // 重置状态
     setState(() {
       _isLongPressing = false;
@@ -100,7 +100,8 @@ class _MainActionButtonState extends ConsumerState<MainActionButton>
       return SizedBox(
         width: double.infinity,
         child: GestureDetector(
-          onLongPressStart: isCalibrating ? null : (_) => _handleLongPressStart(),
+          onLongPressStart:
+              isCalibrating ? null : (_) => _handleLongPressStart(),
           onLongPressEnd: (_) => _handleLongPressEnd(),
           onLongPressCancel: _handleLongPressEnd,
           child: Stack(
@@ -117,7 +118,8 @@ class _MainActionButtonState extends ConsumerState<MainActionButton>
                       ? null
                       : [
                           BoxShadow(
-                            color: const Color(0xFFFF3B30).withValues(alpha: 0.3),
+                            color:
+                                const Color(0xFFFF3B30).withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -185,8 +187,7 @@ class _MainActionButtonState extends ConsumerState<MainActionButton>
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
-          padding:
-              EdgeInsets.symmetric(vertical: widget.isLandscape ? 14 : 18),
+          padding: EdgeInsets.symmetric(vertical: widget.isLandscape ? 14 : 18),
           elevation: widget.isLandscape ? 0 : 8,
           shadowColor:
               Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),

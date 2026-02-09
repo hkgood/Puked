@@ -37,7 +37,8 @@ class StorageService {
 
   Future<void> _doInit() async {
     try {
-      debugPrint('[Storage] 🟢 Initializing Isar (Instance: $_instanceName)...');
+      debugPrint(
+          '[Storage] 🟢 Initializing Isar (Instance: $_instanceName)...');
       var isar = Isar.getInstance(_instanceName);
       if (isar != null && isar.isOpen) {
         try {
@@ -71,10 +72,22 @@ class StorageService {
   Future<void> seedInitialData() async {
     final count = await _db.collection<Brand>().count();
     if (count > 0) return;
-    final initialBrands = ['Tesla', 'Xpeng', 'LiAuto', 'Nio', 'Xiaomi', 'Zeekr', 'Huawei'];
+    final initialBrands = [
+      'Tesla',
+      'Xpeng',
+      'LiAuto',
+      'Nio',
+      'Xiaomi',
+      'Zeekr',
+      'Huawei'
+    ];
     await _db.writeTxn(() async {
       for (var name in initialBrands) {
-        await _db.collection<Brand>().put(Brand()..name = name..displayName = name..order = initialBrands.indexOf(name)..isEnabled = true);
+        await _db.collection<Brand>().put(Brand()
+          ..name = name
+          ..displayName = name
+          ..order = initialBrands.indexOf(name)
+          ..isEnabled = true);
       }
     });
   }
@@ -83,12 +96,21 @@ class StorageService {
 
   Future<List<Brand>> getAllBrands() async {
     await init();
-    return await _db.collection<Brand>().where().filter().isEnabledEqualTo(true).findAll();
+    return await _db
+        .collection<Brand>()
+        .where()
+        .filter()
+        .isEnabledEqualTo(true)
+        .findAll();
   }
 
   Stream<List<Brand>> watchBrands() {
     return Stream.fromFuture(init()).asyncExpand((_) {
-      return _db.collection<Brand>().filter().isEnabledEqualTo(true).watch(fireImmediately: true);
+      return _db
+          .collection<Brand>()
+          .filter()
+          .isEnabledEqualTo(true)
+          .watch(fireImmediately: true);
     });
   }
 
@@ -101,9 +123,16 @@ class StorageService {
   Stream<List<SoftwareVersion>> watchAllVersions({int? brandId}) {
     return Stream.fromFuture(init()).asyncExpand((_) {
       if (brandId != null) {
-        return _db.collection<SoftwareVersion>().filter().brand((q) => q.idEqualTo(brandId)).watch(fireImmediately: true);
+        return _db
+            .collection<SoftwareVersion>()
+            .filter()
+            .brand((q) => q.idEqualTo(brandId))
+            .watch(fireImmediately: true);
       }
-      return _db.collection<SoftwareVersion>().where().watch(fireImmediately: true);
+      return _db
+          .collection<SoftwareVersion>()
+          .where()
+          .watch(fireImmediately: true);
     });
   }
 
@@ -127,16 +156,26 @@ class StorageService {
     return await _db.collection<Brand>().get(id);
   }
 
-  Future<void> addVersion(String brandName, String versionString, {bool isCustom = false, String? cloudId}) async {
+  Future<void> addVersion(String brandName, String versionString,
+      {bool isCustom = false, String? cloudId}) async {
     await init();
-    final brand = await _db.collection<Brand>().filter().nameEqualTo(brandName).findFirst();
+    final brand = await _db
+        .collection<Brand>()
+        .filter()
+        .nameEqualTo(brandName)
+        .findFirst();
     if (brand != null) {
-      final existingV = await _db.collection<SoftwareVersion>().filter()
+      final existingV = await _db
+          .collection<SoftwareVersion>()
+          .filter()
           .brand((q) => q.idEqualTo(brand.id))
           .versionStringEqualTo(versionString)
           .findFirst();
       if (existingV == null) {
-        final v = SoftwareVersion()..versionString = versionString..isCustom = isCustom..cloudId = cloudId;
+        final v = SoftwareVersion()
+          ..versionString = versionString
+          ..isCustom = isCustom
+          ..cloudId = cloudId;
         v.brand.value = brand;
         await _db.writeTxn(() async {
           await _db.collection<SoftwareVersion>().put(v);
@@ -145,7 +184,8 @@ class StorageService {
       } else if (cloudId != null) {
         existingV.cloudId = cloudId;
         existingV.isCustom = isCustom;
-        await _db.writeTxn(() => _db.collection<SoftwareVersion>().put(existingV));
+        await _db
+            .writeTxn(() => _db.collection<SoftwareVersion>().put(existingV));
       }
     }
   }
@@ -168,9 +208,14 @@ class StorageService {
     return [];
   }
 
-  Future<List<SoftwareVersion>> getVersionsForBrandName(String brandName) async {
+  Future<List<SoftwareVersion>> getVersionsForBrandName(
+      String brandName) async {
     await init();
-    final brand = await _db.collection<Brand>().filter().nameEqualTo(brandName).findFirst();
+    final brand = await _db
+        .collection<Brand>()
+        .filter()
+        .nameEqualTo(brandName)
+        .findFirst();
     if (brand != null) {
       await brand.versions.load();
       return brand.versions.toList();
@@ -178,20 +223,28 @@ class StorageService {
     return [];
   }
 
-  Future<SoftwareVersion?> getVersionByString(int brandId, String versionStr) async {
+  Future<SoftwareVersion?> getVersionByString(
+      int brandId, String versionStr) async {
     await init();
-    return await _db.collection<SoftwareVersion>().filter()
+    return await _db
+        .collection<SoftwareVersion>()
+        .filter()
         .brand((q) => q.idEqualTo(brandId))
         .versionStringEqualTo(versionStr)
         .findFirst();
   }
 
-  Future<void> syncBrandsAndVersions(List<Map<String, dynamic>> brandsData, List<Map<String, dynamic>> versionsData) async {
+  Future<void> syncBrandsAndVersions(List<Map<String, dynamic>> brandsData,
+      List<Map<String, dynamic>> versionsData) async {
     await init();
     await _db.writeTxn(() async {
       for (var bData in brandsData) {
         final name = bData['name'] as String;
-        var existing = await _db.collection<Brand>().filter().nameEqualTo(name).findFirst();
+        var existing = await _db
+            .collection<Brand>()
+            .filter()
+            .nameEqualTo(name)
+            .findFirst();
         if (existing == null) existing = Brand()..name = name;
         existing.displayName = bData['displayName'] ?? name;
         existing.logoUrl = bData['logoUrl'];
@@ -203,11 +256,18 @@ class StorageService {
       for (var vData in versionsData) {
         final brandName = vData['brandName'] as String;
         final versionStr = vData['versionString'] as String;
-        final brand = await _db.collection<Brand>().filter().nameEqualTo(brandName).findFirst();
+        final brand = await _db
+            .collection<Brand>()
+            .filter()
+            .nameEqualTo(brandName)
+            .findFirst();
         if (brand == null) continue;
-        var existingV = await _db.collection<SoftwareVersion>().filter()
+        var existingV = await _db
+            .collection<SoftwareVersion>()
+            .filter()
             .brand((q) => q.idEqualTo(brand.id))
-            .versionStringEqualTo(versionStr).findFirst();
+            .versionStringEqualTo(versionStr)
+            .findFirst();
         if (existingV == null) {
           existingV = SoftwareVersion()..versionString = versionStr;
           existingV.brand.value = brand;
@@ -224,7 +284,11 @@ class StorageService {
     await init();
     await _db.writeTxn(() async {
       for (var b in brands) {
-        var existing = await _db.collection<Brand>().filter().nameEqualTo(b.name).findFirst();
+        var existing = await _db
+            .collection<Brand>()
+            .filter()
+            .nameEqualTo(b.name)
+            .findFirst();
         if (existing != null) b.id = existing.id;
         await _db.collection<Brand>().put(b);
       }
@@ -235,7 +299,8 @@ class StorageService {
 
   // --- 行程记录 ---
 
-  Future<Trip> startTrip({String? carModel, String? notes, String? algorithm}) async {
+  Future<Trip> startTrip(
+      {String? carModel, String? notes, String? algorithm}) async {
     await init();
     final packageInfo = await PackageInfo.fromPlatform();
     final trip = Trip()
@@ -250,35 +315,44 @@ class StorageService {
     return trip;
   }
 
-  Future<void> addTrajectoryPoint(int tripId, TrajectoryPoint point, {double? distance}) async {
+  Future<void> addTrajectoryPoint(int tripId, TrajectoryPoint point,
+      {double? distance}) async {
     await init();
-    
+
     // 🔍 DEBUG: 检查传感器数据是否存在
     debugPrint('💾 [StorageService] addTrajectoryPoint called');
-    debugPrint('   Point has sensor data: ax=${point.ax}, ay=${point.ay}, az=${point.az}');
-    debugPrint('   Point has gyro data: gx=${point.gx}, gy=${point.gy}, gz=${point.gz}');
-    
+    debugPrint(
+        '   Point has sensor data: ax=${point.ax}, ay=${point.ay}, az=${point.az}');
+    debugPrint(
+        '   Point has gyro data: gx=${point.gx}, gy=${point.gy}, gz=${point.gz}');
+
     await _db.writeTxn(() async {
       await _db.collection<TrajectoryPoint>().put(point);
       final trip = await _db.collection<Trip>().get(tripId);
       if (trip != null) {
         trip.trajectory.add(point);
-        if (distance != null) trip.distance = distance;
+        // ✅ 修复单位问题：distance参数是公里，需要转换为米存储
+        if (distance != null) {
+          trip.distance = distance * 1000; // 转换为米
+          debugPrint(
+              '   💾 Updated trip distance: ${trip.distance.toStringAsFixed(1)} m (${distance.toStringAsFixed(3)} km)');
+        }
         await _db.collection<Trip>().put(trip);
         await trip.trajectory.save();
       }
     }, silent: true);
-    
+
     debugPrint('✅ [StorageService] Trajectory point saved to database');
   }
-  
+
   // 批量添加轨迹点（用于高频率传感器数据记录）
   final List<TrajectoryPoint> _pendingPoints = [];
   Timer? _batchFlushTimer;
-  
-  Future<void> addTrajectoryPointBatched(int tripId, TrajectoryPoint point) async {
+
+  Future<void> addTrajectoryPointBatched(
+      int tripId, TrajectoryPoint point) async {
     _pendingPoints.add(point);
-    
+
     // 达到批量阈值或超时时批量写入
     if (_pendingPoints.length >= 20) {
       await _flushPendingPoints(tripId);
@@ -290,19 +364,31 @@ class StorageService {
       });
     }
   }
-  
+
   Future<void> _flushPendingPoints(int tripId) async {
     if (_pendingPoints.isEmpty) return;
-    
-    final pointsToSave = List<TrajectoryPoint>.from(_pendingPoints);
+
+    // ✅ 过滤掉无效GPS点（坐标接近0,0的点）
+    final validPoints = _pendingPoints
+        .where((p) => p.lat.abs() > 0.001 && p.lng.abs() > 0.001)
+        .toList();
+
     _pendingPoints.clear();
     _batchFlushTimer?.cancel();
-    
+
+    if (validPoints.isEmpty) {
+      debugPrint(
+          '⚠️ [Batch] All ${_pendingPoints.length} points filtered out (invalid GPS coordinates)');
+      return;
+    }
+
+    final pointsToSave = List<TrajectoryPoint>.from(validPoints);
+
     await init();
     await _db.writeTxn(() async {
       // 批量写入所有点
       await _db.collection<TrajectoryPoint>().putAll(pointsToSave);
-      
+
       final trip = await _db.collection<Trip>().get(tripId);
       if (trip != null) {
         trip.trajectory.addAll(pointsToSave);
@@ -310,10 +396,11 @@ class StorageService {
         await trip.trajectory.save();
       }
     }, silent: true);
-    
-    debugPrint('💾 [Batch] Flushed ${pointsToSave.length} trajectory points to database');
+
+    debugPrint(
+        '💾 [Batch] Flushed ${pointsToSave.length} valid trajectory points to database');
   }
-  
+
   // 公开方法：强制flush所有待写入的点（在行程结束时调用）
   Future<void> flushPendingPoints(int tripId) async {
     await _flushPendingPoints(tripId);
@@ -326,27 +413,29 @@ class StorageService {
       final trip = await _db.collection<Trip>().get(tripId);
       if (trip != null) {
         trip.events.add(event);
-        if (event.source != 'PRO' && !event.type.startsWith('pro')) trip.eventCount++;
+        if (event.source != 'PRO' && !event.type.startsWith('pro'))
+          trip.eventCount++;
         await _db.collection<Trip>().put(trip);
         await trip.events.save();
       }
     });
   }
 
-  Future<void> updateEvent(int tripId, int eventId, {String? type, String? voiceText, String? notes}) async {
+  Future<void> updateEvent(int tripId, int eventId,
+      {String? type, String? voiceText, String? notes}) async {
     await init();
     await _db.writeTxn(() async {
       final event = await _db.collection<RecordedEvent>().get(eventId);
       if (event == null) return;
-      
+
       final oldType = event.type;
-      
+
       // 更新事件字段
       if (type != null) event.type = type;
       if (voiceText != null) event.voiceText = voiceText;
       if (notes != null) event.notes = notes;
       await _db.collection<RecordedEvent>().put(event);
-      
+
       // 如果事件类型发生变化，更新 Trip 统计
       if (type != null && type != oldType) {
         final trip = await _db.collection<Trip>().get(tripId);
@@ -371,10 +460,10 @@ class StorageService {
           if (event.source != 'PRO' && !event.type.startsWith('pro')) {
             trip.eventCount = math.max(0, trip.eventCount - 1);
           }
-          
+
           // 更新事件统计
           _decrementEventStat(trip, event.type);
-          
+
           await _db.collection<Trip>().put(trip);
           debugPrint('[EventStats] 删除事件: ${event.type}');
         }
@@ -389,15 +478,42 @@ class StorageService {
       final trip = await _db.collection<Trip>().get(tripId);
       if (trip != null) {
         trip.endTime = DateTime.now();
+
+        // ✅ 计算并保存 metricsJson
+        final duration = trip.endTime!.difference(trip.startTime);
+        final durationMin = duration.inMinutes;
+        final durationSec = duration.inSeconds;
+        final distanceKm = trip.distance / 1000;
+        final avgSpeedKmh =
+            durationSec > 0 ? (distanceKm / (durationSec / 3600)) : 0.0;
+
+        final metrics = {
+          "distance_km": distanceKm.toStringAsFixed(2),
+          "event_count": trip.eventCount,
+          "duration_min": durationMin,
+          "avg_speed_kmh": avgSpeedKmh.toStringAsFixed(1),
+          "start_time": trip.startTime.toUtc().toIso8601String(),
+          "end_time": trip.endTime!.toUtc().toIso8601String(),
+        };
+
+        trip.metricsJson = jsonEncode(metrics);
+
+        debugPrint('✅ [EndTrip] Metrics calculated and saved:');
+        debugPrint('   Distance: ${distanceKm.toStringAsFixed(2)} km');
+        debugPrint('   Duration: $durationMin min');
+        debugPrint('   Avg Speed: ${avgSpeedKmh.toStringAsFixed(1)} km/h');
+        debugPrint('   Event Count: ${trip.eventCount}');
+
         await _db.collection<Trip>().put(trip);
       }
     });
-    
+
     // 行程结束后，计算事件统计
     await calculateEventStats(tripId);
   }
 
-  Future<void> updateTripCloudId(int id, String cloudId, {Map<String, dynamic>? metrics}) async {
+  Future<void> updateTripCloudId(int id, String cloudId,
+      {Map<String, dynamic>? metrics}) async {
     await init();
     await _db.writeTxn(() async {
       final trip = await _db.collection<Trip>().get(id);
@@ -409,18 +525,19 @@ class StorageService {
       }
     });
   }
-  
+
   // 更新行程的云端metrics（用于同步时更新最新的统计数据）
-  Future<void> updateTripWithCloudMetrics(int id, String cloudId, String metricsJsonStr) async {
+  Future<void> updateTripWithCloudMetrics(
+      int id, String cloudId, String metricsJsonStr) async {
     await init();
     await _db.writeTxn(() async {
       final trip = await _db.collection<Trip>().get(id);
       if (trip != null) {
         trip.cloudId = cloudId;
         trip.isUploaded = true;
-        trip.cloudMetrics = metricsJsonStr;  // 保存到cloudMetrics
+        trip.cloudMetrics = metricsJsonStr; // 保存到cloudMetrics
         if (trip.metricsJson == null || trip.metricsJson!.isEmpty) {
-          trip.metricsJson = metricsJsonStr;  // 如果本地没有，也保存一份
+          trip.metricsJson = metricsJsonStr; // 如果本地没有，也保存一份
         }
         await _db.collection<Trip>().put(trip);
       }
@@ -431,14 +548,23 @@ class StorageService {
     await init();
     await _db.writeTxn(() async {
       // 检查是否已经存在该 UUID 的行程，防止重复创建占位符
-      final existing = await _db.collection<Trip>().filter().uuidEqualTo(trip.uuid).findFirst();
+      final existing = await _db
+          .collection<Trip>()
+          .filter()
+          .uuidEqualTo(trip.uuid)
+          .findFirst();
       if (existing == null) {
         await _db.collection<Trip>().put(trip);
       }
     });
   }
 
-  Future<void> updateTripVehicleInfo(int id, {String? carModel, String? brand, String? softwareVersion, String? brandRef, String? softwareVersionRef}) async {
+  Future<void> updateTripVehicleInfo(int id,
+      {String? carModel,
+      String? brand,
+      String? softwareVersion,
+      String? brandRef,
+      String? softwareVersionRef}) async {
     await init();
     await _db.writeTxn(() async {
       final trip = await _db.collection<Trip>().get(id);
@@ -447,13 +573,15 @@ class StorageService {
         if (brand != null) trip.brand = brand;
         if (softwareVersion != null) trip.softwareVersion = softwareVersion;
         if (brandRef != null) trip.brand_ref = brandRef;
-        if (softwareVersionRef != null) trip.software_version_ref = softwareVersionRef;
+        if (softwareVersionRef != null)
+          trip.software_version_ref = softwareVersionRef;
         await _db.collection<Trip>().put(trip);
       }
     });
   }
 
-  Future<void> completePlaceholderTrip(int id, Map<String, dynamic> data) async {
+  Future<void> completePlaceholderTrip(
+      int id, Map<String, dynamic> data) async {
     await init();
     await _db.writeTxn(() async {
       final trip = await _db.collection<Trip>().get(id);
@@ -479,7 +607,8 @@ class StorageService {
             ..lng = (p['lng'] as num).toDouble()
             ..speed = (p['speed'] as num).toDouble()
             ..altitude = (p['altitude'] as num?)?.toDouble() ?? 0.0
-            ..timestamp = DateTime.fromMillisecondsSinceEpoch(((p['ts'] as num) * 1000).toInt())
+            ..timestamp = DateTime.fromMillisecondsSinceEpoch(
+                ((p['ts'] as num) * 1000).toInt())
             ..ax = (p['ax'] as num?)?.toDouble()
             ..ay = (p['ay'] as num?)?.toDouble()
             ..az = (p['az'] as num?)?.toDouble()
@@ -497,7 +626,8 @@ class StorageService {
         for (var e in eventsData) {
           final re = RecordedEvent()
             ..uuid = e['event_id'] ?? const Uuid().v4()
-            ..timestamp = DateTime.fromMillisecondsSinceEpoch(((e['timestamp'] as num) * 1000).toInt())
+            ..timestamp = DateTime.fromMillisecondsSinceEpoch(
+                ((e['timestamp'] as num) * 1000).toInt())
             ..type = e['type']
             ..source = e['source']
             ..voiceText = e['voice_text']
@@ -508,21 +638,22 @@ class StorageService {
 
           final sFragment = e['sensor_fragment']?['data'] as List?;
           re.sensorData = sFragment?.map((s) {
-            final accel = s['accel'] as List?;
-            final gyro = s['gyro'] as List?;
-            final mag = s['mag'] as List?;
-            return SensorPointEmbedded()
-              ..offsetMs = s['offset_ms']
-              ..ax = (accel?[0] as num?)?.toDouble()
-              ..ay = (accel?[1] as num?)?.toDouble()
-              ..az = (accel?[2] as num?)?.toDouble()
-              ..gx = (gyro?[0] as num?)?.toDouble()
-              ..gy = (gyro?[1] as num?)?.toDouble()
-              ..gz = (gyro?[2] as num?)?.toDouble()
-              ..mx = (mag?[0] as num?)?.toDouble()
-              ..my = (mag?[1] as num?)?.toDouble()
-              ..mz = (mag?[2] as num?)?.toDouble();
-          }).toList() ?? [];
+                final accel = s['accel'] as List?;
+                final gyro = s['gyro'] as List?;
+                final mag = s['mag'] as List?;
+                return SensorPointEmbedded()
+                  ..offsetMs = s['offset_ms']
+                  ..ax = (accel?[0] as num?)?.toDouble()
+                  ..ay = (accel?[1] as num?)?.toDouble()
+                  ..az = (accel?[2] as num?)?.toDouble()
+                  ..gx = (gyro?[0] as num?)?.toDouble()
+                  ..gy = (gyro?[1] as num?)?.toDouble()
+                  ..gz = (gyro?[2] as num?)?.toDouble()
+                  ..mx = (mag?[0] as num?)?.toDouble()
+                  ..my = (mag?[1] as num?)?.toDouble()
+                  ..mz = (mag?[2] as num?)?.toDouble();
+              }).toList() ??
+              [];
           events.add(re);
         }
         await _db.collection<RecordedEvent>().putAll(events);
@@ -534,7 +665,7 @@ class StorageService {
       await trip.trajectory.save();
       await trip.events.save();
     });
-    
+
     // 下载完成后，计算事件统计
     await calculateEventStats(id);
   }
@@ -546,12 +677,21 @@ class StorageService {
 
   Future<List<Trip>> getRecentTrips({int limit = 20}) async {
     await init();
-    return await _db.collection<Trip>().where().sortByStartTimeDesc().limit(limit).findAll();
+    return await _db
+        .collection<Trip>()
+        .where()
+        .sortByStartTimeDesc()
+        .limit(limit)
+        .findAll();
   }
 
   Stream<List<Trip>> watchTrips() {
     return Stream.fromFuture(init()).asyncExpand((_) {
-      return _db.collection<Trip>().where().sortByStartTimeDesc().watch(fireImmediately: true);
+      return _db
+          .collection<Trip>()
+          .where()
+          .sortByStartTimeDesc()
+          .watch(fireImmediately: true);
     });
   }
 
@@ -573,8 +713,12 @@ class StorageService {
         if (trip != null) {
           await trip.trajectory.load();
           await trip.events.load();
-          await _db.collection<TrajectoryPoint>().deleteAll(trip.trajectory.map((p) => p.id).toList());
-          await _db.collection<RecordedEvent>().deleteAll(trip.events.map((e) => e.id).toList());
+          await _db
+              .collection<TrajectoryPoint>()
+              .deleteAll(trip.trajectory.map((p) => p.id).toList());
+          await _db
+              .collection<RecordedEvent>()
+              .deleteAll(trip.events.map((e) => e.id).toList());
           await _db.collection<Trip>().delete(id);
         }
       }
@@ -588,7 +732,11 @@ class StorageService {
 
   Future<List<Trip>> getUnuploadedTrips() async {
     await init();
-    return await _db.collection<Trip>().filter().isUploadedEqualTo(false).findAll();
+    return await _db
+        .collection<Trip>()
+        .filter()
+        .isUploadedEqualTo(false)
+        .findAll();
   }
 
   Future<void> markTripAsUploaded(int id, String cloudId) async {
@@ -679,15 +827,16 @@ extension StorageServiceEventStats on StorageService {
       await trip.events.load();
 
       final stats = _getEmptyStatsMap();
-      
+
       for (final event in trip.events) {
         _incrementEventStatInMap(stats, event.type);
       }
-      
+
       trip.eventStatsJson = jsonEncode(stats);
       await _db.collection<Trip>().put(trip);
-      
-      debugPrint('[EventStats] 全量计算完成: Trip ${trip.id}, Stats: ${trip.eventStatsJson}');
+
+      debugPrint(
+          '[EventStats] 全量计算完成: Trip ${trip.id}, Stats: ${trip.eventStatsJson}');
     });
   }
 
@@ -705,9 +854,11 @@ extension StorageServiceEventStats on StorageService {
   /// 在统计 Map 中减少某个事件类型的计数
   void _decrementEventStatInMap(Map<String, dynamic> stats, String eventType) {
     if (stats['auto'].containsKey(eventType)) {
-      stats['auto'][eventType] = math.max(0, (stats['auto'][eventType] as int) - 1);
+      stats['auto'][eventType] =
+          math.max(0, (stats['auto'][eventType] as int) - 1);
     } else if (eventType.startsWith('pro')) {
-      stats['pro'][eventType] = math.max(0, ((stats['pro'][eventType] ?? 0) as int) - 1);
+      stats['pro'][eventType] =
+          math.max(0, ((stats['pro'][eventType] ?? 0) as int) - 1);
     } else if (eventType == 'manual') {
       stats['manual'] = math.max(0, (stats['manual'] as int) - 1);
     }

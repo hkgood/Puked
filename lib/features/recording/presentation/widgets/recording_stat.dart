@@ -23,9 +23,7 @@ class RecordingStat extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: compact ? 12 : 14,
-                color: colorScheme.primary),
+            Icon(icon, size: compact ? 12 : 14, color: colorScheme.primary),
             const SizedBox(width: 4),
             Text(value,
                 style: TextStyle(

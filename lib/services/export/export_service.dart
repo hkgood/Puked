@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart'; // 增加这行
+import 'package:flutter/foundation.dart'; // 用于 kDebugMode
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:intl/intl.dart'; // 增加这行
+import 'package:intl/intl.dart';
 import 'package:puked/common/utils/i18n.dart';
 
 final exportServiceProvider = Provider((ref) {
@@ -41,18 +42,46 @@ class ExportService {
       }
 
       debugPrint("DEBUG: [ExportService] Preparing data map...");
-      
+
       // 🔍 DEBUG: 检查轨迹点数量和传感器数据
-      debugPrint("DEBUG: [ExportService] Total trajectory points: ${trip.trajectory.length}");
+      debugPrint(
+          "DEBUG: [ExportService] Total trajectory points: ${trip.trajectory.length}");
       int pointsWithSensorData = 0;
       for (var p in trip.trajectory) {
         if (p.ax != null || p.ay != null || p.az != null) {
           pointsWithSensorData++;
         }
       }
-      debugPrint("DEBUG: [ExportService] Points with sensor data: $pointsWithSensorData / ${trip.trajectory.length}");
-      
-      // ... 原有 exportData 构建逻辑 ...
+      debugPrint(
+          "DEBUG: [ExportService] Points with sensor data: $pointsWithSensorData / ${trip.trajectory.length}");
+
+      // 🔧 关键修复：按时间戳排序轨迹点（解决批量写入导致的时间戳乱序问题）
+      // 原因：10Hz高频传感器数据通过批量写入，可能因为Timer延迟导致写入顺序与时间戳顺序不一致
+      final sortedTrajectory = trip.trajectory.toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      debugPrint(
+          "DEBUG: [ExportService] Total trajectory points: ${sortedTrajectory.length}");
+
+      // 验证排序后的时间戳顺序（仅在Debug模式下）
+      if (kDebugMode && sortedTrajectory.length > 1) {
+        int outOfOrderCount = 0;
+        for (int i = 0; i < sortedTrajectory.length - 1; i++) {
+          if (sortedTrajectory[i]
+              .timestamp
+              .isAfter(sortedTrajectory[i + 1].timestamp)) {
+            outOfOrderCount++;
+          }
+        }
+        if (outOfOrderCount > 0) {
+          debugPrint(
+              "⚠️ [ExportService] Found $outOfOrderCount out-of-order timestamps before sorting");
+        } else {
+          debugPrint(
+              "✅ [ExportService] All timestamps are now in correct order");
+        }
+      }
+
       final Map<String, dynamic> exportData = {
         "version": "1.0.0",
         "trip_id": trip.uuid,
@@ -65,8 +94,19 @@ class ExportService {
           "algorithm": trip.algorithm ?? "Others",
           "notes": trip.notes ?? "",
           "event_count": trip.eventCount,
+          // ✅ 新增：导出metrics信息
+          "distance_km": (trip.distance / 1000).toStringAsFixed(2),
+          "duration_min": trip.endTime != null
+              ? trip.endTime!.difference(trip.startTime).inMinutes
+              : 0,
+          "avg_speed_kmh": trip.endTime != null && trip.distance > 0
+              ? ((trip.distance / 1000) /
+                      (trip.endTime!.difference(trip.startTime).inSeconds /
+                          3600))
+                  .toStringAsFixed(1)
+              : "0.0",
         },
-        "trajectory": trip.trajectory
+        "trajectory": sortedTrajectory
             .map((p) => {
                   "ts": p.timestamp.millisecondsSinceEpoch / 1000.0,
                   "lat": p.lat,

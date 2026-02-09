@@ -22,6 +22,7 @@ class SettingsState {
   final bool isFirstLaunch;
   final bool isEventSoundEnabled;
   final bool isHighFrameRateEnabled;
+  final bool isVideoRecordingEnabled;
 
   SettingsState({
     required this.themeMode,
@@ -34,6 +35,7 @@ class SettingsState {
     this.isFirstLaunch = false,
     this.isEventSoundEnabled = false,
     this.isHighFrameRateEnabled = false,
+    this.isVideoRecordingEnabled = false,
   });
 
   SettingsState copyWith({
@@ -47,6 +49,7 @@ class SettingsState {
     bool? isFirstLaunch,
     bool? isEventSoundEnabled,
     bool? isHighFrameRateEnabled,
+    bool? isVideoRecordingEnabled,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -60,6 +63,8 @@ class SettingsState {
       isEventSoundEnabled: isEventSoundEnabled ?? this.isEventSoundEnabled,
       isHighFrameRateEnabled:
           isHighFrameRateEnabled ?? this.isHighFrameRateEnabled,
+      isVideoRecordingEnabled:
+          isVideoRecordingEnabled ?? this.isVideoRecordingEnabled,
     );
   }
 }
@@ -67,7 +72,7 @@ class SettingsState {
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final Ref _ref;
   String? _lastLoadedUserId; // 追踪上次加载设置的用户ID
-  
+
   SettingsNotifier(this._ref)
       : super(SettingsState(
           themeMode: ThemeMode.system,
@@ -79,14 +84,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     // 这样可以避免在数据刷新时重复加载设置
     _ref.read(userSessionManagerProvider).sessionChanges.listen((event) {
       debugPrint('[Settings] Session event: $event');
-      
+
       switch (event.type) {
         case SessionEventType.started:
         case SessionEventType.restored:
           // 新用户登录或会话恢复 - 加载该用户的设置
           _loadSettings();
           break;
-          
+
         case SessionEventType.logout:
         case SessionEventType.switched:
           // 用户退出或切换 - 清理旧用户的设置
@@ -113,6 +118,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   static const _firstLaunchKey = 'is_first_launch';
   static const _eventSoundKey = 'is_event_sound_enabled';
   static const _highFrameRateKey = 'is_high_frame_rate_enabled';
+  static const _videoRecordingKey = 'is_video_recording_enabled';
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -125,7 +131,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       return;
     }
 
-    debugPrint('[Settings] Loading settings for user: ${currentUserId ?? "guest"}');
+    debugPrint(
+        '[Settings] Loading settings for user: ${currentUserId ?? "guest"}');
     _lastLoadedUserId = currentUserId;
 
     // 加载首次启动标志，默认 true
@@ -136,6 +143,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
     // 加载高帧率数据记录开关，默认 false
     final isHighFrameRateEnabled = prefs.getBool(_highFrameRateKey) ?? false;
+
+    // 加载视频录制开关，默认 false
+    final isVideoRecordingEnabled = prefs.getBool(_videoRecordingKey) ?? false;
 
     // 加载主题
     final themeIndex = prefs.getInt(_themeKey) ?? ThemeMode.system.index;
@@ -227,15 +237,16 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       isFirstLaunch: isFirstLaunch,
       isEventSoundEnabled: isEventSoundEnabled,
       isHighFrameRateEnabled: isHighFrameRateEnabled,
+      isVideoRecordingEnabled: isVideoRecordingEnabled,
     );
   }
 
   /// 清理用户特定的设置（退出登录或切换账号时调用）
   Future<void> _clearUserSpecificSettings() async {
     debugPrint('[Settings] Clearing user-specific settings');
-    
+
     _lastLoadedUserId = null;
-    
+
     // 只清空与用户关联的车辆信息，保留主题、语言等全局设置
     state = state.copyWith(
       brand: null,
@@ -244,7 +255,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       softwareVersion: null,
       softwareVersionRef: null,
     );
-    
+
     // 同步清理本地缓存
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_brandKey);
@@ -258,6 +269,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(isHighFrameRateEnabled: enabled);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_highFrameRateKey, enabled);
+  }
+
+  Future<void> setVideoRecordingEnabled(bool enabled) async {
+    state = state.copyWith(isVideoRecordingEnabled: enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_videoRecordingKey, enabled);
   }
 
   Future<void> setEventSoundEnabled(bool enabled) async {

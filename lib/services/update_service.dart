@@ -46,7 +46,6 @@ class UpdateService {
   static bool _isDownloading = false;
 
   // 镜像测试结果缓存
-  static const String _mirrorCacheKey = 'mirror_test_cache';
   static const String _mirrorCacheTimeKey = 'mirror_test_cache_time';
   static const int _mirrorCacheValidMinutes = 10; // 缓存有效期10分钟
   static Map<String, dynamic>? _cachedMirrorResult;
@@ -73,6 +72,7 @@ class UpdateService {
   }
 
   /// 检查是否有正在进行的下载任务
+  // ignore: unused_element
   static Future<bool> _checkDownloadingState() async {
     final prefs = await SharedPreferences.getInstance();
     _isDownloading = prefs.getBool(_downloadingKey) ?? false;
@@ -98,6 +98,7 @@ class UpdateService {
   }
 
   /// 请求安装未知来源应用的权限 (Android 8.0+)
+  // ignore: unused_element
   static Future<bool> _requestInstallPermission(BuildContext context) async {
     if (!Platform.isAndroid) return true;
 
@@ -291,8 +292,6 @@ class UpdateService {
   /// 通过下载文件的前 512KB 来测试实际速度，而不是只测试 HEAD 请求
   static Future<Map<String, dynamic>> _testMirrorSpeed(
       String url, String name) async {
-    final startTime = DateTime.now();
-
     debugPrint('🔍 [Mirror Test] Testing $name...');
 
     try {
@@ -439,7 +438,7 @@ class UpdateService {
               // 显示"正在选择最快下载源"提示
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(l10n.selecting_best_mirror ?? '正在选择最快下载源...'),
+                  content: Text(l10n.selecting_best_mirror),
                   behavior: SnackBarBehavior.floating,
                   duration: const Duration(seconds: 2),
                 ),
@@ -653,6 +652,7 @@ class UpdateService {
     );
   }
 
+  // ignore: unused_element
   static void _showDownloadProgress(BuildContext context, String url,
       AppLocalizations l10n, String version, String? mirrorName) {
     final colorScheme = Theme.of(context).colorScheme;

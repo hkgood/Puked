@@ -112,7 +112,7 @@ class ExportService {
                   "lat": p.lat,
                   "lng": p.lng,
                   "speed": p.speed,
-                  "low_conf": p.isLowConfidence ?? false,
+                  "low_conf": p.isLowConfidence,
                   if (p.ax != null)
                     "ax": double.parse(p.ax!.toStringAsFixed(3)),
                   if (p.ay != null)

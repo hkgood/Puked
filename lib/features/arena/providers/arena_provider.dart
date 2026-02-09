@@ -301,7 +301,7 @@ class ArenaService {
       if (b.name.toLowerCase() == 'others') return -1;
 
       // 2. 其余品牌按 order 排序，若 order 相同按名称字母排序
-      final int orderCompare = (a.order ?? 999).compareTo(b.order ?? 999);
+      final int orderCompare = a.order.compareTo(b.order);
       if (orderCompare != 0) return orderCompare;
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
@@ -356,7 +356,7 @@ class ArenaService {
       final brandRecord = s.expand['brand']?.firstOrNull;
 
       // 累加全局里程
-      final dist = (s.get<num>('total_distance') ?? 0).toDouble();
+      final dist = (s.get<num>('total_distance')).toDouble();
       globalTotalMileage += dist;
 
       final userId = s.getStringValue('user');
@@ -431,9 +431,9 @@ class ArenaService {
               .toString()
           : null;
 
-      final totalDistance = (s.get<num>('total_distance') ?? 0).toDouble();
-      final totalEvents = (s.get<num>('total_events') ?? 0).toInt();
-      final tripCount = (s.get<num>('trip_count') ?? 0).toInt();
+      final totalDistance = (s.get<num>('total_distance')).toDouble();
+      final totalEvents = (s.get<num>('total_events')).toInt();
+      final tripCount = (s.get<num>('trip_count')).toInt();
 
       // 解析速度分布
       final speedDist = s.get<Map<String, dynamic>?>('speed_dist') ?? {};
@@ -565,8 +565,8 @@ class ArenaService {
               .toString();
         }
 
-        final totalDistance = (s.get<num>('total_distance') ?? 0).toDouble();
-        final totalEvents = (s.get<num>('total_events') ?? 0).toInt();
+        final totalDistance = (s.get<num>('total_distance')).toDouble();
+        final totalEvents = (s.get<num>('total_events')).toInt();
 
         // 🆕 解析速度分布 (用于周度里程排名的分段条)
         final speedDist = s.get<Map<String, dynamic>?>('speed_dist') ?? {};
@@ -646,7 +646,7 @@ class ArenaService {
             () =>
                 {'userName': userName, 'avatarUrl': avatarUrl, 'totalKm': 0.0});
         userWeeklyMap[userId]['totalKm'] +=
-            (s.get<num>('total_distance') ?? 0).toDouble();
+            (s.get<num>('total_distance')).toDouble();
       }
     }
 
@@ -1055,26 +1055,4 @@ class ArenaService {
     }
     return 'Tesla';
   }
-}
-
-class _MileageRecord {
-  final String brand;
-  double totalKm = 0;
-  final Map<String, double> breakdown = {
-    'congested': 0,
-    'urban': 0,
-    'smooth': 0,
-    'highway': 0,
-  };
-
-  _MileageRecord(this.brand);
-}
-
-class _UserMileageRecord {
-  final String userName;
-  final String? avatarUrl;
-  double totalKm = 0;
-  int tripCount = 0;
-
-  _UserMileageRecord(this.userName, this.avatarUrl);
 }

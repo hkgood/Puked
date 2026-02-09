@@ -34,7 +34,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
   Future<void> _compressAllCertificationImages() async {
     if (_isCompressing) return;
 
-    final auth = ref.read(authProvider);
     final pb = ref.read(pbServiceProvider).pb;
 
     // 确认对话框
@@ -811,7 +810,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     // 核心修复：智能防碰撞布局算法
     // 根据品牌数量和扇区大小，动态调整 Logo 距离
     final brandCount = sortedEntries.length;
-    double currentAngle = 0.0; // 累积角度 (用于计算每个 Logo 的位置)
 
     final sections = <PieChartSectionData>[];
 
@@ -821,7 +819,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
       colorIndex++;
 
       final percentage = entry.value / total;
-      final angleSize = percentage * 360; // 该扇区的角度大小
 
       // 防碰撞策略：
       // 1. 小扇区(<10%): 使用更大的距离避让 (1.8)
@@ -850,8 +847,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
             forceLight: forceLight, fontFallback: systemFallback),
         badgePositionPercentageOffset: badgeDistance,
       ));
-
-      currentAngle += angleSize;
     }
 
     return sections;
@@ -862,8 +857,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
       {bool forceLight = false, List<String>? fontFallback}) {
     final isDark =
         !forceLight && Theme.of(context).brightness == Brightness.dark;
-    final onSurface =
-        forceLight ? Colors.black : Theme.of(context).colorScheme.onSurface;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

@@ -16,7 +16,6 @@ class SherpaOnnxServiceMobile implements SherpaOnnxService {
   StreamSubscription<List<int>>? _audioStreamSub;
   sherpa.OnlineStream? _onlineStream;
 
-  @override
   bool _isInitialized = false;
   @override
   bool get isInitialized => _isInitialized;
@@ -54,7 +53,6 @@ class SherpaOnnxServiceMobile implements SherpaOnnxService {
     '没懂': '没动', '没冻': '没动',
   };
 
-  @override
   double _downloadProgress = 0;
   @override
   double get downloadProgress => _downloadProgress;
@@ -379,10 +377,9 @@ class SherpaOnnxServiceMobile implements SherpaOnnxService {
       _isStopping = false;
 
       // 核心热词安全性加固：只有 BPE 存在且热词不为空时才注入
-      String hotwords = "";
       if (_hasBpe) {
         try {
-          hotwords = _getHotwords();
+          _getHotwords();
         } catch (e) {
           debugPrint('[SherpaOnnx] Error generating hotwords: $e');
         }
@@ -414,7 +411,6 @@ class SherpaOnnxServiceMobile implements SherpaOnnxService {
 
       String lastRawText = "";
       DateTime? lastVoiceTime = DateTime.now();
-      final DateTime startTime = DateTime.now();
 
       _audioStreamSub = stream.listen((data) {
         if (_isStopping || _onlineStream == null) return;

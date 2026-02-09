@@ -110,7 +110,6 @@ class MediaKeyHandler extends BaseAudioHandler {
 /// 辅助函数：根据当前行程状态和视频/语音开关，更新媒体按键监听器的激活状态
 void updateMediaKeyActivation(Ref ref) {
   final recordingState = ref.read(recordingProvider);
-  final voiceState = ref.read(voiceRecordingProvider);
   final handler = ref.read(mediaKeyHandlerProvider);
 
   if (handler == null) return;

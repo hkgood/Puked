@@ -136,7 +136,6 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
   // 内部状态变量
-  DateTime? _lastLocationTime;
   int _locationUpdateCount = 0;
   DateTime? _lastHardwareTimestamp;
 
@@ -333,7 +332,6 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     _lastGpsTime = now;
     _lastHardwareTimestamp = position.timestamp;
-    _lastLocationTime = now;
     _locationUpdateCount++;
 
     // ✅ 关键修复：先计算里程，再更新位置变量（避免"先更新后使用"错误）
@@ -540,7 +538,6 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       // ✅ 初始化所有关键时间戳和位置变量
       _recordingStartTime = DateTime.now();
       _lastGpsTime = DateTime.now();
-      _lastLocationTime = DateTime.now();
       _lastSensorRecordTime = null; // 重置传感器记录时间
       _gpsStabilityCounter = 0;
       _insEngine.reset();

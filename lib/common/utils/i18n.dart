@@ -444,10 +444,6 @@ class I18n {
         return _delegate.gps_weak;
       case 'gps_no_signal':
         return _delegate.gps_no_signal;
-      case 'history':
-        return _delegate.history;
-      case 'arena':
-        return _delegate.arena;
       case 'app_name':
         return _delegate.app_name;
       case 'avatar_updated':
@@ -530,8 +526,6 @@ class I18n {
         return _delegate.by_version;
       case 'mileage_label':
         return _delegate.mileage_label;
-      case 'current_distance':
-        return _delegate.distance;
       case 'no_trips':
         return _delegate.no_trips;
       case 'car_model':
@@ -582,8 +576,6 @@ class I18n {
         return _delegate.no_records;
       case 'arena_mileage_requirement':
         return _delegate.arena_mileage_requirement;
-      case 'manual':
-        return _delegate.manual;
       case 'threshold_accel_hint':
         return _delegate.threshold_accel_hint;
       case 'threshold_decel_hint':
@@ -628,58 +620,12 @@ class I18n {
         return _delegate.update_avatar_failed;
       case 'delete_account':
         return _delegate.delete_account;
-      case 'new_version_found':
-        return _delegate.new_version_found;
-      case 'changelog':
-        return _delegate.changelog;
-      case 'update_now':
-        return _delegate.update_now;
-      case 'downloading_update':
-        return _delegate.downloading_update;
-      case 'permission_not_granted':
-        return _delegate.permission_not_granted;
-      case 'network_error':
-        return _delegate.network_error;
-      case 'calibration_failed_stationary':
-        return _delegate.calibration_failed_stationary;
-      case 'calibration_failed_motion':
-        return _delegate.calibration_failed_motion;
-      case 'sensor_error':
-        return _delegate.sensor_error;
-      case 'recording_notification_content':
-        return _delegate.recording_notification_content;
-      case 'recording_notification_title':
-        return _delegate.recording_notification_title;
       case 'logic_section':
         return _delegate.logic_section;
-      case 'please_login_first':
-        return _delegate.please_login_first;
-      case 'network_unavailable':
-        return _delegate.network_unavailable;
       case 'uploading_trip':
         return _delegate.uploading_trip;
       case 'trip_submitted_success':
         return _delegate.trip_submitted_success;
-      case 'image_upload_success':
-        return _delegate.image_upload_success;
-      case 'network_restored':
-        return _delegate.network_restored;
-      case 'calibration_success_start':
-        return _delegate.calibration_success_start;
-      case 'select_or_input_version':
-        return _delegate.select_or_input_version;
-      case 'confirm_delete_account':
-        return _delegate.confirm_delete_account;
-      case 'exit_app':
-        return _delegate.exit_app;
-      case 'exit_app_confirm':
-        return _delegate.exit_app_confirm;
-      case 'ignore_this_version':
-        return _delegate.ignore_this_version;
-      case 'recalibrate':
-        return _delegate.recalibrate;
-      case 'invalid_verification_code':
-        return _delegate.invalid_verification_code;
       case 'speed_unit':
         return _delegate.speed_unit('{}');
       case 'g_unit':
@@ -688,22 +634,6 @@ class I18n {
         return _delegate.distance_unit('{}');
       case 'duration_unit':
         return _delegate.duration_unit('{}');
-      case 'update_failed':
-        return _delegate.update_failed;
-      case 'processing':
-        return _delegate.processing;
-      case 'later':
-        return _delegate.later;
-      case 'back':
-        return _delegate.back;
-      case 'ensure_network_tip':
-        return _delegate.ensure_network_tip;
-      case 'invalid_email_format':
-        return _delegate.invalid_email_format;
-      case 'password_too_short':
-        return _delegate.password_too_short;
-      case 'field_required':
-        return _delegate.field_required;
       case 'coupling_curve_index_label':
         return _delegate.coupling_curve_index_label;
       case 'coupling_curve_index_hint':

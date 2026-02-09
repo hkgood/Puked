@@ -58,7 +58,7 @@ class StorageService {
       );
       _isar = isar;
       await seedInitialData();
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint('[Storage] ❌ Initialization error: $e');
       rethrow;
     }

@@ -684,24 +684,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         letterSpacing: 0.5,
       );
 
-  Widget _buildSectionSubHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context)
-              .colorScheme
-              .onSurfaceVariant
-              .withValues(alpha: 0.7),
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
   Widget _buildAboutTile(
     BuildContext context, {
     required String title,

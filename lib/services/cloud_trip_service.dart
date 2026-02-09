@@ -430,7 +430,7 @@ class CloudTripService {
                   'speed_dist,event_breakdown,scenario,brand,software_version,user,'
                   'expand.brand.id,expand.brand.name,expand.brand.logo,'
                   'expand.software_version.id,expand.software_version.versionString,'
-                  'expand.user.id,expand.user.name,expand.user.username,expand.user.avatar',
+                  'expand.user.id,expand.user.collectionId,expand.user.name,expand.user.username,expand.user.avatar',
             ),
         _pbService.pb.collection('trip_stats_summary').getFullList(
               filter: 'period_type="weekly"',
@@ -442,7 +442,7 @@ class CloudTripService {
                   'brand,software_version,user,'
                   'expand.brand.id,expand.brand.name,expand.brand.logo,'
                   'expand.software_version.id,expand.software_version.versionString,'
-                  'expand.user.id,expand.user.name,expand.user.username,expand.user.avatar',
+                  'expand.user.id,expand.user.collectionId,expand.user.name,expand.user.username,expand.user.avatar',
             ),
       ]);
 
@@ -675,7 +675,7 @@ class CloudTripService {
                 "lat": p.lat,
                 "lng": p.lng,
                 "speed": p.speed,
-                "low_conf": p.isLowConfidence ?? false,
+                "low_conf": p.isLowConfidence,
               })
           .toList(),
       "events": trip.events

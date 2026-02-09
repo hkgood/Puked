@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pocketbase/pocketbase.dart';
@@ -65,7 +64,7 @@ final myStatsProvider = Provider<AsyncValue<MyStats?>>((ref) {
 
           for (final s in allSummary) {
             if (s.getStringValue('user') == userId) {
-              fallbackMileage += (s.get<num>('total_distance') ?? 0).toDouble();
+              fallbackMileage += (s.get<num>('total_distance')).toDouble();
             }
           }
         }
@@ -125,64 +124,3 @@ final userStatsEntryProvider =
       '[MyStats] Snapshot missing, fallback to partial data from summary...');
   return null;
 });
-
-int _getFilteredEventCount(Trip t) {
-  final Map<String, dynamic> source = {};
-  source['event_count'] = t.eventCount;
-
-  final metricsStr = t.cloudMetrics;
-  Map<String, dynamic>? metrics;
-  if (metricsStr != null) {
-    try {
-      metrics = jsonDecode(metricsStr) as Map<String, dynamic>?;
-    } catch (_) {}
-  }
-
-  if (metrics != null) {
-    metrics.forEach((k, v) => source[k.toLowerCase()] = v);
-    final breakdown = metrics['event_breakdown'];
-    if (breakdown is Map<String, dynamic>) {
-      breakdown.forEach((k, v) => source[k.toLowerCase()] = v);
-    }
-  } else if (t.id != 0) {
-    for (final event in t.events) {
-      final type = event.type;
-      source[type.toLowerCase()] = (source[type.toLowerCase()] ?? 0) + 1;
-    }
-  }
-
-  final negativeKeysMap = {
-    'rapidAcceleration': [
-      'rapidacceleration',
-      'rapid_acceleration',
-      'accel',
-      'rapid_accel',
-      'acceleration'
-    ],
-    'rapidDeceleration': [
-      'rapiddeceleration',
-      'rapid_deceleration',
-      'brake',
-      'rapid_brake',
-      'deceleration',
-      'braking'
-    ],
-    'jerk': ['jerk', 'jerk_event', 'jerks', 'jerk_count'],
-    'wobble': ['wobble', 'wobble_event', 'wobbles', 'wobble_count']
-  };
-
-  int totalFiltered = 0;
-  negativeKeysMap.forEach((mainKey, possibleKeys) {
-    for (final k in possibleKeys) {
-      if (source[k] != null) {
-        final count = double.tryParse(source[k].toString())?.toInt() ?? 0;
-        if (count > 0) {
-          totalFiltered += count;
-          break;
-        }
-      }
-    }
-  });
-
-  return totalFiltered;
-}

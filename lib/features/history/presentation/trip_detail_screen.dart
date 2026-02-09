@@ -351,9 +351,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final trajectory = trip.trajectory.toList();
     final events = trip.events.toList();
 
-    // Core logic: Check if this is a cloud placeholder without downloaded details
-    final isPlaceholder = trip.isLocalMissing;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(

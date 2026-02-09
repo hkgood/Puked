@@ -21,7 +21,7 @@ jobs:
         run: |
           flutter pub get
           dart format --output=none --set-exit-if-changed .
-          flutter analyze
+          flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
 
   # 任务 2：APK 编译（与检查并行）

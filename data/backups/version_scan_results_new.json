@@ -1,0 +1,38 @@
+[
+  {
+    "brand": "LiAuto",
+    "original": "V8.1",
+    "recommended": "8.1",
+    "exists_in_db": false
+  },
+  {
+    "brand": "LiAuto",
+    "original": "V8.2",
+    "recommended": "8.2",
+    "exists_in_db": false
+  },
+  {
+    "brand": "LiAuto",
+    "original": "v8.2",
+    "recommended": "8.2",
+    "exists_in_db": false
+  },
+  {
+    "brand": "Tesla",
+    "original": "v13.2.9",
+    "recommended": "13.2.9",
+    "exists_in_db": false
+  },
+  {
+    "brand": "Xpeng",
+    "original": "XOS 5.8.6.8901",
+    "recommended": "5.8.6",
+    "exists_in_db": false
+  },
+  {
+    "brand": "Xpeng",
+    "original": "XOs 5.8.6.8901",
+    "recommended": "5.8.6",
+    "exists_in_db": false
+  }
+]

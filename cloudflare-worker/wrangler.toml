@@ -1,0 +1,6 @@
+name = "puked"
+main = "github-proxy.js"
+compatibility_date = "2024-01-26"
+
+# 你的账号 ID（从 Cloudflare Dashboard 获取）
+# account_id = "4a1b73c857dfaa098ed2211c3a3666a2"

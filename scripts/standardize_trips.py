@@ -1,0 +1,140 @@
+
+import json
+import urllib.request
+import urllib.parse
+import re
+import time
+from collections import Counter
+
+PB_URL = 'http://115.29.162.18:8090'
+ADMIN_EMAIL = 'rocky.hk@gmail.com'
+ADMIN_PASSWORD = 'gz203799'
+
+def make_request(url, method='GET', data=None, headers=None, params=None, retries=3):
+    if params:
+        url = f"{url}?{urllib.parse.urlencode(params)}"
+    for i in range(retries):
+        try:
+            req = urllib.request.Request(url, method=method)
+            if headers:
+                for k, v in headers.items(): req.add_header(k, v)
+            if data:
+                req.add_header('Content-Type', 'application/json')
+                req.data = json.dumps(data).encode('utf-8')
+            
+            with urllib.request.urlopen(req, timeout=15) as response:
+                return response.status, json.loads(response.read().decode('utf-8'))
+        except Exception as e:
+            if i == retries - 1:
+                return 0, str(e)
+            time.sleep(1) # Wait 1s before retry
+    return 0, "Max retries reached"
+
+def standardize():
+    # 1. Login
+    print("🔐 Logging in...")
+    status, auth_data = make_request(f"{PB_URL}/api/collections/_superusers/auth-with-password", method='POST', data={
+        "identity": ADMIN_EMAIL, "password": ADMIN_PASSWORD
+    })
+    if status != 200:
+        print(f"❌ Login failed: {auth_data}")
+        return
+    headers = {"Authorization": auth_data['token']}
+
+    # 2. Build Lookup Map
+    print("📦 Building standard version lookup map...")
+    status, v_data = make_request(f"{PB_URL}/api/collections/software_versions/records", params={"perPage": 1000}, headers=headers)
+    all_versions = v_data.get('items', [])
+    
+    lookup = {}
+    brand_map = {} # brand_id -> brand_name
+    
+    # Optional: Fetch brands to make report readable
+    print("🏷️ Fetching brands for readable report...")
+    b_status, b_data = make_request(f"{PB_URL}/api/collections/brands/records", params={"perPage": 100}, headers=headers)
+    if b_status == 200:
+        for b in b_data.get('items', []):
+            brand_map[b['id']] = b['name']
+
+    for v in all_versions:
+        bid = v['brand']
+        v_str = v['versionString'].strip()
+        if bid not in lookup: lookup[bid] = {}
+        lookup[bid][v_str] = {"id": v['id'], "standard": v_str}
+    
+    print(f"✅ Loaded {len(all_versions)} standard versions.")
+
+    # 3. Process Trips
+    print("🔍 Fetching trips (up to 1000)...")
+    status, trips_data = make_request(f"{PB_URL}/api/collections/trips/records", params={"perPage": 1000, "sort": "-created"}, headers=headers)
+    trips = trips_data.get('items', [])
+    
+    updated_count = 0
+    unmatched_versions = []
+    
+    for t in trips:
+        orig_v = (t.get('software_version') or '').strip()
+        bid = t.get('brand_ref') or t.get('brand')
+        current_ref = t.get('software_version_ref')
+        
+        if not orig_v or not bid:
+            continue
+            
+        match = None
+        
+        # --- SPECIAL OVERRIDE FOR 6f -> R6F ---
+        # Any version starting with '6f' (case-insensitive) will be mapped to R6F
+        if re.search(r'^6f(\s+.*)?$', orig_v, re.IGNORECASE):
+            match = {"id": "hz6emfhi2p6681k", "standard": "R6F"}
+            
+        # Strategy A: Direct
+        if not match and bid in lookup and orig_v in lookup[bid]:
+            match = lookup[bid][orig_v]
+        
+        # Strategy B: Fuzzy
+        if not match and bid in lookup:
+            clean_regex = [
+                r'^(v|V)', 
+                r'^[a-zA-Z]+\s+',
+                r'^[a-zA-Z]+\s+[a-zA-Z]+\s+'
+            ]
+            for r in clean_regex:
+                v_variant = re.sub(r, '', orig_v).strip()
+                if v_variant in lookup[bid]:
+                    match = lookup[bid][v_variant]
+                    break
+
+        if match:
+            target_id = match['id']
+            target_text = match['standard']
+            
+            update_data = {}
+            if current_ref != target_id: update_data["software_version_ref"] = target_id
+            if orig_v != target_text: update_data["software_version"] = target_text
+                
+            if update_data:
+                print(f"   🚀 Updating {t['id']}: [{orig_v}] -> [{target_text}]")
+                u_status, _ = make_request(f"{PB_URL}/api/collections/trips/records/{t['id']}", 
+                                         method='PATCH', data=update_data, headers=headers)
+                if u_status == 200: updated_count += 1
+                else: print(f"   ⚠️ Failed {t['id']}: {u_status}")
+        else:
+            if not current_ref:
+                b_name = brand_map.get(bid, bid)
+                unmatched_versions.append(f"{b_name} | {orig_v}")
+
+    # 4. Final Report
+    print("\n" + "="*60)
+    print(f"✨ STANDARDIZATION COMPLETE")
+    print(f"✅ Successfully updated: {updated_count} trips")
+    print(f"❌ Remaining non-standard trips: {len(unmatched_versions)}")
+    
+    if unmatched_versions:
+        print("\n📊 Top Unmatched Versions (Need Manual Check):")
+        counts = Counter(unmatched_versions)
+        for ver, count in counts.most_common(30):
+            print(f"   - {count:2d} trips: {ver}")
+    print("="*60)
+
+if __name__ == "__main__":
+    standardize()

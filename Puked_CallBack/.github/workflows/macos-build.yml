@@ -1,0 +1,65 @@
+name: Build and Release macOS App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+
+      - name: Build macOS App
+        run: |
+          xcodebuild -project Puked_CallBack.xcodeproj \
+                     -scheme Puked_CallBack \
+                     -configuration Release \
+                     -derivedDataPath Build/ \
+                     -destination 'platform=macOS' \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO
+
+      - name: Package App
+        run: |
+          mkdir -p dist
+          cp -R Build/Build/Products/Release/Puked_CallBack.app dist/
+          
+      - name: Create DMG and ZIP
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          # Create DMG
+          hdiutil create -volname "Puked Callback" -srcfolder dist -ov -format UDZO "Puked_Callback_${VERSION}.dmg"
+          
+          # Create ZIP of the .app
+          cd dist
+          zip -r "../Puked_Callback_${VERSION}.zip" Puked_CallBack.app
+          cd ..
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Puked_Callback_Artifacts
+          path: |
+            Puked_Callback_*.dmg
+            Puked_Callback_*.zip
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Puked_Callback_${{ github.ref_name }}.dmg
+            Puked_Callback_${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

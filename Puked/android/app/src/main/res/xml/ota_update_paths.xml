@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 使用空路径 "" 匹配整个根目录，确保 100% 覆盖 -->
+    <cache-path name="internal_cache" path=""/>
+    <external-cache-path name="external_cache" path=""/>
+    <files-path name="internal_files" path=""/>
+    <external-files-path name="external_files" path=""/>
+    
+    <!-- 兼容某些旧版本插件可能使用的公共下载目录 -->
+    <external-path name="external_storage" path="Android/data/com.osglab.puked/"/>
+</paths>

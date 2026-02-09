@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Xcode
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.xcuserstate
+project.xcworkspace/xcuserdata/
+*.xcuserdatad/
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.pc
+*.xcscheme
+!default.xcscheme
+xscreensaver-*.cap
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# GitHub Actions build artifacts
+*.dmg
+*.app.zip

@@ -1,0 +1,85 @@
+# ============================================
+# Puked Web 一体化镜像 Dockerfile (改进版)
+# 版本：2.4.6
+# 包含：前端 Web + 后台任务处理器
+# 支持：x86_64 (amd64) + ARM64 (arm64)
+# 改进：使用独立的 supervisord.conf 配置文件
+# ============================================
+
+# ==================== 第一阶段：构建前端 ====================
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+
+# 复制前端依赖文件
+COPY package*.json ./
+RUN npm install
+
+# 复制前端源代码并构建
+COPY . .
+RUN npx vite build
+
+# ==================== 第二阶段：准备任务处理器 ====================
+FROM node:20-alpine AS task-processor-build
+
+WORKDIR /app/processor
+
+# 复制任务处理器依赖文件
+COPY scripts/package*.json ./
+RUN npm install --omit=dev
+
+# 复制任务处理器脚本
+COPY scripts/task_processor.pb.js ./
+
+# ==================== 第三阶段：生产镜像 ====================
+FROM nginx:stable-alpine AS production
+
+# 安装 Node.js 和 supervisor
+RUN apk add --no-cache nodejs npm supervisor
+
+# ==================== 1. 配置 Nginx（前端） ====================
+# 复制 Nginx 配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 复制前端构建产物
+COPY --from=frontend-build /app/dist /usr/share/nginx/html
+
+# ==================== 2. 配置任务处理器（后台） ====================
+WORKDIR /app/processor
+
+# 复制任务处理器、依赖以及 package.json (确保 ESM 模块识别)
+COPY --from=task-processor-build /app/processor/ ./
+
+# ==================== 3. 配置 Supervisor（进程管理） ====================
+# 创建日志目录
+RUN mkdir -p /var/log/supervisor
+
+# 复制 Supervisor 配置文件（使用独立配置文件，而不是通过 echo 构建）
+COPY supervisord.conf /etc/supervisord.conf
+
+# 验证配置文件
+RUN supervisord -c /etc/supervisord.conf -n & sleep 2 && supervisorctl -c /etc/supervisord.conf status || true
+
+# ==================== 4. 健康检查 ====================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
+# ==================== 5. 环境变量默认值 ====================
+ENV PB_URL=https://pb.osglab.com \
+    ADMIN_EMAIL=rocky.hk@gmail.com \
+    ADMIN_PASSWORD=gz203799 \
+    CHECK_INTERVAL=10000 \
+    BATCH_SIZE=10 \
+    CONCURRENCY=3 \
+    VERSION=2.4.7
+
+# ==================== 6. 元数据 ====================
+LABEL maintainer="Puked Team" \
+      version="2.4.6" \
+      description="Puked Web All-in-One: Frontend + Task Processor (Fixed)"
+
+# 暴露端口
+EXPOSE 80
+
+# 启动 Supervisor（管理 Nginx + 任务处理器）
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

@@ -1,0 +1,9 @@
+NSLocationAlwaysAndWhenInUseUsageDescription = "Puked 需要访问您的位置信息，以便在后台也能持续记录您的行驶轨迹和车速。";
+NSLocationAlwaysUsageDescription = "Puked 需要访问您的位置信息，以便持续记录您的行驶轨迹。";
+NSLocationWhenInUseUsageDescription = "Puked 需要访问您的位置信息，以便记录您的行驶轨迹。";
+NSMotionUsageDescription = "Puked 需要访问运动传感器数据，以测量车辆行驶中的加速度(G值)和乘坐舒适度。";
+NSPhotoLibraryUsageDescription = "Puked 需要访问您的相册，以便您可以为记录的行程上传车辆或路况照片。";
+NSPhotoLibraryAddUsageDescription = "Puked 需要访问您的相册，以便您可以保存行程详情截图。";
+NSCameraUsageDescription = "Puked 需要访问您的相机，以便您可以拍摄并上传车辆或路况照片。";
+NSMicrophoneUsageDescription = "Puked 需要访问您的麦克风，以便在拍摄视频时记录声音。";
+CFBundleDisplayName = "Puked";

@@ -1,0 +1,26 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 安装依赖
+COPY package*.json ./
+RUN npm ci --only=production
+
+# 复制任务处理器代码
+COPY task_processor.pb.js ./
+
+# 创建非 root 用户
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# 设置文件权限
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "console.log('healthy')" || exit 1
+
+# 启动任务处理器
+CMD ["node", "task_processor.pb.js"]

@@ -1,0 +1,61 @@
+{
+  "version": 12,
+  "updatedAt": "2026-02-03T12:00:00.000Z",
+  
+  "_comment": "=== 核心阈值参数 ===",
+  "thresholdAccel": 2.0,
+  "thresholdDecel": -2.0,
+  "thresholdWobbleSpan": 3.5,
+  "thresholdBump": 4.5,
+  "thresholdJerk": 6.0,
+  "thresholdPitch": 0.8,
+  
+  "_comment": "=== 时间窗口参数 ===",
+  "jerkWindowMs": 250,
+  "accelDecelWindowMs": 400,
+  "wobbleWindowMs": 1000,
+  "fusionWindowMs": 3000,
+  
+  "_comment": "=== 抑制和补偿参数 ===",
+  "zyInterferenceThreshold": 2.5,
+  "zxInterferenceThreshold": 2.8,
+  "pitchValidationEnabled": true,
+  "couplingCurveIndex": 1.2,
+  "couplingStrengthY": 0.5,
+  "couplingStrengthX": 0.8,
+  "turnCompMultiplier": 1.5,
+  "turnCompMax": 2.5,
+  
+  "_comment": "=== 速度自适应参数 ===",
+  "speedLowFactor": 1.0,
+  "speedHighFactor": 0.9,
+  "lowSpeedJerkLimit": 2.0,
+  
+  "_comment": "=== 事件检测参数 ===",
+  "eventWindowCoverage": 0.75,
+  
+  "_comment": "=== 物理合理性上限 ===",
+  "maxJerkAllowed": 50.0,
+  "maxAccelAllowed": 20.0,
+  "maxWobbleSpanAllowed": 20.0,
+  "maxBumpAllowed": 40.0,
+  "minAccelForJerk": 2.5,
+  
+  "_comment": "=== 趋势过滤参数（v13+ 新增）===",
+  "trendChangeThreshold": 0.40,
+  "enableTrendFilter": true,
+  "minStdDevThreshold": 0.22,
+  "minRangeThreshold": 0.71,
+  
+  "_notes": {
+    "changes_from_v11": [
+      "thresholdDecel: -1.6 → -2.0 (提高急刹车判定门槛)",
+      "eventWindowCoverage: 0.6 → 0.75 (要求更高的点数占比)",
+      "speedLowFactor: 1.1 → 1.0 (取消低速放宽)",
+      "新增趋势过滤功能：通过分析加速度前后半段差异，过滤温和减速/加速事件"
+    ],
+    "expected_improvement": "减少温和减速的误报约 80-90%",
+    "test_required": "需要实地测试验证效果",
+    "rollback_plan": "如果效果不佳，可恢复到 v11 配置"
+  }
+}

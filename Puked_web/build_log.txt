@@ -1,0 +1,55 @@
+#0 building with "puked-multiarch" instance using docker-container driver
+
+#1 [internal] load build definition from Dockerfile.allinone.v2
+#1 transferring dockerfile: 2.79kB done
+#1 DONE 0.0s
+
+#2 [auth] library/node:pull token for registry-1.docker.io
+#2 DONE 0.0s
+
+#3 [auth] library/nginx:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#4 [linux/amd64 internal] load metadata for docker.io/library/node:20-alpine
+#4 ...
+
+#5 [linux/arm64 internal] load metadata for docker.io/library/nginx:stable-alpine
+#5 ...
+
+#6 [linux/amd64 internal] load metadata for docker.io/library/nginx:stable-alpine
+#6 ...
+
+#7 [linux/arm64 internal] load metadata for docker.io/library/node:20-alpine
+#7 ERROR: failed to authorize: failed to fetch oauth token: Post "https://auth.docker.io/token": dial tcp 128.242.250.148:443: i/o timeout
+
+#5 [linux/arm64 internal] load metadata for docker.io/library/nginx:stable-alpine
+#5 ERROR: failed to authorize: DeadlineExceeded: failed to fetch oauth token: Post "https://auth.docker.io/token": dial tcp 128.242.250.148:443: i/o timeout
+
+#6 [linux/amd64 internal] load metadata for docker.io/library/nginx:stable-alpine
+#6 CANCELED
+
+#4 [linux/amd64 internal] load metadata for docker.io/library/node:20-alpine
+#4 CANCELED
+
+#8 [auth] library/node:pull token for registry-1.docker.io
+#8 DONE 0.0s
+
+#9 [auth] library/nginx:pull token for registry-1.docker.io
+#9 DONE 0.0s
+------
+ > [linux/arm64 internal] load metadata for docker.io/library/nginx:stable-alpine:
+------
+------
+ > [linux/arm64 internal] load metadata for docker.io/library/node:20-alpine:
+------
+Dockerfile.allinone.v2:35
+--------------------
+  33 |     
+  34 |     # ==================== 第三阶段：生产镜像 ====================
+  35 | >>> FROM nginx:stable-alpine AS production
+  36 |     
+  37 |     # 安装 Node.js 和 supervisor
+--------------------
+ERROR: failed to build: failed to solve: DeadlineExceeded: failed to fetch oauth token: Post "https://auth.docker.io/token": dial tcp 128.242.250.148:443: i/o timeout
+
+View build details: docker-desktop://dashboard/build/puked-multiarch/puked-multiarch0/txz3i043k51sqytpbkhmzhuu8

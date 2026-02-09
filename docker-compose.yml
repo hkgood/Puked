@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PocketBase 服务
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: puked-pocketbase
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./pb_data:/pb_data
+    networks:
+      - puked-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 任务处理器服务
+  task-processor:
+    build:
+      context: ./Puked_web/scripts
+      dockerfile: Dockerfile.task-processor
+    container_name: puked-task-processor
+    restart: unless-stopped
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - SERVER_MODE=true
+      - PB_URL=http://pocketbase:8090
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
+      - CHECK_INTERVAL=10000
+      - BATCH_SIZE=10
+      - CONCURRENCY=3
+    volumes:
+      - ./pb_data:/pb_data:ro  # 只读挂载，共享文件系统
+    networks:
+      - puked-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  puked-network:
+    driver: bridge
+
+volumes:
+  pb_data:
+    driver: local

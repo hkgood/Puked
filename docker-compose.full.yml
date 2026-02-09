@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # PocketBase（如果需要）
+  # pocketbase:
+  #   image: ghcr.io/muchobien/pocketbase:latest
+  #   ...
+
+  # 前端应用
+  frontend:
+    build:
+      context: ./Puked_web
+      dockerfile: Dockerfile.frontend
+    container_name: puked-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_PB_URL=http://pb.osglab.com
+    networks:
+      - puked-network
+    depends_on:
+      - task-processor
+
+  # 任务处理器
+  task-processor:
+    build:
+      context: ./Puked_web/scripts
+      dockerfile: Dockerfile.task-processor
+    container_name: puked-task-processor
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PB_URL=http://pb.osglab.com
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
+    networks:
+      - puked-network
+
+networks:
+  puked-network:
+    driver: bridge

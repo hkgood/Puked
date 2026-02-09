@@ -1,0 +1,86 @@
+source 'https://cdn.cocoapods.org/'
+
+platform :ios, '13.0'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    
+    target.build_configurations.each do |config|
+      # 开启 permission_handler 所需的权限宏
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_LOCATION=1',
+        'PERMISSION_SENSORS=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_MICROPHONE=1'
+      ]
+
+      # 解决版本过低报错
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # 核心修复：禁用 Xcode 16 的模块验证器（解决 could not build module 问题）
+      config.build_settings['CLANG_ENABLE_MODULE_VERIFIER'] = 'NO'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+      # 忽略第三方库的警告转错误（解决 audioplayers 等废弃 API 导致的编译错误）
+      config.build_settings['SWIFT_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+      config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+      
+      # ✨ 抑制第三方库的警告显示
+      # 抑制 C/Objective-C 的弃用警告和未初始化变量警告
+      config.build_settings['WARNING_CFLAGS'] ||= ['$(inherited)']
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-declarations'  # 弃用 API 警告
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-uninitialized'  # 未初始化变量警告
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-unused-variable'  # 未使用变量警告
+      config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-implementations'  # 弃用实现警告
+      
+      # 抑制 Swift 的弃用警告
+      config.build_settings['OTHER_SWIFT_FLAGS'] ||= ['$(inherited)']
+      config.build_settings['OTHER_SWIFT_FLAGS'] << '-suppress-warnings'  # 抑制所有 Swift 警告
+      
+      # 🔧 生成 dSYM 文件用于崩溃报告符号化（TestFlight 需要）
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+      config.build_settings['DWARF_DSYM_FOLDER_PATH'] = '$(TARGET_BUILD_DIR)'
+      config.build_settings['DWARF_DSYM_FILE_NAME'] = '$(FULL_PRODUCT_NAME).dSYM'
+      
+      # 确保 Release 模式也生成调试符号
+      if config.name == 'Release' || config.name == 'Profile'
+        config.build_settings['COPY_PHASE_STRIP'] = 'NO'
+        config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+      end
+    end
+  end
+end

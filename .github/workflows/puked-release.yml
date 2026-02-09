@@ -1,0 +1,77 @@
+# 推送 tag（如 v2.5.0）时构建 APK 并创建 GitHub Release，APK 命名为 Puked-2.5.0.apk
+name: Puked Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          cd Puked
+          flutter pub get
+
+      - name: Build Runner
+        run: |
+          cd Puked
+          flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Static Analysis
+        run: |
+          cd Puked
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build APK
+        run: |
+          cd Puked
+          flutter build apk --release --no-pub
+
+      - name: Rename APK
+        run: |
+          cp Puked/build/app/outputs/flutter-apk/app-release.apk "Puked-${{ steps.version.outputs.version }}.apk"
+          ls -la "Puked-${{ steps.version.outputs.version }}.apk"
+
+      - name: Create Release and Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Puked v${{ steps.version.outputs.version }}
+          body: |
+            ## 版本更新说明
+
+            1. **优化整体算法准确度**：提升急刹和急加速的准确性
+            2. **新增行程中的自动校准**：算法会在车辆静止时进行二次校准，避免手机在行驶中抖动带来的数值不准确，以及回播时静止情况下仍有 G 值的问题
+            3. **新增「负体验录制视频」**：打开后，触发负体验时会将发生前几秒的视频记录到相册中（请将手机安装在支架上以便拍摄）
+            4. **提升速度检测实时性**：延迟由约 2 秒降低至 0.5 秒以内，提升准确性
+          files: Puked-${{ steps.version.outputs.version }}.apk
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

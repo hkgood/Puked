@@ -1,0 +1,320 @@
+{
+  "trip_id": "d4367855-a1b2-4c3d-9e8f-1234567890ab",
+  "start_time": "2026-01-26T08:30:00+08:00",
+  "end_time": "2026-01-26T09:15:00+08:00",
+  "distance": 25.6,
+  "duration": 2700,
+  "vehicle": {
+    "brand": "Tesla",
+    "model": "Model Y",
+    "software_version": "2024.44.25",
+    "is_autonomous": true
+  },
+  "event_breakdown": {
+    "rapidAcceleration": 3,
+    "rapidDeceleration": 5,
+    "bump": 12,
+    "wobble": 2,
+    "jerk": 1,
+    "manual": 0
+  },
+  "events": [
+    {
+      "type": "rapidDeceleration",
+      "timestamp": "2026-01-26T08:35:12+08:00",
+      "position": {
+        "lat": 31.2304,
+        "lng": 121.4737
+      },
+      "speed": 15.8,
+      "sensor_data": {
+        "accel": {
+          "x": 0.1,
+          "y": -2.2,
+          "z": 0.3
+        },
+        "gyro": {
+          "x": 0.01,
+          "y": 0.02,
+          "z": 0.08
+        }
+      }
+    },
+    {
+      "type": "bump",
+      "timestamp": "2026-01-26T08:38:45+08:00",
+      "position": {
+        "lat": 31.2310,
+        "lng": 121.4745
+      },
+      "speed": 12.5,
+      "sensor_data": {
+        "accel": {
+          "x": 0.05,
+          "y": 0.2,
+          "z": 5.8
+        },
+        "gyro": {
+          "x": 0.00,
+          "y": 0.01,
+          "z": 0.03
+        }
+      }
+    },
+    {
+      "type": "rapidAcceleration",
+      "timestamp": "2026-01-26T08:42:20+08:00",
+      "position": {
+        "lat": 31.2320,
+        "lng": 121.4760
+      },
+      "speed": 8.3,
+      "sensor_data": {
+        "accel": {
+          "x": -0.1,
+          "y": 2.5,
+          "z": -0.2
+        },
+        "gyro": {
+          "x": 0.02,
+          "y": 0.01,
+          "z": 0.05
+        }
+      }
+    },
+    {
+      "type": "rapidDeceleration",
+      "timestamp": "2026-01-26T08:45:30+08:00",
+      "position": {
+        "lat": 31.2330,
+        "lng": 121.4775
+      },
+      "speed": 16.7,
+      "sensor_data": {
+        "accel": {
+          "x": 0.0,
+          "y": -1.9,
+          "z": 0.1
+        },
+        "gyro": {
+          "x": 0.01,
+          "y": 0.02,
+          "z": 0.12
+        }
+      }
+    },
+    {
+      "type": "wobble",
+      "timestamp": "2026-01-26T08:50:15+08:00",
+      "position": {
+        "lat": 31.2345,
+        "lng": 121.4790
+      },
+      "speed": 14.2,
+      "sensor_data": {
+        "accel": {
+          "x": 3.8,
+          "y": 0.5,
+          "z": 0.2
+        },
+        "gyro": {
+          "x": 0.05,
+          "y": 0.03,
+          "z": 0.25
+        }
+      }
+    },
+    {
+      "type": "jerk",
+      "timestamp": "2026-01-26T08:55:40+08:00",
+      "position": {
+        "lat": 31.2360,
+        "lng": 121.4800
+      },
+      "speed": 5.5,
+      "sensor_data": {
+        "accel": {
+          "x": 0.1,
+          "y": -2.8,
+          "z": 0.4
+        },
+        "gyro": {
+          "x": 0.02,
+          "y": 0.01,
+          "z": 0.06
+        }
+      }
+    },
+    {
+      "type": "bump",
+      "timestamp": "2026-01-26T09:00:20+08:00",
+      "position": {
+        "lat": 31.2375,
+        "lng": 121.4815
+      },
+      "speed": 11.1,
+      "sensor_data": {
+        "accel": {
+          "x": -0.2,
+          "y": 0.3,
+          "z": 6.2
+        },
+        "gyro": {
+          "x": 0.01,
+          "y": 0.00,
+          "z": 0.04
+        }
+      }
+    },
+    {
+      "type": "rapidDeceleration",
+      "timestamp": "2026-01-26T09:05:50+08:00",
+      "position": {
+        "lat": 31.2390,
+        "lng": 121.4830
+      },
+      "speed": 18.9,
+      "sensor_data": {
+        "accel": {
+          "x": 0.05,
+          "y": -2.0,
+          "z": 0.2
+        },
+        "gyro": {
+          "x": 0.01,
+          "y": 0.02,
+          "z": 0.10
+        }
+      }
+    },
+    {
+      "type": "bump",
+      "timestamp": "2026-01-26T09:10:30+08:00",
+      "position": {
+        "lat": 31.2405,
+        "lng": 121.4845
+      },
+      "speed": 13.3,
+      "sensor_data": {
+        "accel": {
+          "x": 0.1,
+          "y": 0.1,
+          "z": 5.5
+        },
+        "gyro": {
+          "x": 0.00,
+          "y": 0.01,
+          "z": 0.02
+        }
+      }
+    },
+    {
+      "type": "rapidAcceleration",
+      "timestamp": "2026-01-26T09:12:45+08:00",
+      "position": {
+        "lat": 31.2415,
+        "lng": 121.4855
+      },
+      "speed": 6.7,
+      "sensor_data": {
+        "accel": {
+          "x": -0.05,
+          "y": 2.3,
+          "z": -0.1
+        },
+        "gyro": {
+          "x": 0.02,
+          "y": 0.01,
+          "z": 0.07
+        }
+      }
+    }
+  ],
+  "trajectory": [
+    {
+      "timestamp": "2026-01-26T08:30:00+08:00",
+      "lat": 31.2300,
+      "lng": 121.4730,
+      "speed": 0.0,
+      "altitude": 5.2,
+      "heading": 90.0
+    },
+    {
+      "timestamp": "2026-01-26T08:35:00+08:00",
+      "lat": 31.2304,
+      "lng": 121.4737,
+      "speed": 15.8,
+      "altitude": 5.5,
+      "heading": 92.0
+    },
+    {
+      "timestamp": "2026-01-26T08:40:00+08:00",
+      "lat": 31.2315,
+      "lng": 121.4755,
+      "speed": 18.3,
+      "altitude": 6.0,
+      "heading": 88.0
+    },
+    {
+      "timestamp": "2026-01-26T08:45:00+08:00",
+      "lat": 31.2330,
+      "lng": 121.4775,
+      "speed": 16.7,
+      "altitude": 6.5,
+      "heading": 85.0
+    },
+    {
+      "timestamp": "2026-01-26T08:50:00+08:00",
+      "lat": 31.2345,
+      "lng": 121.4790,
+      "speed": 14.2,
+      "altitude": 7.0,
+      "heading": 90.0
+    },
+    {
+      "timestamp": "2026-01-26T08:55:00+08:00",
+      "lat": 31.2360,
+      "lng": 121.4800,
+      "speed": 12.0,
+      "altitude": 7.2,
+      "heading": 95.0
+    },
+    {
+      "timestamp": "2026-01-26T09:00:00+08:00",
+      "lat": 31.2375,
+      "lng": 121.4815,
+      "speed": 11.1,
+      "altitude": 7.5,
+      "heading": 88.0
+    },
+    {
+      "timestamp": "2026-01-26T09:05:00+08:00",
+      "lat": 31.2390,
+      "lng": 121.4830,
+      "speed": 18.9,
+      "altitude": 8.0,
+      "heading": 92.0
+    },
+    {
+      "timestamp": "2026-01-26T09:10:00+08:00",
+      "lat": 31.2405,
+      "lng": 121.4845,
+      "speed": 13.3,
+      "altitude": 8.2,
+      "heading": 90.0
+    },
+    {
+      "timestamp": "2026-01-26T09:15:00+08:00",
+      "lat": 31.2420,
+      "lng": 121.4860,
+      "speed": 8.5,
+      "altitude": 8.5,
+      "heading": 87.0
+    }
+  ],
+  "road_conditions": "urban_mixed",
+  "weather": "clear",
+  "time_of_day": "morning_peak",
+  "algorithm_version": 11,
+  "platform": "iOS"
+}

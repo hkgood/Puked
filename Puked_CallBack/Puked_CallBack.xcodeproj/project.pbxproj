@@ -1,0 +1,335 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		10010001 /* PukedCallbackApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020001 /* PukedCallbackApp.swift */; };
+		10010002 /* TripModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020002 /* TripModels.swift */; };
+		10010003 /* DataInterpolator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020003 /* DataInterpolator.swift */; };
+		10010004 /* SpeedometerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020004 /* SpeedometerView.swift */; };
+		10010005 /* WaveformChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020005 /* WaveformChartView.swift */; };
+		10010006 /* VideoExportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020006 /* VideoExportEngine.swift */; };
+		10010007 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020007 /* MainView.swift */; };
+		10010008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10020008 /* Assets.xcassets */; };
+		10010009 /* LayoutConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10020009 /* LayoutConfig.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		10020001 /* PukedCallbackApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PukedCallbackApp.swift; sourceTree = "<group>"; };
+		10020002 /* TripModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripModels.swift; sourceTree = "<group>"; };
+		10020003 /* DataInterpolator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataInterpolator.swift; sourceTree = "<group>"; };
+		10020004 /* SpeedometerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedometerView.swift; sourceTree = "<group>"; };
+		10020005 /* WaveformChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformChartView.swift; sourceTree = "<group>"; };
+		10020006 /* VideoExportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoExportEngine.swift; sourceTree = "<group>"; };
+		10020007 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		10020008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
+		10020009 /* LayoutConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutConfig.swift; sourceTree = "<group>"; };
+		7D9DC0162F1C8D5D006E0DEE /* Puked_CallBack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Puked_CallBack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		10030001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		10040001 = {
+			isa = PBXGroup;
+			children = (
+				10040002 /* Sources */,
+				10020008 /* Assets.xcassets */,
+				7D9DC0162F1C8D5D006E0DEE /* Puked_CallBack.app */,
+			);
+			sourceTree = "<group>";
+		};
+		10040002 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				10040003 /* App */,
+				10040004 /* Models */,
+				10040005 /* Services */,
+				10040009 /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		10040003 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				10020001 /* PukedCallbackApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		10040004 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				10020002 /* TripModels.swift */,
+				10020009 /* LayoutConfig.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		10040005 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				10040006 /* Interpolator */,
+				10040007 /* Renderer */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		10040006 /* Interpolator */ = {
+			isa = PBXGroup;
+			children = (
+				10020003 /* DataInterpolator.swift */,
+			);
+			path = Interpolator;
+			sourceTree = "<group>";
+		};
+		10040007 /* Renderer */ = {
+			isa = PBXGroup;
+			children = (
+				10020006 /* VideoExportEngine.swift */,
+			);
+			path = Renderer;
+			sourceTree = "<group>";
+		};
+		10040009 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				10040010 /* Components */,
+				10040011 /* Main */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		10040010 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				10020004 /* SpeedometerView.swift */,
+				10020005 /* WaveformChartView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		10040011 /* Main */ = {
+			isa = PBXGroup;
+			children = (
+				10020007 /* MainView.swift */,
+			);
+			path = Main;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		10050001 /* Puked_CallBack */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 10060001 /* Build configuration list for PBXNativeTarget "Puked_CallBack" */;
+			buildPhases = (
+				10070001 /* Sources */,
+				10030001 /* Frameworks */,
+				10070002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Puked_CallBack;
+			productName = Puked_CallBack;
+			productReference = 7D9DC0162F1C8D5D006E0DEE /* Puked_CallBack.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		10090001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					10050001 = {
+						CreatedOnToolsVersion = 15.0;
+						LastSwiftMigration = 1500;
+					};
+				};
+			};
+			buildConfigurationList = 10060002 /* Build configuration list for PBXProject "Puked_CallBack" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 10040001;
+			productRefGroup = 10040001;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				10050001 /* Puked_CallBack */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		10070002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10010008 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		10070001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10010001 /* PukedCallbackApp.swift in Sources */,
+				10010002 /* TripModels.swift in Sources */,
+				10010003 /* DataInterpolator.swift in Sources */,
+				10010004 /* SpeedometerView.swift in Sources */,
+				10010005 /* WaveformChartView.swift in Sources */,
+				10010006 /* VideoExportEngine.swift in Sources */,
+				10010007 /* MainView.swift in Sources */,
+				10010009 /* LayoutConfig.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		10060003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_ENTITLEMENTS = Puked_CallBack.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 4;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = X329MZU23S;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.5;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.puked.callbackv2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		10060004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_ENTITLEMENTS = Puked_CallBack.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 4;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = X329MZU23S;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0.5;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.puked.callback;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		10060001 /* Build configuration list for PBXNativeTarget "Puked_CallBack" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10060003 /* Debug */,
+				10060004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		10060002 /* Build configuration list for PBXProject "Puked_CallBack" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10060003 /* Debug */,
+				10060004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 10090001 /* Project object */;
+}

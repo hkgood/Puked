@@ -1,0 +1,17 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # 忽略 B 类：废弃 API 提示
+    deprecated_member_use: ignore
+    # 忽略 C 类：代码规范与冗余提示
+    unused_import: ignore
+    non_constant_identifier_names: ignore
+    curly_braces_in_flow_control_structures: ignore
+    sized_box_for_whitespace: ignore
+    unnecessary_brace_in_string_interps: ignore
+
+linter:
+  rules:
+    # avoid_print: false
+    # prefer_single_quotes: true

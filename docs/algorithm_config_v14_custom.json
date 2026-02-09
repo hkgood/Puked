@@ -1,0 +1,54 @@
+{
+  "version": 14,
+  "updatedAt": "2026-02-03T12:00:00.000Z",
+  
+  "_comment": "=== 自定义配置（可根据实际需要调整）===",
+  "thresholdAccel": 2.0,
+  "thresholdDecel": -2.0,
+  "thresholdWobbleSpan": 3.5,
+  "thresholdBump": 4.5,
+  "thresholdJerk": 6.0,
+  "thresholdPitch": 0.8,
+  
+  "_comment": "=== 时间窗口参数 ===",
+  "jerkWindowMs": 250,
+  "accelDecelWindowMs": 400,
+  "wobbleWindowMs": 1000,
+  "fusionWindowMs": 3000,
+  
+  "_comment": "=== 抑制和补偿参数 ===",
+  "zyInterferenceThreshold": 2.5,
+  "zxInterferenceThreshold": 2.8,
+  "pitchValidationEnabled": true,
+  "couplingCurveIndex": 1.2,
+  "couplingStrengthY": 0.5,
+  "couplingStrengthX": 0.8,
+  "turnCompMultiplier": 1.5,
+  "turnCompMax": 2.5,
+  
+  "_comment": "=== 速度自适应参数 ===",
+  "speedLowFactor": 1.0,
+  "speedHighFactor": 0.9,
+  "lowSpeedJerkLimit": 2.0,
+  
+  "_comment": "=== 事件检测参数 ===",
+  "eventWindowCoverage": 0.6,
+  
+  "_comment": "=== 物理合理性上限 ===",
+  "maxJerkAllowed": 50.0,
+  "maxAccelAllowed": 20.0,
+  "maxWobbleSpanAllowed": 20.0,
+  "maxBumpAllowed": 40.0,
+  "minAccelForJerk": 2.5,
+  
+  "_comment": "=== 趋势过滤参数（v13+ 新增）===",
+  "trendChangeThreshold": 0.40,
+  "enableTrendFilter": true,
+  "minStdDevThreshold": 0.22,
+  "minRangeThreshold": 0.71,
+  
+  "_notes": {
+    "description": "自定义配置模板",
+    "use_case": "可以根据实际测试情况灵活调整各项参数"
+  }
+}

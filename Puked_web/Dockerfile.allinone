@@ -1,0 +1,113 @@
+# ============================================
+# Puked Web 一体化镜像 Dockerfile
+# 版本：2.4.5
+# 包含：前端 Web + 后台任务处理器
+# 支持：x86_64 (amd64) + ARM64 (arm64)
+# ============================================
+
+# ==================== 第一阶段：构建前端 ====================
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+
+# 复制前端依赖文件
+COPY package*.json ./
+RUN npm install
+
+# 复制前端源代码并构建
+COPY . .
+RUN npx vite build
+
+# ==================== 第二阶段：准备任务处理器 ====================
+FROM node:20-alpine AS task-processor-build
+
+WORKDIR /app/processor
+
+# 复制任务处理器依赖文件
+COPY scripts/package*.json ./
+RUN npm install --omit=dev
+
+# 复制任务处理器脚本
+COPY scripts/task_processor.pb.js ./
+
+# ==================== 第三阶段：生产镜像 ====================
+FROM nginx:stable-alpine AS production
+
+# 安装 Node.js 和 supervisor
+RUN apk add --no-cache nodejs npm supervisor
+
+# ==================== 1. 配置 Nginx（前端） ====================
+# 复制 Nginx 配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 复制前端构建产物
+COPY --from=frontend-build /app/dist /usr/share/nginx/html
+
+# ==================== 2. 配置任务处理器（后台） ====================
+WORKDIR /app/processor
+
+# 复制任务处理器、依赖以及 package.json (确保 ESM 模块识别)
+COPY --from=task-processor-build /app/processor/ ./
+
+# ==================== 3. 配置 Supervisor（进程管理） ====================
+RUN mkdir -p /var/log/supervisor && \
+    echo '[supervisord]' > /etc/supervisord.conf && \
+    echo 'nodaemon=true' >> /etc/supervisord.conf && \
+    echo 'user=root' >> /etc/supervisord.conf && \
+    echo 'logfile=/var/log/supervisor/supervisord.log' >> /etc/supervisord.conf && \
+    echo 'pidfile=/var/run/supervisord.pid' >> /etc/supervisord.conf && \
+    echo 'loglevel=info' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[supervisorctl]' >> /etc/supervisord.conf && \
+    echo 'serverurl=unix:///var/run/supervisord.sock' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[unix_http_server]' >> /etc/supervisord.conf && \
+    echo 'file=/var/run/supervisord.sock' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[rpcinterface:supervisor]' >> /etc/supervisord.conf && \
+    echo 'supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[program:nginx]' >> /etc/supervisord.conf && \
+    echo 'command=nginx -g "daemon off;"' >> /etc/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/var/log/supervisor/nginx.log' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/var/log/supervisor/nginx_error.log' >> /etc/supervisord.conf && \
+    echo 'priority=10' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[program:task-processor]' >> /etc/supervisord.conf && \
+    echo 'command=node /app/processor/task_processor.pb.js' >> /etc/supervisord.conf && \
+    echo 'directory=/app/processor' >> /etc/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/var/log/supervisor/task_processor.log' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/var/log/supervisor/task_processor_error.log' >> /etc/supervisord.conf && \
+    echo 'environment=NODE_ENV="production",PB_URL="%(ENV_PB_URL)s",ADMIN_EMAIL="%(ENV_ADMIN_EMAIL)s",ADMIN_PASSWORD="%(ENV_ADMIN_PASSWORD)s",CHECK_INTERVAL="%(ENV_CHECK_INTERVAL)s",BATCH_SIZE="%(ENV_BATCH_SIZE)s",CONCURRENCY="%(ENV_CONCURRENCY)s"' >> /etc/supervisord.conf && \
+    echo 'priority=20' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=50MB' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_backups=10' >> /etc/supervisord.conf && \
+    echo 'redirect_stderr=false' >> /etc/supervisord.conf
+
+# ==================== 4. 健康检查 ====================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
+# ==================== 5. 环境变量默认值 ====================
+ENV PB_URL=https://pb.osglab.com \
+    ADMIN_EMAIL=rocky.hk@gmail.com \
+    ADMIN_PASSWORD=gz203799 \
+    CHECK_INTERVAL=10000 \
+    BATCH_SIZE=10 \
+    CONCURRENCY=3 \
+    VERSION=2.4.5
+
+# ==================== 6. 元数据 ====================
+LABEL maintainer="Puked Team" \
+      version="2.4.5" \
+      description="Puked Web All-in-One: Frontend + Task Processor"
+
+# 暴露端口
+EXPOSE 80
+
+# 启动 Supervisor（管理 Nginx + 任务处理器）
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

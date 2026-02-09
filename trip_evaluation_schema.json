@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TripEvaluationInput",
+  "description": "行程数据输入Schema，用于AI负体验评估",
+  "type": "object",
+  "required": ["trip_id", "start_time", "end_time", "distance", "duration", "vehicle", "event_breakdown"],
+  "properties": {
+    "trip_id": {
+      "type": "string",
+      "description": "行程唯一标识符 (UUID)"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "行程开始时间 (ISO 8601格式)"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "行程结束时间 (ISO 8601格式)"
+    },
+    "distance": {
+      "type": "number",
+      "minimum": 0,
+      "description": "行程总里程 (单位: km)"
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "行程总时长 (单位: 秒)"
+    },
+    "vehicle": {
+      "type": "object",
+      "required": ["brand", "model"],
+      "properties": {
+        "brand": {
+          "type": "string",
+          "description": "车辆品牌 (如: Tesla, BYD, NIO)"
+        },
+        "model": {
+          "type": "string",
+          "description": "车型 (如: Model Y, Han EV)"
+        },
+        "software_version": {
+          "type": "string",
+          "description": "软件版本 (如: 2024.44.25)"
+        },
+        "is_autonomous": {
+          "type": "boolean",
+          "description": "是否为自动驾驶行程"
+        }
+      }
+    },
+    "event_breakdown": {
+      "type": "object",
+      "description": "各类负体验事件统计",
+      "properties": {
+        "rapidAcceleration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "急加速次数"
+        },
+        "rapidDeceleration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "急减速次数"
+        },
+        "bump": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "颠簸次数"
+        },
+        "wobble": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "摆动次数"
+        },
+        "jerk": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "顿挫次数"
+        },
+        "manual": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "手动标记次数"
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "description": "详细事件列表 (可选)",
+      "items": {
+        "type": "object",
+        "required": ["type", "timestamp"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["rapidAcceleration", "rapidDeceleration", "bump", "wobble", "jerk", "manual"],
+            "description": "事件类型"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "事件发生时间"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90,
+                "description": "纬度"
+              },
+              "lng": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180,
+                "description": "经度"
+              }
+            }
+          },
+          "speed": {
+            "type": "number",
+            "minimum": 0,
+            "description": "触发时车速 (单位: m/s)"
+          },
+          "sensor_data": {
+            "type": "object",
+            "properties": {
+              "accel": {
+                "type": "object",
+                "properties": {
+                  "x": {"type": "number", "description": "横向加速度 (m/s²)"},
+                  "y": {"type": "number", "description": "前向加速度 (m/s²)"},
+                  "z": {"type": "number", "description": "垂直加速度 (m/s²)"}
+                }
+              },
+              "gyro": {
+                "type": "object",
+                "properties": {
+                  "x": {"type": "number", "description": "俯仰角速度 (rad/s)"},
+                  "y": {"type": "number", "description": "横滚角速度 (rad/s)"},
+                  "z": {"type": "number", "description": "横摆角速度 (rad/s)"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "trajectory": {
+      "type": "array",
+      "description": "GPS轨迹点 (可选，用于空间分析)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lat": {"type": "number", "minimum": -90, "maximum": 90},
+          "lng": {"type": "number", "minimum": -180, "maximum": 180},
+          "speed": {"type": "number", "minimum": 0, "description": "速度 (m/s)"},
+          "altitude": {"type": "number", "description": "海拔 (m)"},
+          "heading": {"type": "number", "minimum": 0, "maximum": 360, "description": "航向角 (度)"}
+        }
+      }
+    },
+    "road_conditions": {
+      "type": "string",
+      "enum": ["highway", "urban_mixed", "rural", "construction_zone", "mountain"],
+      "description": "道路类型"
+    },
+    "weather": {
+      "type": "string",
+      "enum": ["clear", "rain", "snow", "fog"],
+      "description": "天气状况"
+    },
+    "time_of_day": {
+      "type": "string",
+      "enum": ["morning_peak", "afternoon_peak", "off_peak", "night"],
+      "description": "时间段"
+    },
+    "algorithm_version": {
+      "type": "integer",
+      "description": "检测算法版本号"
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["iOS", "Android"],
+      "description": "采集平台"
+    }
+  }
+}

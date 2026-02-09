@@ -1,0 +1,16 @@
+{
+  "name": "puked-task-processor",
+  "version": "1.0.0",
+  "description": "PocketBase task processor for batch sync",
+  "main": "task_processor.pb.js",
+  "type": "module",
+  "scripts": {
+    "start": "node task_processor.pb.js"
+  },
+  "dependencies": {
+    "pocketbase": "^0.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

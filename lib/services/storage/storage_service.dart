@@ -159,12 +159,21 @@ class StorageService {
   Future<void> addVersion(String brandName, String versionString,
       {bool isCustom = false, String? cloudId}) async {
     await init();
+    debugPrint('🔍 [StorageService] addVersion called:');
+    debugPrint('   brandName: $brandName');
+    debugPrint('   versionString: $versionString');
+    debugPrint('   cloudId: $cloudId');
+
     final brand = await _db
         .collection<Brand>()
         .filter()
         .nameEqualTo(brandName)
         .findFirst();
+
     if (brand != null) {
+      debugPrint(
+          '   ✅ Brand found: ${brand.name} (id: ${brand.id}, cloudId: ${brand.cloudId})');
+
       final existingV = await _db
           .collection<SoftwareVersion>()
           .filter()
@@ -172,6 +181,7 @@ class StorageService {
           .versionStringEqualTo(versionString)
           .findFirst();
       if (existingV == null) {
+        debugPrint('   ℹ️ Version not exists, creating new...');
         final v = SoftwareVersion()
           ..versionString = versionString
           ..isCustom = isCustom
@@ -180,13 +190,33 @@ class StorageService {
         await _db.writeTxn(() async {
           await _db.collection<SoftwareVersion>().put(v);
           await v.brand.save();
+          // ✅ 同时维护 Brand → SoftwareVersion 的反向关系
+          brand.versions.add(v);
+          await brand.versions.save();
         });
-      } else if (cloudId != null) {
-        existingV.cloudId = cloudId;
-        existingV.isCustom = isCustom;
-        await _db
-            .writeTxn(() => _db.collection<SoftwareVersion>().put(existingV));
+        debugPrint('   ✅ Version created and linked to brand');
+      } else {
+        debugPrint('   ℹ️ Version already exists, updating...');
+        if (cloudId != null) {
+          existingV.cloudId = cloudId;
+          existingV.isCustom = isCustom;
+          await _db.writeTxn(() async {
+            await _db.collection<SoftwareVersion>().put(existingV);
+            // ✅ 确保反向关系存在
+            await existingV.brand.load();
+            if (existingV.brand.value?.id == brand.id) {
+              await brand.versions.load();
+              if (!brand.versions.any((v) => v.id == existingV.id)) {
+                brand.versions.add(existingV);
+                await brand.versions.save();
+              }
+            }
+          });
+          debugPrint('   ✅ Version updated');
+        }
       }
+    } else {
+      debugPrint('   ❌ Brand not found for name: $brandName');
     }
   }
 
@@ -221,6 +251,53 @@ class StorageService {
       return brand.versions.toList();
     }
     return [];
+  }
+
+  /// 通过品牌 cloudId 获取版本列表（更准确的查询方式）
+  Future<List<SoftwareVersion>> getVersionsForBrandRef(String brandRef) async {
+    await init();
+    debugPrint('🔍 [StorageService] getVersionsForBrandRef called:');
+    debugPrint('   brandRef: $brandRef');
+
+    final brand = await _db
+        .collection<Brand>()
+        .filter()
+        .cloudIdEqualTo(brandRef)
+        .findFirst();
+
+    if (brand != null) {
+      debugPrint('   ✅ Brand found: ${brand.name} (id: ${brand.id})');
+      await brand.versions.load();
+      final versionsList = brand.versions.toList();
+      debugPrint('   ✅ Loaded ${versionsList.length} versions');
+      for (var v in versionsList) {
+        debugPrint('      - ${v.versionString} (cloudId: ${v.cloudId})');
+      }
+      return versionsList;
+    }
+
+    debugPrint('   ❌ Brand not found for cloudId: $brandRef');
+    return [];
+  }
+
+  /// 通过 cloudId 查询品牌对象
+  Future<Brand?> getBrandByCloudId(String cloudId) async {
+    await init();
+    return await _db
+        .collection<Brand>()
+        .filter()
+        .cloudIdEqualTo(cloudId)
+        .findFirst();
+  }
+
+  /// 通过 cloudId 查询版本对象
+  Future<SoftwareVersion?> getVersionByCloudId(String cloudId) async {
+    await init();
+    return await _db
+        .collection<SoftwareVersion>()
+        .filter()
+        .cloudIdEqualTo(cloudId)
+        .findFirst();
   }
 
   Future<SoftwareVersion?> getVersionByString(

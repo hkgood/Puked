@@ -70,6 +70,10 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       // 核心修复：确保 Isar 初始化完成后再查询
       await storage.init();
 
+      debugPrint('🔍 [VehicleInfo] Loading initial data...');
+      debugPrint('   isSettingsMode: ${widget.isSettingsMode}');
+      debugPrint('   tripId: ${widget.tripId}');
+
       if (widget.isSettingsMode) {
         final settings = ref.read(settingsProvider);
         _modelController.text = settings.carModel ?? '';
@@ -77,6 +81,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
         _selectedBrand = settings.brand;
         _selectedBrandRef = settings.brandRef;
         _selectedVersionRef = settings.softwareVersionRef;
+        debugPrint('   📝 From settings:');
       } else if (widget.tripId != null) {
         final trips = await storage.getAllTrips();
         final trip = trips.firstWhere(
@@ -92,7 +97,18 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
         _selectedBrandRef = trip.brand_ref ?? settings.brandRef;
         _selectedVersionRef =
             trip.software_version_ref ?? settings.softwareVersionRef;
+        debugPrint('   📝 From trip (fallback to settings):');
+        debugPrint('      trip.brand: ${trip.brand}');
+        debugPrint('      trip.brand_ref: ${trip.brand_ref}');
+        debugPrint('      settings.brand: ${settings.brand}');
+        debugPrint('      settings.brandRef: ${settings.brandRef}');
       }
+
+      debugPrint('   ✅ Final values:');
+      debugPrint('      _selectedBrand: $_selectedBrand');
+      debugPrint('      _selectedBrandRef: $_selectedBrandRef');
+      debugPrint('      _selectedVersionRef: $_selectedVersionRef');
+      debugPrint('      _versionController.text: ${_versionController.text}');
     } catch (e) {
       debugPrint('[VehicleInfo] Error loading initial data: $e');
       // 如果报错，尽量从 settings 恢复一些基础显示，而不是显示错误页
@@ -315,11 +331,12 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
 
       // 1. 准备上传到 PocketBase 的资料
       final Map<String, dynamic> body = {
-        'brand': _selectedBrand,
-        'brand_ref': _selectedBrandRef,
+        // 🔄 数据库迁移：优先使用 _ref 字段
+        'brand': '', // 清空旧字段
+        'brand_ref': _selectedBrandRef ?? '',
         'car_model': _modelController.text.trim(),
-        'software_version': _versionController.text.trim(),
-        'software_version_ref': _selectedVersionRef,
+        'software_version': '', // 清空旧字段
+        'software_version_ref': _selectedVersionRef ?? '',
         'audit_status': 'pending', // 提交后重置状态为待审核
       };
 
@@ -382,6 +399,10 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
   }
 
   void _onBrandSelected(Brand brand) {
+    debugPrint('🏷️ [VehicleInfo] Brand selected:');
+    debugPrint('   brand.name: ${brand.name}');
+    debugPrint('   brand.cloudId: ${brand.cloudId}');
+
     if (_selectedBrand == brand.name) {
       setState(() {
         _selectedBrand = null;
@@ -390,6 +411,7 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
         _versionController.clear();
         _modelController.clear();
       });
+      debugPrint('   ❌ Brand deselected');
       return;
     }
 
@@ -400,6 +422,8 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
       _versionController.clear();
       _modelController.clear();
     });
+    debugPrint('   ✅ _selectedBrand: $_selectedBrand');
+    debugPrint('   ✅ _selectedBrandRef: $_selectedBrandRef');
   }
 
   @override
@@ -490,9 +514,25 @@ class _VehicleInfoScreenState extends ConsumerState<VehicleInfoScreen> {
 
   Widget _buildContent(
       BuildContext context, AppLocalizations l10n, List<Brand> brands) {
-    final presetVersionsAsync = _selectedBrand != null
-        ? ref.watch(presetVersionsProvider(_selectedBrand!))
+    // ✅ 修复：使用 brandRef (cloudId) 而不是 brandName 查询版本列表
+    debugPrint('🔍 [VehicleInfo] _buildContent called:');
+    debugPrint('   _selectedBrandRef: $_selectedBrandRef');
+
+    final presetVersionsAsync = _selectedBrandRef != null
+        ? ref.watch(presetVersionsByRefProvider(_selectedBrandRef!))
         : const AsyncValue<List<SoftwareVersion>>.data([]);
+
+    // 打印版本列表加载状态
+    presetVersionsAsync.when(
+      data: (versions) {
+        debugPrint('   ✅ Versions loaded: ${versions.length} versions');
+        for (var v in versions) {
+          debugPrint('      - ${v.versionString} (cloudId: ${v.cloudId})');
+        }
+      },
+      loading: () => debugPrint('   ⏳ Loading versions...'),
+      error: (err, stack) => debugPrint('   ❌ Error loading versions: $err'),
+    );
 
     final auth = ref.watch(authProvider);
     final auditStatus = auth.user?.getStringValue('audit_status') ?? '';

@@ -79,16 +79,78 @@ class ArenaStatsNotifier
       if (cachedStr != null && cachedStr.isNotEmpty) {
         final Map<String, dynamic> rawJson = jsonDecode(cachedStr);
 
+        // ✅ 读取品牌和版本映射表
+        final brandMap = (rawJson['brand_map'] as Map<String, dynamic>?) ?? {};
+        final versionMap =
+            (rawJson['version_map'] as Map<String, dynamic>?) ?? {};
+
         // 将 Map 还原为 RecordModel 列表，并显式指定泛型以确保 iOS 编译成功
-        final List<RecordModel> allSummary = (rawJson['all_summary'] as List)
-            .map<RecordModel>((item) => RecordModel(
-                Map<String, dynamic>.from(item as Map<String, dynamic>)))
-            .toList();
+        final List<RecordModel> allSummary =
+            (rawJson['all_summary'] as List).map<RecordModel>((item) {
+          final record = RecordModel(
+              Map<String, dynamic>.from(item as Map<String, dynamic>));
+
+          // ✅ 从映射表恢复 expand 信息
+          final brandId = record.getStringValue('brand');
+          if (brandId.isNotEmpty && brandMap.containsKey(brandId)) {
+            final brandData = brandMap[brandId] as Map<String, dynamic>;
+            record.expand['brand'] = [
+              RecordModel({
+                'id': brandId,
+                'name': brandData['name'] ?? '',
+                'logo': brandData['logo'] ?? '',
+              })
+            ];
+          }
+
+          final versionId = record.getStringValue('software_version');
+          if (versionId.isNotEmpty && versionMap.containsKey(versionId)) {
+            final versionData = versionMap[versionId] as Map<String, dynamic>;
+            record.expand['software_version'] = [
+              RecordModel({
+                'id': versionId,
+                'versionString': versionData['versionString'] ?? '',
+                'version_name': versionData['version_name'] ?? '',
+              })
+            ];
+          }
+
+          return record;
+        }).toList();
+
+        // ✅ weeklySummary 也需要恢复 expand 信息
         final List<RecordModel> weeklySummary =
-            (rawJson['weekly_summary'] as List)
-                .map<RecordModel>((item) => RecordModel(
-                    Map<String, dynamic>.from(item as Map<String, dynamic>)))
-                .toList();
+            (rawJson['weekly_summary'] as List).map<RecordModel>((item) {
+          final record = RecordModel(
+              Map<String, dynamic>.from(item as Map<String, dynamic>));
+
+          // ✅ 从映射表恢复 expand 信息
+          final brandId = record.getStringValue('brand');
+          if (brandId.isNotEmpty && brandMap.containsKey(brandId)) {
+            final brandData = brandMap[brandId] as Map<String, dynamic>;
+            record.expand['brand'] = [
+              RecordModel({
+                'id': brandId,
+                'name': brandData['name'] ?? '',
+                'logo': brandData['logo'] ?? '',
+              })
+            ];
+          }
+
+          final versionId = record.getStringValue('software_version');
+          if (versionId.isNotEmpty && versionMap.containsKey(versionId)) {
+            final versionData = versionMap[versionId] as Map<String, dynamic>;
+            record.expand['software_version'] = [
+              RecordModel({
+                'id': versionId,
+                'versionString': versionData['versionString'] ?? '',
+                'version_name': versionData['version_name'] ?? '',
+              })
+            ];
+          }
+
+          return record;
+        }).toList();
 
         final data = {
           'all_summary': allSummary,
@@ -98,7 +160,7 @@ class ArenaStatsNotifier
         // 如果当前是加载状态，将其设为数据状态（即使是旧数据）
         if (state.isLoading) {
           state = AsyncValue.data(data);
-          debugPrint('[Arena] Local cache loaded and reconstructed.');
+          debugPrint('[Arena] ✅ Local cache loaded with expand info restored.');
         }
       }
     } catch (e) {
@@ -119,9 +181,64 @@ class ArenaStatsNotifier
           .map((r) => r.toJson())
           .toList();
 
+      // ✅ 新增：同时缓存品牌和版本的映射表，解决 "Unknown" 问题
+      final brandMap = <String, Map<String, String>>{};
+      final versionMap = <String, Map<String, String>>{};
+
+      // 遍历 all_summary
+      for (final r in (data['all_summary'] as List<RecordModel>)) {
+        final brandId = r.getStringValue('brand');
+        final brandRecord = r.expand['brand']?.firstOrNull;
+        if (brandId.isNotEmpty && brandRecord != null) {
+          brandMap[brandId] = {
+            'name': brandRecord.getStringValue('name'),
+            'logo': brandRecord.getStringValue('logo'),
+          };
+        }
+
+        final versionId = r.getStringValue('software_version');
+        final versionRecord = r.expand['software_version']?.firstOrNull ??
+            r.expand['software_versions']?.firstOrNull;
+        if (versionId.isNotEmpty && versionRecord != null) {
+          versionMap[versionId] = {
+            'versionString': versionRecord.getStringValue('versionString'),
+            'version_name': versionRecord.getStringValue('version_name'),
+          };
+        }
+      }
+
+      // ✅ 遍历 weekly_summary（周榜可能有独特的品牌/版本）
+      for (final r in (data['weekly_summary'] as List<RecordModel>)) {
+        final brandId = r.getStringValue('brand');
+        final brandRecord = r.expand['brand']?.firstOrNull;
+        if (brandId.isNotEmpty &&
+            brandRecord != null &&
+            !brandMap.containsKey(brandId)) {
+          brandMap[brandId] = {
+            'name': brandRecord.getStringValue('name'),
+            'logo': brandRecord.getStringValue('logo'),
+          };
+        }
+
+        final versionId = r.getStringValue('software_version');
+        final versionRecord = r.expand['software_version']?.firstOrNull ??
+            r.expand['software_versions']?.firstOrNull;
+        if (versionId.isNotEmpty &&
+            versionRecord != null &&
+            !versionMap.containsKey(versionId)) {
+          versionMap[versionId] = {
+            'versionString': versionRecord.getStringValue('versionString'),
+            'version_name': versionRecord.getStringValue('version_name'),
+          };
+        }
+      }
+
       final serializableData = {
         'all_summary': allSummary,
         'weekly_summary': weeklySummary,
+        'brand_map': brandMap, // ✅ 新增映射表
+        'version_map': versionMap, // ✅ 新增映射表
+        'cached_at': DateTime.now().toIso8601String(),
       };
 
       await prefs.setString(_cacheKey, jsonEncode(serializableData));

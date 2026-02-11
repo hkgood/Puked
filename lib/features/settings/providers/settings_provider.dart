@@ -71,7 +71,7 @@ class SettingsState {
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final Ref _ref;
-  String? _lastLoadedUserId; // 追踪上次加载设置的用户ID
+  String? _lastLoadedUserDataHash; // 追踪上次加载的用户数据哈希值
 
   SettingsNotifier(this._ref)
       : super(SettingsState(
@@ -99,6 +99,42 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           break;
       }
     });
+
+    // 🔥 【新增】监听 authProvider 的用户数据变化
+    // 当用户从服务器刷新数据后（如认证新车型、版本号），自动同步到本地设置
+    _ref.listen<AuthState>(
+      authProvider,
+      (previous, next) {
+        // 只在用户已登录且用户数据发生实际变化时才重新加载
+        if (next.isAuthenticated && next.user != null) {
+          final currentHash = _getUserDataHash(next.user!);
+
+          // 防止重复加载：只有当用户数据真正改变时才重新加载
+          if (_lastLoadedUserDataHash != currentHash) {
+            debugPrint('[Settings] User data changed, reloading settings...');
+            _loadSettings();
+          }
+        }
+      },
+    );
+  }
+
+  /// 生成用户车辆相关数据的哈希值，用于检测变化
+  String _getUserDataHash(dynamic user) {
+    // 🔄 数据库迁移：优先使用 _ref 字段生成哈希
+    final brandRef = user.getStringValue('brand_ref') ?? '';
+    final softwareVersionRef =
+        user.getStringValue('software_version_ref') ?? '';
+    final carModel = user.getStringValue('car_model') ?? '';
+
+    // 降级：如果 _ref 为空，使用旧字段
+    final brand =
+        brandRef.isEmpty ? (user.getStringValue('brand') ?? '') : brandRef;
+    final softwareVersion = softwareVersionRef.isEmpty
+        ? (user.getStringValue('software_version') ?? '')
+        : softwareVersionRef;
+
+    return '$brand|$carModel|$softwareVersion';
   }
 
   static Locale _getInitialLocale() {
@@ -125,15 +161,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final auth = _ref.read(authProvider);
     final currentUserId = auth.user?.id;
 
-    // 🔥 防止重复加载：如果是同一个用户，且设置未改变，跳过
-    if (_lastLoadedUserId == currentUserId && currentUserId != null) {
-      debugPrint('[Settings] Skipping redundant load for user: $currentUserId');
-      return;
-    }
-
     debugPrint(
         '[Settings] Loading settings for user: ${currentUserId ?? "guest"}');
-    _lastLoadedUserId = currentUserId;
 
     // 加载首次启动标志，默认 true
     final isFirstLaunch = prefs.getBool(_firstLaunchKey) ?? true;
@@ -192,14 +221,15 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         cloudBrand = null;
       }
 
-      brand = cloudBrand?.isNotEmpty == true ? cloudBrand : brand;
+      // 🔄 迁移策略：优先使用 _ref
       brandRef = cloudBrandRef?.isNotEmpty == true ? cloudBrandRef : brandRef;
+      brand = cloudBrand?.isNotEmpty == true ? cloudBrand : brand;
       carModel = cloudCarModel?.isNotEmpty == true ? cloudCarModel : carModel;
-      softwareVersion =
-          cloudVersion?.isNotEmpty == true ? cloudVersion : softwareVersion;
       softwareVersionRef = cloudVersionRef?.isNotEmpty == true
           ? cloudVersionRef
           : softwareVersionRef;
+      softwareVersion =
+          cloudVersion?.isNotEmpty == true ? cloudVersion : softwareVersion;
     }
 
     // --- 【深度清洗】如果本地持久化缓存也是 ID，强制清理并持久化 ---
@@ -239,13 +269,18 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       isHighFrameRateEnabled: isHighFrameRateEnabled,
       isVideoRecordingEnabled: isVideoRecordingEnabled,
     );
+
+    // 🔥 更新用户数据哈希值
+    if (auth.user != null) {
+      _lastLoadedUserDataHash = _getUserDataHash(auth.user!);
+    }
   }
 
   /// 清理用户特定的设置（退出登录或切换账号时调用）
   Future<void> _clearUserSpecificSettings() async {
     debugPrint('[Settings] Clearing user-specific settings');
 
-    _lastLoadedUserId = null;
+    _lastLoadedUserDataHash = null; // 🔥 清理哈希值
 
     // 只清空与用户关联的车辆信息，保留主题、语言等全局设置
     state = state.copyWith(
@@ -296,10 +331,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     try {
       final pb = _ref.read(pbServiceProvider).pb;
       await pb.collection('users').update(auth.user!.id, body: {
-        'brand': state.brand ?? '',
+        // 🔄 数据库迁移：优先使用 _ref 字段
+        'brand': '', // 清空旧字段
         'brand_ref': state.brandRef ?? '',
         'car_model': state.carModel ?? '',
-        'software_version': state.softwareVersion ?? '',
+        'software_version': '', // 清空旧字段
         'software_version_ref': state.softwareVersionRef ?? '',
       });
       // 更新本地 auth 状态

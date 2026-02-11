@@ -265,7 +265,7 @@ class AlgorithmConfig {
     );
   }
 
-  /// 默认配置 (同步云端 v11 稳定版)
+  /// 默认配置 (同步云端 v14)
   factory AlgorithmConfig.defaultConfig() {
     return AlgorithmConfig(
       thresholdAccel: 2.0,
@@ -286,21 +286,21 @@ class AlgorithmConfig {
       couplingCurveIndex: 1.2,
       couplingStrengthY: 0.5,
       couplingStrengthX: 0.8,
-      turnCompMultiplier: 1.5,
-      turnCompMax: 2.5,
+      turnCompMultiplier: 2.0,
+      turnCompMax: 3.5,
       eventWindowCoverage: 0.6,
       lowSpeedJerkLimit: 2.0,
       maxJerkAllowed: 50.0,
       maxAccelAllowed: 20.0,
       maxWobbleSpanAllowed: 20.0,
       maxBumpAllowed: 40.0,
-      minAccelForJerk: 2.5,
+      minAccelForJerk: 3.0,
       trendChangeThreshold: 0.40,
       enableTrendFilter: true,
       minStdDevThreshold: 0.22,
       minRangeThreshold: 0.71,
-      version: 11,
-      updatedAt: '2026-01-17T05:57:56.966Z',
+      version: 14,
+      updatedAt: '2026-02-10T12:00:00.000Z',
     );
   }
 }

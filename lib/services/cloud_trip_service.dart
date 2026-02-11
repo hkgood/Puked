@@ -7,16 +7,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/services/pocketbase_service.dart';
+import 'package:puked/services/storage/storage_service.dart';
 
 final cloudTripServiceProvider = Provider((ref) {
   final pbService = ref.watch(pbServiceProvider);
-  return CloudTripService(pbService);
+  final storage = ref.watch(storageServiceProvider);
+  return CloudTripService(pbService, storage);
 });
 
 class CloudTripService {
   final PocketBaseService _pbService;
+  final StorageService _storage;
 
-  CloudTripService(this._pbService);
+  CloudTripService(this._pbService, this._storage);
 
   /// 上传行程到 PocketBase
   /// 返回上传后的 Record ID 和 metrics
@@ -141,13 +144,34 @@ class CloudTripService {
 
     // 5. 上传到 PocketBase 'trips' 集合
     try {
+      // ✅ 从本地数据库查询品牌和版本的名称（用于显示）
+      String brandName = 'Others';
+      String versionName = 'Others';
+
+      if (trip.brand_ref != null && trip.brand_ref!.isNotEmpty) {
+        final brand = await _storage.getBrandByCloudId(trip.brand_ref!);
+        if (brand != null) {
+          brandName = brand.name;
+        }
+      }
+
+      if (trip.software_version_ref != null &&
+          trip.software_version_ref!.isNotEmpty) {
+        final version =
+            await _storage.getVersionByCloudId(trip.software_version_ref!);
+        if (version != null) {
+          versionName = version.versionString;
+        }
+      }
+
       final record = await _pbService.pb.collection('trips').create(
         body: {
           'user': userId,
-          'brand': trip.brand ?? 'Others',
+          // ✅ 同时写入名称（用于显示）和 _ref（用于关联）
+          'brand': brandName,
           'brand_ref': trip.brand_ref ?? '',
           'car_model': trip.carModel ?? 'Others',
-          'software_version': trip.softwareVersion ?? 'Others',
+          'software_version': versionName,
           'software_version_ref': trip.software_version_ref ?? '',
           'is_public': isPublic,
           'metrics': metrics,
@@ -288,12 +312,13 @@ class CloudTripService {
               ..uuid = uuid
               ..cloudId = record.id
               ..startTime = startTime
-              ..brand = record.getStringValue('brand')
+              // 🔄 数据库迁移：优先读取 _ref 字段
               ..brand_ref = record.getStringValue('brand_ref')
+              ..brand = record.getStringValue('brand')
               ..carModel = record.getStringValue('car_model')
-              ..softwareVersion = record.getStringValue('software_version')
               ..software_version_ref =
                   record.getStringValue('software_version_ref')
+              ..softwareVersion = record.getStringValue('software_version')
               ..distance = distanceKm * 1000
               ..eventCount = eventCount
               ..isUploaded = true
@@ -564,11 +589,12 @@ class CloudTripService {
         // 重构一个用于展示的 Trip 对象
         final trip = Trip()
           ..uuid = r.getStringValue('local_uuid')
-          ..brand = r.getStringValue('brand')
+          // 🔄 数据库迁移：优先读取 _ref 字段
           ..brand_ref = r.getStringValue('brand_ref')
+          ..brand = r.getStringValue('brand')
           ..carModel = r.getStringValue('car_model')
-          ..softwareVersion = r.getStringValue('software_version')
           ..software_version_ref = r.getStringValue('software_version_ref')
+          ..softwareVersion = r.getStringValue('software_version')
           ..distance = distanceKm * 1000 // 转回米
           ..eventCount = eventCount
           ..startTime = DateTime.parse(r.get<String>('created'))
@@ -675,7 +701,7 @@ class CloudTripService {
                 "lat": p.lat,
                 "lng": p.lng,
                 "speed": p.speed,
-                "low_conf": p.isLowConfidence,
+                "low_conf": p.isLowConfidence ?? false,
               })
           .toList(),
       "events": trip.events

@@ -715,7 +715,7 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     final sizeAsync = ref.watch(localDataSizeProvider);
     return sizeAsync.when(
       data: (bytes) {
-        if (bytes < StorageService.localDataWarnThresholdBytes) {
+        if (bytes < kLocalDataWarnThresholdBytes) {
           return const SizedBox.shrink();
         }
         final mb = (bytes / (1024 * 1024)).toStringAsFixed(0);

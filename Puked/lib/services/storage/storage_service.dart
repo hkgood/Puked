@@ -15,6 +15,9 @@ final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
+/// 本地数据超过此阈值（200MB）时建议清理
+const int kLocalDataWarnThresholdBytes = 200 * 1024 * 1024;
+
 /// 本地数据库磁盘占用字节数，用于超量警告提示。
 final localDataSizeProvider = FutureProvider<int>((ref) async {
   final service = ref.read(storageServiceProvider);
@@ -928,6 +931,7 @@ class StorageService {
     final trips = await _db.collection<Trip>().where().findAll();
     return trips.fold<int>(0, (prev, element) => prev + element.eventCount);
   }
+
 }
 
 // ============== 事件统计相关函数 ==============
@@ -1015,18 +1019,15 @@ extension StorageServiceEventStats on StorageService {
     trip.eventStatsJson = jsonEncode(stats);
   }
 
-  /// 本地数据超过此阈值（200MB）时建议清理
-  static const int localDataWarnThresholdBytes = 200 * 1024 * 1024;
-
   /// 计算本地 Isar 数据库文件占用的磁盘字节数。
   /// 60Hz 高帧率模式下每次行程轨迹点增多，长期积累可能占用较大空间。
   Future<int> getLocalDataSizeBytes() async {
     int total = 0;
     try {
       final docDir = await getApplicationDocumentsDirectory();
-      // Isar 主库文件
+      // Isar 主库文件（硬编码实例名避免跨作用域静态成员引用问题）
       for (final suffix in ['', '.lock']) {
-        final f = File('${docDir.path}/$_instanceName.isar$suffix');
+        final f = File('${docDir.path}/puked_master_v2_db.isar$suffix');
         if (await f.exists()) total += await f.length();
       }
     } catch (e) {

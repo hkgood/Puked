@@ -7,10 +7,12 @@ final class DataInterpolator: Sendable {
     private let startTime: Double
     private let endTime: Double
     private let calculatedG: [Double: (gx: Double, gy: Double)]
+    // 预计算并缓存全程 G 值范围，避免每帧回放时重复 O(n) 扫描导致抖动
+    let gForceRange: (min: Double, max: Double)
     
     enum FrequencyMode {
         case sparse    // 1Hz 左右，需要强补帧
-        case highFreq  // 10Hz 及以上，需要忠实还原
+        case highFreq  // 4Hz 及以上（含 6fps 上传数据、30fps、60fps），忠实还原
     }
     let mode: FrequencyMode
     
@@ -24,9 +26,11 @@ final class DataInterpolator: Sendable {
             let avgInterval = (endTime - startTime) / Double(sortedPoints.count - 1)
             self.mode = avgInterval < 0.25 ? .highFreq : .sparse
             self.calculatedG = DataInterpolator.precalculateGValues(points: sortedPoints)
+            self.gForceRange = DataInterpolator.calculateGForceRangeStatic(points: sortedPoints)
         } else {
             self.mode = .sparse
             self.calculatedG = [:]
+            self.gForceRange = (-0.5, 0.5)
         }
     }
     
@@ -88,7 +92,13 @@ final class DataInterpolator: Sendable {
     func state(at timestamp: Double) -> InterpolatedState? {
         guard timestamp >= startTime, timestamp <= endTime else { return nil }
         
-        guard let index = points.firstIndex(where: { $0.ts >= timestamp }) else { return nil }
+        // 二分搜索，O(log n)，替代 firstIndex(where:) 的 O(n) 线性扫描
+        var lo = 0; var hi = points.count - 1
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if points[mid].ts < timestamp { lo = mid + 1 } else { hi = mid }
+        }
+        let index = lo
         if index == 0 { return makeState(from: points[0]) }
         
         let p1 = points[index - 1]
@@ -138,6 +148,11 @@ final class DataInterpolator: Sendable {
     }
     
     func calculateGForceRange() -> (min: Double, max: Double) {
+        // 直接返回初始化时预计算的缓存值，避免每帧 O(n) 扫描
+        return gForceRange
+    }
+    
+    private static func calculateGForceRangeStatic(points: [TrajectoryPoint]) -> (min: Double, max: Double) {
         var minG = 0.0
         var maxG = 0.0
         
@@ -153,7 +168,6 @@ final class DataInterpolator: Sendable {
             }
         }
         
-        // 如果没有传感器数据，使用默认范围
         if minG == 0.0 && maxG == 0.0 {
             return (-0.5, 0.5)
         }

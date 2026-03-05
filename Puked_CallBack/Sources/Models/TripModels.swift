@@ -30,6 +30,7 @@ struct TripMetadata: Codable, Sendable {
     let algorithm: String?        // 可选字段，兼容旧版本数据
     let notes: String
     let eventCount: Int
+    let trajectoryMeta: TrajectoryMeta?  // 可选字段，v2.5+ 新增
     
     enum CodingKeys: String, CodingKey {
         case startTime = "start_time"
@@ -40,6 +41,7 @@ struct TripMetadata: Codable, Sendable {
         case algorithm
         case notes
         case eventCount = "event_count"
+        case trajectoryMeta = "trajectory_meta"
     }
 
     var brandLogoName: String? {
@@ -58,7 +60,20 @@ struct TripMetadata: Codable, Sendable {
     }
 }
 
-/// 轨迹点 (支持 1Hz 基础点或 10Hz 高频点)
+/// 轨迹采集元信息（v2.5+ 上传 JSON 中携带）
+struct TrajectoryMeta: Codable, Sendable {
+    let originalCount: Int?   // 本地原始点数（iOS ~60fps / Android ~30fps）
+    let uploadFps: Int?       // 上传时抽稀后的帧率（固定 6fps）
+    let platform: String?
+
+    enum CodingKeys: String, CodingKey {
+        case originalCount = "original_count"
+        case uploadFps = "upload_fps"
+        case platform
+    }
+}
+
+/// 轨迹点（支持 1Hz 稀疏点、6fps 上传点，或 30/60fps 本地导出点）
 struct TrajectoryPoint: Codable, Identifiable, Sendable, Equatable {
     var id: Double { ts }
     let ts: Double

@@ -10,12 +10,8 @@
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
 	
-	<!-- 用户选择的文件写入权限（导出视频文件） -->
+	<!-- 用户选择的文件写入权限（导出视频文件，通过 NSSavePanel 由用户选择保存位置） -->
 	<key>com.apple.security.files.user-selected.read-write</key>
-	<true/>
-	
-	<!-- 下载文件夹写入权限（导出视频到下载文件夹） -->
-	<key>com.apple.security.files.downloads.read-write</key>
 	<true/>
 </dict>
 </plist>

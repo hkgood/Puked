@@ -15,6 +15,12 @@ final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
+/// 本地数据库磁盘占用字节数，用于超量警告提示。
+final localDataSizeProvider = FutureProvider<int>((ref) async {
+  final service = ref.read(storageServiceProvider);
+  return service.getLocalDataSizeBytes();
+});
+
 class StorageService {
   Isar? _isar;
   Future<void>? _initFuture;
@@ -58,7 +64,7 @@ class StorageService {
       );
       _isar = isar;
       await seedInitialData();
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint('[Storage] ❌ Initialization error: $e');
       rethrow;
     }
@@ -159,12 +165,21 @@ class StorageService {
   Future<void> addVersion(String brandName, String versionString,
       {bool isCustom = false, String? cloudId}) async {
     await init();
+    debugPrint('🔍 [StorageService] addVersion called:');
+    debugPrint('   brandName: $brandName');
+    debugPrint('   versionString: $versionString');
+    debugPrint('   cloudId: $cloudId');
+
     final brand = await _db
         .collection<Brand>()
         .filter()
         .nameEqualTo(brandName)
         .findFirst();
+
     if (brand != null) {
+      debugPrint(
+          '   ✅ Brand found: ${brand.name} (id: ${brand.id}, cloudId: ${brand.cloudId})');
+
       final existingV = await _db
           .collection<SoftwareVersion>()
           .filter()
@@ -172,6 +187,7 @@ class StorageService {
           .versionStringEqualTo(versionString)
           .findFirst();
       if (existingV == null) {
+        debugPrint('   ℹ️ Version not exists, creating new...');
         final v = SoftwareVersion()
           ..versionString = versionString
           ..isCustom = isCustom
@@ -180,13 +196,33 @@ class StorageService {
         await _db.writeTxn(() async {
           await _db.collection<SoftwareVersion>().put(v);
           await v.brand.save();
+          // ✅ 同时维护 Brand → SoftwareVersion 的反向关系
+          brand.versions.add(v);
+          await brand.versions.save();
         });
-      } else if (cloudId != null) {
-        existingV.cloudId = cloudId;
-        existingV.isCustom = isCustom;
-        await _db
-            .writeTxn(() => _db.collection<SoftwareVersion>().put(existingV));
+        debugPrint('   ✅ Version created and linked to brand');
+      } else {
+        debugPrint('   ℹ️ Version already exists, updating...');
+        if (cloudId != null) {
+          existingV.cloudId = cloudId;
+          existingV.isCustom = isCustom;
+          await _db.writeTxn(() async {
+            await _db.collection<SoftwareVersion>().put(existingV);
+            // ✅ 确保反向关系存在
+            await existingV.brand.load();
+            if (existingV.brand.value?.id == brand.id) {
+              await brand.versions.load();
+              if (!brand.versions.any((v) => v.id == existingV.id)) {
+                brand.versions.add(existingV);
+                await brand.versions.save();
+              }
+            }
+          });
+          debugPrint('   ✅ Version updated');
+        }
       }
+    } else {
+      debugPrint('   ❌ Brand not found for name: $brandName');
     }
   }
 
@@ -221,6 +257,53 @@ class StorageService {
       return brand.versions.toList();
     }
     return [];
+  }
+
+  /// 通过品牌 cloudId 获取版本列表（更准确的查询方式）
+  Future<List<SoftwareVersion>> getVersionsForBrandRef(String brandRef) async {
+    await init();
+    debugPrint('🔍 [StorageService] getVersionsForBrandRef called:');
+    debugPrint('   brandRef: $brandRef');
+
+    final brand = await _db
+        .collection<Brand>()
+        .filter()
+        .cloudIdEqualTo(brandRef)
+        .findFirst();
+
+    if (brand != null) {
+      debugPrint('   ✅ Brand found: ${brand.name} (id: ${brand.id})');
+      await brand.versions.load();
+      final versionsList = brand.versions.toList();
+      debugPrint('   ✅ Loaded ${versionsList.length} versions');
+      for (var v in versionsList) {
+        debugPrint('      - ${v.versionString} (cloudId: ${v.cloudId})');
+      }
+      return versionsList;
+    }
+
+    debugPrint('   ❌ Brand not found for cloudId: $brandRef');
+    return [];
+  }
+
+  /// 通过 cloudId 查询品牌对象
+  Future<Brand?> getBrandByCloudId(String cloudId) async {
+    await init();
+    return await _db
+        .collection<Brand>()
+        .filter()
+        .cloudIdEqualTo(cloudId)
+        .findFirst();
+  }
+
+  /// 通过 cloudId 查询版本对象
+  Future<SoftwareVersion?> getVersionByCloudId(String cloudId) async {
+    await init();
+    return await _db
+        .collection<SoftwareVersion>()
+        .filter()
+        .cloudIdEqualTo(cloudId)
+        .findFirst();
   }
 
   Future<SoftwareVersion?> getVersionByString(
@@ -512,6 +595,19 @@ class StorageService {
     await calculateEventStats(tripId);
   }
 
+  /// 保存 AI 舒适度点评（本地缓存，避免重复调用）
+  Future<void> saveAiCommentary(int tripId, String commentary) async {
+    await init();
+    await _db.writeTxn(() async {
+      final trip = await _db.collection<Trip>().get(tripId);
+      if (trip != null) {
+        trip.aiCommentary = commentary;
+        trip.aiCommentaryGeneratedAt = DateTime.now();
+        await _db.collection<Trip>().put(trip);
+      }
+    });
+  }
+
   Future<void> updateTripCloudId(int id, String cloudId,
       {Map<String, dynamic>? metrics}) async {
     await init();
@@ -587,28 +683,44 @@ class StorageService {
       final trip = await _db.collection<Trip>().get(id);
       if (trip == null) return;
 
-      final info = data['info'] as Map<String, dynamic>?;
+      // 兼容上传格式：云端文件为 _buildTripExportData 导出，根键为 metadata；部分旧数据可能为 info
+      final info = (data['info'] ?? data['metadata']) as Map<String, dynamic>?;
       if (info != null) {
-        trip.carModel = info['car_model'];
-        trip.notes = info['notes'];
-        trip.brand = info['brand'];
-        trip.softwareVersion = info['software_version'];
-        trip.appVersion = info['app_version'];
-        trip.platform = info['platform'];
-        trip.algorithm = info['algorithm'];
+        trip.carModel = info['car_model']?.toString();
+        trip.notes = info['notes']?.toString();
+        trip.brand = info['brand']?.toString();
+        trip.softwareVersion = info['software_version']?.toString();
+        trip.appVersion = info['app_version']?.toString();
+        trip.platform = info['platform']?.toString();
+        trip.algorithm = info['algorithm']?.toString();
       }
 
-      final trajectoryData = data['trajectory'] as List?;
+      // 防御性：仅当 trajectory 确为 List 时解析，避免 JSON 结构异常导致 as List? 抛错
+      final rawTrajectory = data['trajectory'];
+      final trajectoryData = rawTrajectory is List ? rawTrajectory : null;
       if (trajectoryData != null) {
         final List<TrajectoryPoint> points = [];
         for (var p in trajectoryData) {
+          if (p is! Map) {
+            debugPrint('[Storage] Skipping non-map trajectory element: $p');
+            continue;
+          }
+          // lat/lng/ts 是定位核心字段，任一为 null 则跳过该点，
+          // 避免硬转换抛出 TypeError 导致整个事务失败
+          final lat = (p['lat'] as num?)?.toDouble();
+          final lng = (p['lng'] as num?)?.toDouble();
+          final ts = (p['ts'] as num?)?.toDouble();
+          if (lat == null || lng == null || ts == null) {
+            debugPrint('[Storage] Skipping bad trajectory point: $p');
+            continue;
+          }
           points.add(TrajectoryPoint()
-            ..lat = (p['lat'] as num).toDouble()
-            ..lng = (p['lng'] as num).toDouble()
-            ..speed = (p['speed'] as num).toDouble()
+            ..lat = lat
+            ..lng = lng
+            ..speed = (p['speed'] as num?)?.toDouble() ?? 0.0
             ..altitude = (p['altitude'] as num?)?.toDouble() ?? 0.0
-            ..timestamp = DateTime.fromMillisecondsSinceEpoch(
-                ((p['ts'] as num) * 1000).toInt())
+            ..timestamp =
+                DateTime.fromMillisecondsSinceEpoch((ts * 1000).toInt())
             ..ax = (p['ax'] as num?)?.toDouble()
             ..ay = (p['ay'] as num?)?.toDouble()
             ..az = (p['az'] as num?)?.toDouble()
@@ -620,27 +732,50 @@ class StorageService {
         trip.trajectory.addAll(points);
       }
 
-      final eventsData = data['events'] as List?;
+      // 防御性：仅当 events 确为 List 时解析
+      final rawEvents = data['events'];
+      final eventsData = rawEvents is List ? rawEvents : null;
       if (eventsData != null) {
         final List<RecordedEvent> events = [];
         for (var e in eventsData) {
+          if (e is! Map) {
+            debugPrint('[Storage] Skipping non-map event element: $e');
+            continue;
+          }
+          // timestamp 和 type 是事件必填字段，缺失则跳过
+          final evTs = (e['timestamp'] as num?)?.toDouble();
+          final evType = e['type'] as String?;
+          if (evTs == null || evType == null || evType.isEmpty) {
+            debugPrint('[Storage] Skipping bad event record: $e');
+            continue;
+          }
+          final location = e['location'];
+          final locationMap = location is Map ? location : null;
           final re = RecordedEvent()
-            ..uuid = e['event_id'] ?? const Uuid().v4()
+            ..uuid = e['event_id'] as String? ?? const Uuid().v4()
             ..timestamp = DateTime.fromMillisecondsSinceEpoch(
-                ((e['timestamp'] as num) * 1000).toInt())
-            ..type = e['type']
-            ..source = e['source']
-            ..voiceText = e['voice_text']
-            ..notes = e['notes']
-            ..speed = (e['location']?['speed'] as num?)?.toDouble()
-            ..lat = (e['location']?['lat'] as num?)?.toDouble()
-            ..lng = (e['location']?['lng'] as num?)?.toDouble();
+                (evTs * 1000).toInt())
+            ..type = evType
+            ..source = e['source'] as String? ?? 'unknown'
+            ..voiceText = e['voice_text'] as String?
+            ..notes = e['notes'] as String?
+            ..speed = (locationMap?['speed'] as num?)?.toDouble()
+            ..lat = (locationMap?['lat'] as num?)?.toDouble()
+            ..lng = (locationMap?['lng'] as num?)?.toDouble();
 
-          final sFragment = e['sensor_fragment']?['data'] as List?;
-          re.sensorData = sFragment?.map((s) {
-                final accel = s['accel'] as List?;
-                final gyro = s['gyro'] as List?;
-                final mag = s['mag'] as List?;
+          final sf = e['sensor_fragment'];
+          final sfDataRaw = sf is Map ? sf['data'] : null;
+          final sfData = sfDataRaw is List ? sfDataRaw : null;
+          re.sensorData = sfData
+              ?.whereType<Map>()
+              .map((s) {
+                // 防御性：JSON 中 accel/gyro/mag 可能被解析为 Map，仅当为 List 时按数组取数
+                final accelRaw = s['accel'];
+                final gyroRaw = s['gyro'];
+                final magRaw = s['mag'];
+                final accel = accelRaw is List ? accelRaw : null;
+                final gyro = gyroRaw is List ? gyroRaw : null;
+                final mag = magRaw is List ? magRaw : null;
                 return SensorPointEmbedded()
                   ..offsetMs = s['offset_ms']
                   ..ax = (accel?[0] as num?)?.toDouble()
@@ -829,7 +964,9 @@ extension StorageServiceEventStats on StorageService {
       final stats = _getEmptyStatsMap();
 
       for (final event in trip.events) {
-        _incrementEventStatInMap(stats, event.type);
+        final t = event.type;
+        if (t == null || t.isEmpty) continue;
+        _incrementEventStatInMap(stats, t);
       }
 
       trip.eventStatsJson = jsonEncode(stats);
@@ -876,5 +1013,25 @@ extension StorageServiceEventStats on StorageService {
     final stats = trip.eventStats ?? _getEmptyStatsMap();
     _decrementEventStatInMap(stats, eventType);
     trip.eventStatsJson = jsonEncode(stats);
+  }
+
+  /// 本地数据超过此阈值（200MB）时建议清理
+  static const int localDataWarnThresholdBytes = 200 * 1024 * 1024;
+
+  /// 计算本地 Isar 数据库文件占用的磁盘字节数。
+  /// 60Hz 高帧率模式下每次行程轨迹点增多，长期积累可能占用较大空间。
+  Future<int> getLocalDataSizeBytes() async {
+    int total = 0;
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      // Isar 主库文件
+      for (final suffix in ['', '.lock']) {
+        final f = File('${docDir.path}/$_instanceName.isar$suffix');
+        if (await f.exists()) total += await f.length();
+      }
+    } catch (e) {
+      debugPrint('[Storage] ⚠️ getLocalDataSizeBytes error: $e');
+    }
+    return total;
   }
 }

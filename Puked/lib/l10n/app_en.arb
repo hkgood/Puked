@@ -367,5 +367,17 @@
   "event_type": "Event Type",
   "event_description": "Description",
   "save_changes": "Save Changes",
-  "selecting_best_mirror": "Selecting fastest mirror..."
+  "selecting_best_mirror": "Selecting fastest mirror...",
+  "ai_commentary_card_title": "AI Commentary & Puked Score",
+  "ai_verdict_pending": "Verdicting…",
+  "ai_generating": "AI is composing commentary…",
+  "ai_no_commentary": "No AI commentary yet — tap below to generate one",
+  "ai_generate_btn": "Generate AI Commentary",
+  "ai_regenerate_tooltip": "Regenerate",
+  "ai_generated_at": "Generated at {time}",
+  "@ai_generated_at": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  }
 }

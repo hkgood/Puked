@@ -252,18 +252,18 @@ final class VideoExportEngine: ObservableObject {
         // ... (绘制刻度逻辑保持不变)
         
         var ptsX: [CGPoint] = []; var ptsY: [CGPoint] = []
-        // 自适应采样频率：高频模式下提升至 30Hz (0.033s)
-        let stepSeconds = mode == .highFreq ? 0.033 : 0.1
+        // 以连续时间戳直接查历史数组，避免整数截断导致的重复/跳跃点
+        // 绘图步长与 6fps 上传数据对齐（0.167s），稀疏模式 0.1s
+        let stepSeconds = mode == .highFreq ? 0.167 : 0.1
         let pointsCount = Int(window / stepSeconds)
         
         for i in 0...pointsCount {
             let ts = currentTime - Double(i) * stepSeconds
             let px = headX - CGFloat(currentTime - ts) * pps
             if px < -20 { break }
-            let frameOffset = Int(Double(i) * stepSeconds * 30.0)
-            let historyIdx = history.count - 1 - frameOffset
-            if historyIdx >= 0 {
-                let s = history[historyIdx]
+            // 用精确时间戳在 history 中二分查找最近帧，避免整数截断误差
+            let targetTs = ts
+            if let s = history.last(where: { $0.timestamp <= targetTs }) ?? history.first {
                 ptsX.append(CGPoint(x: px, y: mapG(s.gForceLongitudinal)))
                 ptsY.append(CGPoint(x: px, y: mapG(s.gForceLateral)))
             }

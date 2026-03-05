@@ -17,113 +17,128 @@ const TripSchema = CollectionSchema(
   name: r'Trip',
   id: 2639069002795865543,
   properties: {
-    r'algorithm': PropertySchema(
+    r'aiCommentary': PropertySchema(
       id: 0,
+      name: r'aiCommentary',
+      type: IsarType.string,
+    ),
+    r'aiCommentaryGeneratedAt': PropertySchema(
+      id: 1,
+      name: r'aiCommentaryGeneratedAt',
+      type: IsarType.dateTime,
+    ),
+    r'algorithm': PropertySchema(
+      id: 2,
       name: r'algorithm',
       type: IsarType.string,
     ),
     r'appVersion': PropertySchema(
-      id: 1,
+      id: 3,
       name: r'appVersion',
       type: IsarType.string,
     ),
     r'brand': PropertySchema(
-      id: 2,
+      id: 4,
       name: r'brand',
       type: IsarType.string,
     ),
     r'brand_ref': PropertySchema(
-      id: 3,
+      id: 5,
       name: r'brand_ref',
       type: IsarType.string,
     ),
     r'carModel': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'carModel',
       type: IsarType.string,
     ),
     r'cloudId': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'cloudId',
       type: IsarType.string,
     ),
     r'cloudMetrics': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'cloudMetrics',
       type: IsarType.string,
     ),
+    r'displayDistance': PropertySchema(
+      id: 9,
+      name: r'displayDistance',
+      type: IsarType.double,
+    ),
     r'distance': PropertySchema(
-      id: 7,
+      id: 10,
       name: r'distance',
       type: IsarType.double,
     ),
     r'endTime': PropertySchema(
-      id: 8,
+      id: 11,
       name: r'endTime',
       type: IsarType.dateTime,
     ),
     r'eventCount': PropertySchema(
-      id: 9,
+      id: 12,
       name: r'eventCount',
       type: IsarType.long,
     ),
     r'eventStatsJson': PropertySchema(
-      id: 10,
+      id: 13,
       name: r'eventStatsJson',
       type: IsarType.string,
     ),
     r'isDataSufficient': PropertySchema(
-      id: 11,
+      id: 14,
       name: r'isDataSufficient',
       type: IsarType.bool,
     ),
     r'isLocalMissing': PropertySchema(
-      id: 12,
+      id: 15,
       name: r'isLocalMissing',
       type: IsarType.bool,
     ),
     r'isUploaded': PropertySchema(
-      id: 13,
+      id: 16,
       name: r'isUploaded',
       type: IsarType.bool,
     ),
     r'metrics': PropertySchema(
-      id: 14,
+      id: 17,
       name: r'metrics',
       type: IsarType.string,
     ),
     r'metricsJson': PropertySchema(
-      id: 15,
+      id: 18,
       name: r'metricsJson',
       type: IsarType.string,
     ),
     r'notes': PropertySchema(
-      id: 16,
+      id: 19,
       name: r'notes',
       type: IsarType.string,
     ),
     r'platform': PropertySchema(
-      id: 17,
+      id: 20,
       name: r'platform',
       type: IsarType.string,
     ),
     r'softwareVersion': PropertySchema(
-      id: 18,
+      id: 21,
       name: r'softwareVersion',
       type: IsarType.string,
     ),
     r'software_version_ref': PropertySchema(
-      id: 19,
+      id: 22,
       name: r'software_version_ref',
       type: IsarType.string,
     ),
     r'startTime': PropertySchema(
-      id: 20,
+      id: 23,
       name: r'startTime',
       type: IsarType.dateTime,
     ),
     r'uuid': PropertySchema(
-      id: 21,
+      id: 24,
       name: r'uuid',
       type: IsarType.string,
     )
@@ -175,6 +190,12 @@ int _tripEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  {
+    final value = object.aiCommentary;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   {
     final value = object.algorithm;
     if (value != null) {
@@ -269,28 +290,31 @@ void _tripSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.algorithm);
-  writer.writeString(offsets[1], object.appVersion);
-  writer.writeString(offsets[2], object.brand);
-  writer.writeString(offsets[3], object.brand_ref);
-  writer.writeString(offsets[4], object.carModel);
-  writer.writeString(offsets[5], object.cloudId);
-  writer.writeString(offsets[6], object.cloudMetrics);
-  writer.writeDouble(offsets[7], object.distance);
-  writer.writeDateTime(offsets[8], object.endTime);
-  writer.writeLong(offsets[9], object.eventCount);
-  writer.writeString(offsets[10], object.eventStatsJson);
-  writer.writeBool(offsets[11], object.isDataSufficient);
-  writer.writeBool(offsets[12], object.isLocalMissing);
-  writer.writeBool(offsets[13], object.isUploaded);
-  writer.writeString(offsets[14], object.metrics);
-  writer.writeString(offsets[15], object.metricsJson);
-  writer.writeString(offsets[16], object.notes);
-  writer.writeString(offsets[17], object.platform);
-  writer.writeString(offsets[18], object.softwareVersion);
-  writer.writeString(offsets[19], object.software_version_ref);
-  writer.writeDateTime(offsets[20], object.startTime);
-  writer.writeString(offsets[21], object.uuid);
+  writer.writeString(offsets[0], object.aiCommentary);
+  writer.writeDateTime(offsets[1], object.aiCommentaryGeneratedAt);
+  writer.writeString(offsets[2], object.algorithm);
+  writer.writeString(offsets[3], object.appVersion);
+  writer.writeString(offsets[4], object.brand);
+  writer.writeString(offsets[5], object.brand_ref);
+  writer.writeString(offsets[6], object.carModel);
+  writer.writeString(offsets[7], object.cloudId);
+  writer.writeString(offsets[8], object.cloudMetrics);
+  writer.writeDouble(offsets[9], object.displayDistance);
+  writer.writeDouble(offsets[10], object.distance);
+  writer.writeDateTime(offsets[11], object.endTime);
+  writer.writeLong(offsets[12], object.eventCount);
+  writer.writeString(offsets[13], object.eventStatsJson);
+  writer.writeBool(offsets[14], object.isDataSufficient);
+  writer.writeBool(offsets[15], object.isLocalMissing);
+  writer.writeBool(offsets[16], object.isUploaded);
+  writer.writeString(offsets[17], object.metrics);
+  writer.writeString(offsets[18], object.metricsJson);
+  writer.writeString(offsets[19], object.notes);
+  writer.writeString(offsets[20], object.platform);
+  writer.writeString(offsets[21], object.softwareVersion);
+  writer.writeString(offsets[22], object.software_version_ref);
+  writer.writeDateTime(offsets[23], object.startTime);
+  writer.writeString(offsets[24], object.uuid);
 }
 
 Trip _tripDeserialize(
@@ -300,28 +324,30 @@ Trip _tripDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Trip();
-  object.algorithm = reader.readStringOrNull(offsets[0]);
-  object.appVersion = reader.readStringOrNull(offsets[1]);
-  object.brand = reader.readStringOrNull(offsets[2]);
-  object.brand_ref = reader.readStringOrNull(offsets[3]);
-  object.carModel = reader.readStringOrNull(offsets[4]);
-  object.cloudId = reader.readStringOrNull(offsets[5]);
-  object.cloudMetrics = reader.readStringOrNull(offsets[6]);
-  object.distance = reader.readDouble(offsets[7]);
-  object.endTime = reader.readDateTimeOrNull(offsets[8]);
-  object.eventCount = reader.readLong(offsets[9]);
-  object.eventStatsJson = reader.readStringOrNull(offsets[10]);
+  object.aiCommentary = reader.readStringOrNull(offsets[0]);
+  object.aiCommentaryGeneratedAt = reader.readDateTimeOrNull(offsets[1]);
+  object.algorithm = reader.readStringOrNull(offsets[2]);
+  object.appVersion = reader.readStringOrNull(offsets[3]);
+  object.brand = reader.readStringOrNull(offsets[4]);
+  object.brand_ref = reader.readStringOrNull(offsets[5]);
+  object.carModel = reader.readStringOrNull(offsets[6]);
+  object.cloudId = reader.readStringOrNull(offsets[7]);
+  object.cloudMetrics = reader.readStringOrNull(offsets[8]);
+  object.distance = reader.readDouble(offsets[10]);
+  object.endTime = reader.readDateTimeOrNull(offsets[11]);
+  object.eventCount = reader.readLong(offsets[12]);
+  object.eventStatsJson = reader.readStringOrNull(offsets[13]);
   object.id = id;
-  object.isLocalMissing = reader.readBool(offsets[12]);
-  object.isUploaded = reader.readBool(offsets[13]);
-  object.metrics = reader.readStringOrNull(offsets[14]);
-  object.metricsJson = reader.readStringOrNull(offsets[15]);
-  object.notes = reader.readStringOrNull(offsets[16]);
-  object.platform = reader.readStringOrNull(offsets[17]);
-  object.softwareVersion = reader.readStringOrNull(offsets[18]);
-  object.software_version_ref = reader.readStringOrNull(offsets[19]);
-  object.startTime = reader.readDateTime(offsets[20]);
-  object.uuid = reader.readString(offsets[21]);
+  object.isLocalMissing = reader.readBool(offsets[15]);
+  object.isUploaded = reader.readBool(offsets[16]);
+  object.metrics = reader.readStringOrNull(offsets[17]);
+  object.metricsJson = reader.readStringOrNull(offsets[18]);
+  object.notes = reader.readStringOrNull(offsets[19]);
+  object.platform = reader.readStringOrNull(offsets[20]);
+  object.softwareVersion = reader.readStringOrNull(offsets[21]);
+  object.software_version_ref = reader.readStringOrNull(offsets[22]);
+  object.startTime = reader.readDateTime(offsets[23]);
+  object.uuid = reader.readString(offsets[24]);
   return object;
 }
 
@@ -335,7 +361,7 @@ P _tripDeserializeProp<P>(
     case 0:
       return (reader.readStringOrNull(offset)) as P;
     case 1:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 2:
       return (reader.readStringOrNull(offset)) as P;
     case 3:
@@ -347,25 +373,25 @@ P _tripDeserializeProp<P>(
     case 6:
       return (reader.readStringOrNull(offset)) as P;
     case 7:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 8:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 9:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 10:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 11:
-      return (reader.readBool(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 12:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 13:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 14:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 15:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 16:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 17:
       return (reader.readStringOrNull(offset)) as P;
     case 18:
@@ -373,8 +399,14 @@ P _tripDeserializeProp<P>(
     case 19:
       return (reader.readStringOrNull(offset)) as P;
     case 20:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 21:
+      return (reader.readStringOrNull(offset)) as P;
+    case 22:
+      return (reader.readStringOrNull(offset)) as P;
+    case 23:
+      return (reader.readDateTime(offset)) as P;
+    case 24:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -570,6 +602,226 @@ extension TripQueryWhere on QueryBuilder<Trip, Trip, QWhereClause> {
 }
 
 extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'aiCommentary',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'aiCommentary',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'aiCommentary',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'aiCommentary',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'aiCommentary',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'aiCommentary',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'aiCommentary',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'aiCommentary',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'aiCommentary',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'aiCommentary',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'aiCommentary',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> aiCommentaryIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'aiCommentary',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      aiCommentaryGeneratedAtIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'aiCommentaryGeneratedAt',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      aiCommentaryGeneratedAtIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'aiCommentaryGeneratedAt',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      aiCommentaryGeneratedAtEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'aiCommentaryGeneratedAt',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      aiCommentaryGeneratedAtGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'aiCommentaryGeneratedAt',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      aiCommentaryGeneratedAtLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'aiCommentaryGeneratedAt',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition>
+      aiCommentaryGeneratedAtBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'aiCommentaryGeneratedAt',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterFilterCondition> algorithmIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1583,6 +1835,68 @@ extension TripQueryFilter on QueryBuilder<Trip, Trip, QFilterCondition> {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'cloudMetrics',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> displayDistanceEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'displayDistance',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> displayDistanceGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'displayDistance',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> displayDistanceLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'displayDistance',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterFilterCondition> displayDistanceBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'displayDistance',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
       ));
     });
   }
@@ -3173,6 +3487,30 @@ extension TripQueryLinks on QueryBuilder<Trip, Trip, QFilterCondition> {
 }
 
 extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAiCommentary() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentary', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAiCommentaryDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentary', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAiCommentaryGeneratedAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentaryGeneratedAt', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByAiCommentaryGeneratedAtDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentaryGeneratedAt', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByAlgorithm() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'algorithm', Sort.asc);
@@ -3254,6 +3592,18 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> sortByCloudMetricsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'cloudMetrics', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByDisplayDistance() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'displayDistance', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> sortByDisplayDistanceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'displayDistance', Sort.desc);
     });
   }
 
@@ -3439,6 +3789,30 @@ extension TripQuerySortBy on QueryBuilder<Trip, Trip, QSortBy> {
 }
 
 extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAiCommentary() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentary', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAiCommentaryDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentary', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAiCommentaryGeneratedAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentaryGeneratedAt', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByAiCommentaryGeneratedAtDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiCommentaryGeneratedAt', Sort.desc);
+    });
+  }
+
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByAlgorithm() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'algorithm', Sort.asc);
@@ -3520,6 +3894,18 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
   QueryBuilder<Trip, Trip, QAfterSortBy> thenByCloudMetricsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'cloudMetrics', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByDisplayDistance() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'displayDistance', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QAfterSortBy> thenByDisplayDistanceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'displayDistance', Sort.desc);
     });
   }
 
@@ -3717,6 +4103,19 @@ extension TripQuerySortThenBy on QueryBuilder<Trip, Trip, QSortThenBy> {
 }
 
 extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
+  QueryBuilder<Trip, Trip, QDistinct> distinctByAiCommentary(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'aiCommentary', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QDistinct> distinctByAiCommentaryGeneratedAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'aiCommentaryGeneratedAt');
+    });
+  }
+
   QueryBuilder<Trip, Trip, QDistinct> distinctByAlgorithm(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -3763,6 +4162,12 @@ extension TripQueryWhereDistinct on QueryBuilder<Trip, Trip, QDistinct> {
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'cloudMetrics', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Trip, Trip, QDistinct> distinctByDisplayDistance() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'displayDistance');
     });
   }
 
@@ -3875,6 +4280,19 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
     });
   }
 
+  QueryBuilder<Trip, String?, QQueryOperations> aiCommentaryProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'aiCommentary');
+    });
+  }
+
+  QueryBuilder<Trip, DateTime?, QQueryOperations>
+      aiCommentaryGeneratedAtProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'aiCommentaryGeneratedAt');
+    });
+  }
+
   QueryBuilder<Trip, String?, QQueryOperations> algorithmProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'algorithm');
@@ -3914,6 +4332,12 @@ extension TripQueryProperty on QueryBuilder<Trip, Trip, QQueryProperty> {
   QueryBuilder<Trip, String?, QQueryOperations> cloudMetricsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'cloudMetrics');
+    });
+  }
+
+  QueryBuilder<Trip, double, QQueryOperations> displayDistanceProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'displayDistance');
     });
   }
 

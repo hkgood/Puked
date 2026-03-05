@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="VcsDirectoryMappings">
-    <mapping directory="$PROJECT_DIR$/Puked" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/Puked_Hotfix" vcs="Git" />
+    <!-- Puked / Puked_Hotfix 已移除：目录下无 .git 或目录不存在，避免 VCS root 报错 -->
   </component>
 </project>

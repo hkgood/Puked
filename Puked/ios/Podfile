@@ -23,6 +23,23 @@ end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
+# 修复 libwebp 在 Xcode 下「可能未初始化」的编译错误（每次 pod install 后自动打补丁）
+def patch_libwebp_uninitialized(installer)
+  pods_dir = installer.sandbox.root
+  [
+    [File.join(pods_dir, 'libwebp/src/enc/backward_references_enc.c'), 'int best_offset;', 'int best_offset = 0;'],
+    [File.join(pods_dir, 'libwebp/src/dsp/dec_neon.c'), '  uint16x8_t sum_top;\n  uint16x8_t sum_left;', '  uint16x8_t sum_top = vdupq_n_u16(0);\n  uint16x8_t sum_left = vdupq_n_u16(0);']
+  ].each do |path, old_content, new_content|
+    path = File.expand_path(path)
+    next unless File.exist?(path)
+    content = File.read(path)
+    next unless content.include?(old_content)
+    # dec_neon 有两处相同模式，用 gsub 全部替换；backward_references 仅一处
+    content = path.include?('dec_neon') ? content.gsub(old_content, new_content) : content.sub(old_content, new_content)
+    File.write(path, content)
+  end
+end
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
@@ -34,6 +51,7 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  patch_libwebp_uninitialized(installer)
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     

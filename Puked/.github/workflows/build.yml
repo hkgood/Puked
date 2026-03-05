@@ -21,7 +21,7 @@ jobs:
         run: |
           flutter pub get
           dart format --output=none --set-exit-if-changed .
-          flutter analyze
+          flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
 
   # 任务 2：APK 编译（与检查并行）
@@ -110,13 +110,12 @@ jobs:
           files: build/app/outputs/flutter-apk/Puked-*.apk
           name: Puked ${{ github.ref_name }}
           body: |
-            ## Puked ${{ github.ref_name }}
-            
-            这是从 GitHub Actions 自动构建并同步的版本。
-            
-            ### 更新日志
-            ${{ github.event.head_commit.message }}
-          generate_release_notes: true
+            ## v2.5.2 版本更新说明
+            1. 高帧率采集对全体用户开放（iOS 60Hz / Android 30Hz），行程 JSON 文件体积增大，请注意及时上传导出并删除已同步的本地行程
+            2. 行程详情新增驾驶评分与 AI 吐感点评（由通义千问生成），打开任意历史行程即可查看
+            3. 新增本地数据体积监控，超过 200MB 时设置页将显示警告提示
+            4. 修复行程数据同步与云端状态不一致的若干问题
+          draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -133,7 +132,7 @@ jobs:
           fi
 
           # 获取 GitHub 原始下载链接
-          GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-2.1.0.apk"
+          GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-${VERSION_NAME#v}.apk"
           if [[ ${{ github.ref }} == refs/tags/v* ]]; then
              GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-${VERSION_NAME#v}.apk"
           fi

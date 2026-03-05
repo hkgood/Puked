@@ -367,5 +367,17 @@
   "event_type": "事件类型",
   "event_description": "事件描述",
   "save_changes": "保存修改",
-  "selecting_best_mirror": "正在选择最快下载源..."
+  "selecting_best_mirror": "正在选择最快下载源...",
+  "ai_commentary_card_title": "AI 点评 & Puked 值",
+  "ai_verdict_pending": "判决中…",
+  "ai_generating": "AI 正在撰写点评…",
+  "ai_no_commentary": "还没有 AI 点评，点下面生成一条吧",
+  "ai_generate_btn": "生成 AI 点评",
+  "ai_regenerate_tooltip": "重新生成点评",
+  "ai_generated_at": "生成于 {time}",
+  "@ai_generated_at": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  }
 }

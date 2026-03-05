@@ -1154,4 +1154,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get selecting_best_mirror => '正在选择最快下载源...';
+
+  @override
+  String get ai_commentary_card_title => 'AI 点评 & Puked 值';
+
+  @override
+  String get ai_verdict_pending => '判决中…';
+
+  @override
+  String get ai_generating => 'AI 正在撰写点评…';
+
+  @override
+  String get ai_no_commentary => '还没有 AI 点评，点下面生成一条吧';
+
+  @override
+  String get ai_generate_btn => '生成 AI 点评';
+
+  @override
+  String get ai_regenerate_tooltip => '重新生成点评';
+
+  @override
+  String ai_generated_at(String time) {
+    return '生成于 $time';
+  }
 }

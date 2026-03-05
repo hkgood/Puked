@@ -37,6 +37,10 @@ class Trip {
   // 新增：本地事件统计缓存（JSON格式）
   String? eventStatsJson;
 
+  // AI 舒适度点评（离线抽稀后调用 Qwen 生成，本地缓存）
+  String? aiCommentary;
+  DateTime? aiCommentaryGeneratedAt;
+
   @ignore
   String? userName;
   @ignore

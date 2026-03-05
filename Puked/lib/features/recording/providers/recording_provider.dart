@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,7 @@ import 'package:puked/services/location_service.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/algorithm_config_service.dart';
 import 'package:puked/services/video_recording_service.dart';
+import 'package:puked/services/ai_commentary_service.dart';
 import 'package:puked/common/utils/i18n.dart';
 
 // 实时传感器流
@@ -136,7 +138,6 @@ class RecordingNotifier extends StateNotifier<RecordingState>
   ProviderSubscription<AsyncValue<SensorData>>? _sensorSub;
 
   // 内部状态变量
-  DateTime? _lastLocationTime;
   int _locationUpdateCount = 0;
   DateTime? _lastHardwareTimestamp;
 
@@ -333,7 +334,6 @@ class RecordingNotifier extends StateNotifier<RecordingState>
 
     _lastGpsTime = now;
     _lastHardwareTimestamp = position.timestamp;
-    _lastLocationTime = now;
     _locationUpdateCount++;
 
     // ✅ 关键修复：先计算里程，再更新位置变量（避免"先更新后使用"错误）
@@ -540,7 +540,6 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       // ✅ 初始化所有关键时间戳和位置变量
       _recordingStartTime = DateTime.now();
       _lastGpsTime = DateTime.now();
-      _lastLocationTime = DateTime.now();
       _lastSensorRecordTime = null; // 重置传感器记录时间
       _gpsStabilityCounter = 0;
       _insEngine.reset();
@@ -674,9 +673,9 @@ class RecordingNotifier extends StateNotifier<RecordingState>
         state.currentPosition, state.isInsActive);
 
     // --- 传感器数据记录 ---
-    // 高帧率模式 (10Hz) 或 普通模式 (1Hz)
-    final settings = _ref.read(settingsProvider);
-    final recordIntervalMs = settings.isHighFrameRateEnabled ? 100 : 1000;
+    // iOS：传感器已在 SensorEngine 以 16ms(60Hz) 驱动，门限设为 0 让每帧都通过
+    // Android：Timer 以 33ms(30Hz) 驱动，门限同步为 33ms
+    final recordIntervalMs = Platform.isIOS ? 0 : 33;
 
     if (state.currentTrip != null) {
       if (_lastSensorRecordTime == null ||
@@ -716,17 +715,17 @@ class RecordingNotifier extends StateNotifier<RecordingState>
           _storage.addTrajectoryPointBatched(
               state.currentTrip!.id, sensorPoint);
 
-          if (settings.isHighFrameRateEnabled) {
+          if (Platform.isIOS) {
             debugPrint(
-                '📡 [10Hz] Queued sensor data with GPS: lat=${gpsToUse.latitude.toStringAsFixed(6)}');
+                '📡 [60fps] Queued sensor data with GPS: lat=${gpsToUse.latitude.toStringAsFixed(6)}');
           } else {
             debugPrint(
-                '📡 [1Hz] Queued sensor data with GPS: lat=${gpsToUse.latitude.toStringAsFixed(6)}');
+                '📡 [30fps] Queued sensor data with GPS: lat=${gpsToUse.latitude.toStringAsFixed(6)}');
           }
         } else {
           // GPS完全丢失，跳过此次记录
           debugPrint(
-              '⚠️ [${settings.isHighFrameRateEnabled ? "10Hz" : "1Hz"}] Skipped: No valid GPS available');
+              '⚠️ [${Platform.isIOS ? "60fps" : "30fps"}] Skipped: No valid GPS available');
         }
       }
     }
@@ -758,7 +757,8 @@ class RecordingNotifier extends StateNotifier<RecordingState>
       await _storage.flushPendingPoints(state.currentTrip!.id);
     }
 
-    await _storage.endTrip(state.currentTrip!.id);
+    final completedTrip = state.currentTrip!;
+    await _storage.endTrip(completedTrip.id);
     await WakelockPlus.disable();
 
     // ✅ 完全清理所有状态，准备下一次行程
@@ -785,6 +785,23 @@ class RecordingNotifier extends StateNotifier<RecordingState>
     _lastSpeedUpdate = null;
 
     debugPrint('✅ [Recording] Stopped and cleaned up all state');
+
+    // 行程结束后异步触发 AI 点评（fire-and-forget，不阻塞 UI）
+    _triggerAiCommentary(completedTrip);
+  }
+
+  /// 异步生成 AI 点评（不阻塞录制结束流程）
+  void _triggerAiCommentary(Trip trip) {
+    _ref.read(aiCommentaryServiceProvider).generateCommentary(
+      trip,
+      brandName: trip.brand,
+    ).then((content) {
+      if (content != null) {
+        debugPrint('[AI] Content generated for trip ${trip.uuid.substring(0, 8)}: label="${content.label}"');
+      }
+    }).catchError((e) {
+      debugPrint('[AI] Content generation failed: $e');
+    });
   }
 
   void clearAlert() {

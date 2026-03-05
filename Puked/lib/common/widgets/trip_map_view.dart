@@ -226,11 +226,11 @@ class _TripMapViewState extends State<TripMapView>
 
     final List<Polyline> lines = [];
     List<LatLng> currentSegment = [];
-    bool currentIsLowConf = widget.trajectory.first.isLowConfidence ?? false;
+    bool currentIsLowConf = widget.trajectory.first.isLowConfidence;
 
     for (var i = 0; i < widget.trajectory.length; i++) {
       final p = widget.trajectory[i];
-      final isLow = p.isLowConfidence ?? false;
+      final isLow = p.isLowConfidence;
       final displayLatLng = _toDisplay(p.lat, p.lng);
 
       if (isLow != currentIsLowConf) {

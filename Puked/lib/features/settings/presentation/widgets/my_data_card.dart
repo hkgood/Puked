@@ -8,6 +8,7 @@ import 'package:puked/common/utils/i18n.dart';
 import 'package:puked/generated/l10n/app_localizations.dart';
 import 'package:puked/features/settings/providers/my_stats_provider.dart';
 import 'package:puked/features/arena/providers/arena_provider.dart';
+import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/common/widgets/brand_logo.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/services/pocketbase_service.dart';
@@ -34,7 +35,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
   Future<void> _compressAllCertificationImages() async {
     if (_isCompressing) return;
 
-    final auth = ref.read(authProvider);
     final pb = ref.read(pbServiceProvider).pb;
 
     // 确认对话框
@@ -539,6 +539,8 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
       ),
       child: Column(
         children: [
+          // 本地数据体积警告横幅（超过 200MB 时显示）
+          _buildDataSizeWarning(context),
           // 顶部标题栏
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
@@ -708,6 +710,50 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     );
   }
 
+  /// 本地数据超量警告横幅，仅在超过 200MB 阈值时渲染
+  Widget _buildDataSizeWarning(BuildContext context) {
+    final sizeAsync = ref.watch(localDataSizeProvider);
+    return sizeAsync.when(
+      data: (bytes) {
+        if (bytes < StorageService.localDataWarnThresholdBytes) {
+          return const SizedBox.shrink();
+        }
+        final mb = (bytes / (1024 * 1024)).toStringAsFixed(0);
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.orange.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.orange.withValues(alpha: 0.4),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  size: 18, color: Colors.orange),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '本地数据已达 ${mb}MB，高帧率模式下行程数据较大，建议及时上传同步并删除已完成行程',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange.shade800,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildStatGridItem(BuildContext context, String label,
       String formattedValue, IconData icon, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -811,7 +857,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
     // 核心修复：智能防碰撞布局算法
     // 根据品牌数量和扇区大小，动态调整 Logo 距离
     final brandCount = sortedEntries.length;
-    double currentAngle = 0.0; // 累积角度 (用于计算每个 Logo 的位置)
 
     final sections = <PieChartSectionData>[];
 
@@ -821,7 +866,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
       colorIndex++;
 
       final percentage = entry.value / total;
-      final angleSize = percentage * 360; // 该扇区的角度大小
 
       // 防碰撞策略：
       // 1. 小扇区(<10%): 使用更大的距离避让 (1.8)
@@ -850,8 +894,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
             forceLight: forceLight, fontFallback: systemFallback),
         badgePositionPercentageOffset: badgeDistance,
       ));
-
-      currentAngle += angleSize;
     }
 
     return sections;
@@ -862,8 +904,6 @@ class _MyDataCardState extends ConsumerState<MyDataCard> {
       {bool forceLight = false, List<String>? fontFallback}) {
     final isDark =
         !forceLight && Theme.of(context).brightness == Brightness.dark;
-    final onSurface =
-        forceLight ? Colors.black : Theme.of(context).colorScheme.onSurface;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

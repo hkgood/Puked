@@ -494,24 +494,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
 
-                  // 高帧率数据记录 (仅限 KOL 用户)
-                  if (ref.watch(pbServiceProvider).isKOL)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(i18n.t('high_frame_rate'),
-                          style: const TextStyle(fontSize: 14)),
-                      subtitle: Text(
-                        i18n.t('high_frame_rate_desc'),
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      trailing: _SquareSwitch(
-                        value: settings.isHighFrameRateEnabled,
-                        onChanged: (value) => ref
-                            .read(settingsProvider.notifier)
-                            .setHighFrameRateEnabled(value),
-                      ),
-                    ),
-                  // 语音记录说明 (仅对通过认证的 Pro 用户开放)
+                  // 语言记录说明 (仅对通过认证的 Pro 用户开放)
                   if (ref.watch(authProvider).isPro)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -683,24 +666,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: Theme.of(context).colorScheme.primary,
         letterSpacing: 0.5,
       );
-
-  Widget _buildSectionSubHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context)
-              .colorScheme
-              .onSurfaceVariant
-              .withValues(alpha: 0.7),
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
 
   Widget _buildAboutTile(
     BuildContext context, {

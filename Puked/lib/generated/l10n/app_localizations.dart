@@ -2311,6 +2311,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Selecting fastest mirror...'**
   String get selecting_best_mirror;
+
+  /// No description provided for @ai_commentary_card_title.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Commentary & Puked Score'**
+  String get ai_commentary_card_title;
+
+  /// No description provided for @ai_verdict_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Verdicting…'**
+  String get ai_verdict_pending;
+
+  /// No description provided for @ai_generating.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is composing commentary…'**
+  String get ai_generating;
+
+  /// No description provided for @ai_no_commentary.
+  ///
+  /// In en, this message translates to:
+  /// **'No AI commentary yet — tap below to generate one'**
+  String get ai_no_commentary;
+
+  /// No description provided for @ai_generate_btn.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate AI Commentary'**
+  String get ai_generate_btn;
+
+  /// No description provided for @ai_regenerate_tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get ai_regenerate_tooltip;
+
+  /// No description provided for @ai_generated_at.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated at {time}'**
+  String ai_generated_at(String time);
 }
 
 class _AppLocalizationsDelegate

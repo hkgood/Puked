@@ -42,12 +42,35 @@ class SyncService {
     // 为了简化，这里假设我们已经有了原始数据 JSON 字符串
     // (实际逻辑中可能需要调用 ExportService 生成 JSON)
 
-    // 4. 在 PocketBase 创建记录
+    // 4. 查询品牌和版本名称
+    String brandName = 'Others';
+    String versionName = 'Others';
+
+    if (trip.brand_ref != null && trip.brand_ref!.isNotEmpty) {
+      final brand = await _storage.getBrandByCloudId(trip.brand_ref!);
+      if (brand != null) {
+        brandName = brand.name;
+      }
+    }
+
+    if (trip.software_version_ref != null &&
+        trip.software_version_ref!.isNotEmpty) {
+      final version =
+          await _storage.getVersionByCloudId(trip.software_version_ref!);
+      if (version != null) {
+        versionName = version.versionString;
+      }
+    }
+
+    // 5. 在 PocketBase 创建记录
     final body = <String, dynamic>{
       'user': _pbService.currentUserId,
-      'brand': trip.brand,
+      // ✅ 同时写入名称（用于显示）和 _ref（用于关联）
+      'brand': brandName,
+      'brand_ref': trip.brand_ref ?? '',
       'car_model': trip.carModel,
-      'software_version': trip.softwareVersion,
+      'software_version': versionName,
+      'software_version_ref': trip.software_version_ref ?? '',
       'is_public': false, // 默认不公开
       'metrics': metrics,
       'route_summary': routeSummary,
@@ -56,7 +79,7 @@ class SyncService {
 
     final record = await _pbService.pb.collection('trips').create(body: body);
 
-    // 5. 更新本地记录的 cloudId
+    // 6. 更新本地记录的 cloudId
     await _storage.updateTripCloudId(trip.id, record.id);
 
     return record.id;

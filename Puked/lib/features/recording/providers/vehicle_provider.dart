@@ -100,3 +100,10 @@ final presetVersionsProvider =
   final storage = ref.read(storageServiceProvider);
   return await storage.getVersionsForBrandName(brandName);
 });
+
+/// 根据品牌 cloudId 获取预设版本的 FutureProvider（推荐使用，更准确）
+final presetVersionsByRefProvider =
+    FutureProvider.family<List<SoftwareVersion>, String>((ref, brandRef) async {
+  final storage = ref.read(storageServiceProvider);
+  return await storage.getVersionsForBrandRef(brandRef);
+});

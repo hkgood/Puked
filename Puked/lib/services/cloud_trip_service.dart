@@ -7,16 +7,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:puked/models/db_models.dart';
 import 'package:puked/services/pocketbase_service.dart';
+import 'package:puked/services/storage/storage_service.dart';
 
 final cloudTripServiceProvider = Provider((ref) {
   final pbService = ref.watch(pbServiceProvider);
-  return CloudTripService(pbService);
+  final storage = ref.watch(storageServiceProvider);
+  return CloudTripService(pbService, storage);
 });
 
 class CloudTripService {
   final PocketBaseService _pbService;
+  final StorageService _storage;
 
-  CloudTripService(this._pbService);
+  CloudTripService(this._pbService, this._storage);
 
   /// 上传行程到 PocketBase
   /// 返回上传后的 Record ID 和 metrics
@@ -141,13 +144,34 @@ class CloudTripService {
 
     // 5. 上传到 PocketBase 'trips' 集合
     try {
+      // ✅ 从本地数据库查询品牌和版本的名称（用于显示）
+      String brandName = 'Others';
+      String versionName = 'Others';
+
+      if (trip.brand_ref != null && trip.brand_ref!.isNotEmpty) {
+        final brand = await _storage.getBrandByCloudId(trip.brand_ref!);
+        if (brand != null) {
+          brandName = brand.name;
+        }
+      }
+
+      if (trip.software_version_ref != null &&
+          trip.software_version_ref!.isNotEmpty) {
+        final version =
+            await _storage.getVersionByCloudId(trip.software_version_ref!);
+        if (version != null) {
+          versionName = version.versionString;
+        }
+      }
+
       final record = await _pbService.pb.collection('trips').create(
         body: {
           'user': userId,
-          'brand': trip.brand ?? 'Others',
+          // ✅ 同时写入名称（用于显示）和 _ref（用于关联）
+          'brand': brandName,
           'brand_ref': trip.brand_ref ?? '',
           'car_model': trip.carModel ?? 'Others',
-          'software_version': trip.softwareVersion ?? 'Others',
+          'software_version': versionName,
           'software_version_ref': trip.software_version_ref ?? '',
           'is_public': isPublic,
           'metrics': metrics,
@@ -264,7 +288,9 @@ class CloudTripService {
 
             final distanceKm =
                 double.tryParse(metrics['distance_km']?.toString() ?? '0') ?? 0;
-            final eventCount = metrics['event_count'] as int? ?? 0;
+            // PocketBase JSON 有时返回 double（如 5.0），直接 as int? 会 TypeError
+            final eventCount =
+                (metrics['event_count'] as num?)?.toInt() ?? 0;
 
             final String metricsJson = jsonEncode(metrics);
 
@@ -288,12 +314,13 @@ class CloudTripService {
               ..uuid = uuid
               ..cloudId = record.id
               ..startTime = startTime
-              ..brand = record.getStringValue('brand')
+              // 🔄 数据库迁移：优先读取 _ref 字段
               ..brand_ref = record.getStringValue('brand_ref')
+              ..brand = record.getStringValue('brand')
               ..carModel = record.getStringValue('car_model')
-              ..softwareVersion = record.getStringValue('software_version')
               ..software_version_ref =
                   record.getStringValue('software_version_ref')
+              ..softwareVersion = record.getStringValue('software_version')
               ..distance = distanceKm * 1000
               ..eventCount = eventCount
               ..isUploaded = true
@@ -340,11 +367,18 @@ class CloudTripService {
   }
 
   /// 下载行程的原始日志文件并解析
+  /// 私有文件需使用 pb.files.getToken() 的 file token 作为 URL query 参数，不能仅靠 Authorization header
   Future<Map<String, dynamic>?> downloadTripData(
       String recordId, String fileName) async {
     if (!_pbService.isAuthenticated) return null;
+    if (fileName.isEmpty) {
+      debugPrint('[PukedSync] downloadTripData: fileName is empty for record $recordId');
+      return null;
+    }
 
     try {
+      // 获取短期文件访问 token（PocketBase 私有文件要求 token 作为 URL 参数，而非 Authorization header）
+      final String? fileToken = await _pbService.pb.files.getToken();
       final url = _pbService.pb.files.getUrl(
         RecordModel({
           'id': recordId,
@@ -352,41 +386,39 @@ class CloudTripService {
           'collectionName': 'trips'
         }),
         fileName,
+        token: fileToken,
       );
 
-      // 关键修复：PocketBase 文件访问如果不是 Public，必须在 Header 中带上 Token
-      // 并且在 PocketBase 中，Token 通常不需要 Bearer 前缀，但为了保险我们做个判定
-      final String token = _pbService.pb.authStore.token;
       debugPrint('[PukedSync] Starting download from URL: $url');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': token,
-        },
-      ).timeout(const Duration(seconds: 60));
+      final response = await http.get(url).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
         debugPrint('[PukedSync] Download success. Size: ${bytes.length} bytes');
 
         Map<String, dynamic> data;
-        // 优化：针对小文件 (< 100KB) 直接在主线程解析，避免 compute (Isolate) 的启动和通信开销
-        if (bytes.length < 100 * 1024) {
+        try {
+          // 约 1MB 以下在主线程解析，避免 isolate 启动/序列化开销导致卡顿或超时（常见云端行程 < 1MB）
+          const threshold = 1024 * 1024;
+          if (bytes.length < threshold) {
+            debugPrint(
+                '[PukedSync] Parsing JSON on main thread (${bytes.length} bytes)...');
+            data = _parseJson(bytes);
+          } else {
+            debugPrint(
+                '[PukedSync] Parsing JSON in isolate (${bytes.length} bytes)...');
+            data = await compute(_parseJson, bytes);
+          }
           debugPrint(
-              '[PukedSync] Small file detected, parsing on main thread...');
-          data = _parseJson(bytes);
-        } else {
+              '[PukedSync] JSON parse complete. Root keys: ${data.keys.toList()}');
+          return data;
+        } catch (parseError, parseStack) {
           debugPrint(
-              '[PukedSync] Large file detected, starting JSON parse (compute)...');
-          data = await compute(_parseJson, bytes);
+              '[PukedSync] JSON parse failed after download: $parseError');
+          debugPrint('[PukedSync] Parse stack: $parseStack');
+          return null;
         }
-
-        debugPrint('[PukedSync] JSON parse returned ${data.length} keys');
-
-        debugPrint(
-            '[PukedSync] JSON parse complete. Root keys: ${data.keys.toList()}');
-        return data;
       } else {
         debugPrint(
             '[PukedSync] Download failed. HTTP Status: ${response.statusCode}');
@@ -430,7 +462,7 @@ class CloudTripService {
                   'speed_dist,event_breakdown,scenario,brand,software_version,user,'
                   'expand.brand.id,expand.brand.name,expand.brand.logo,'
                   'expand.software_version.id,expand.software_version.versionString,'
-                  'expand.user.id,expand.user.name,expand.user.username,expand.user.avatar',
+                  'expand.user.id,expand.user.collectionId,expand.user.name,expand.user.username,expand.user.avatar',
             ),
         _pbService.pb.collection('trip_stats_summary').getFullList(
               filter: 'period_type="weekly"',
@@ -442,7 +474,7 @@ class CloudTripService {
                   'brand,software_version,user,'
                   'expand.brand.id,expand.brand.name,expand.brand.logo,'
                   'expand.software_version.id,expand.software_version.versionString,'
-                  'expand.user.id,expand.user.name,expand.user.username,expand.user.avatar',
+                  'expand.user.id,expand.user.collectionId,expand.user.name,expand.user.username,expand.user.avatar',
             ),
       ]);
 
@@ -564,11 +596,12 @@ class CloudTripService {
         // 重构一个用于展示的 Trip 对象
         final trip = Trip()
           ..uuid = r.getStringValue('local_uuid')
-          ..brand = r.getStringValue('brand')
+          // 🔄 数据库迁移：优先读取 _ref 字段
           ..brand_ref = r.getStringValue('brand_ref')
+          ..brand = r.getStringValue('brand')
           ..carModel = r.getStringValue('car_model')
-          ..softwareVersion = r.getStringValue('software_version')
           ..software_version_ref = r.getStringValue('software_version_ref')
+          ..softwareVersion = r.getStringValue('software_version')
           ..distance = distanceKm * 1000 // 转回米
           ..eventCount = eventCount
           ..startTime = DateTime.parse(r.get<String>('created'))
@@ -647,14 +680,43 @@ class CloudTripService {
     return breakdown;
   }
 
+  /// 对轨迹点做等时间间隔抽稀，用于上传前压缩数据量。
+  /// [points] 必须已按 timestamp 升序排列。
+  /// [targetFps] 目标帧率，默认 6fps（约 167ms 间隔）。
+  List<TrajectoryPoint> _decimateTrajectory(
+    List<TrajectoryPoint> points, {
+    int targetFps = 6,
+  }) {
+    if (points.length <= 2) return points;
+
+    final intervalMs = (1000 / targetFps).round(); // 6fps → 167ms
+    final result = <TrajectoryPoint>[points.first];
+    var lastKeptTime = points.first.timestamp;
+
+    for (int i = 1; i < points.length - 1; i++) {
+      final diff =
+          points[i].timestamp.difference(lastKeptTime).inMilliseconds;
+      if (diff >= intervalMs) {
+        result.add(points[i]);
+        lastKeptTime = points[i].timestamp;
+      }
+    }
+
+    result.add(points.last); // 强制保留最后一个点
+    return result;
+  }
+
   /// 构建导出的 Map 数据 (逻辑来源于 ExportService)
   Map<String, dynamic> _buildTripExportData(Trip trip) {
     // 🔧 关键修复：按时间戳排序轨迹点（与 ExportService 保持一致）
     final sortedTrajectory = trip.trajectory.toList()
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
+    // 上传前抽稀至 6fps，减小 JSON 体积
+    final uploadTrajectory = _decimateTrajectory(sortedTrajectory, targetFps: 6);
+
     debugPrint(
-        "DEBUG: [CloudTripService] Sorted ${sortedTrajectory.length} trajectory points");
+        "DEBUG: [CloudTripService] Original: ${sortedTrajectory.length} pts → Upload: ${uploadTrajectory.length} pts (6fps)");
 
     return {
       "version": "1.0.0",
@@ -668,14 +730,31 @@ class CloudTripService {
         "algorithm": trip.algorithm ?? "Unknown",
         "notes": trip.notes ?? "",
         "event_count": trip.eventCount,
+        "trajectory_meta": {
+          "original_count": sortedTrajectory.length,
+          "upload_fps": 6,
+          "platform": trip.platform ?? "unknown",
+        },
       },
-      "trajectory": sortedTrajectory
+      "trajectory": uploadTrajectory
           .map((p) => {
                 "ts": p.timestamp.millisecondsSinceEpoch / 1000.0,
                 "lat": p.lat,
                 "lng": p.lng,
                 "speed": p.speed,
                 "low_conf": p.isLowConfidence ?? false,
+                if (p.ax != null)
+                  "ax": double.parse(p.ax!.toStringAsFixed(3)),
+                if (p.ay != null)
+                  "ay": double.parse(p.ay!.toStringAsFixed(3)),
+                if (p.az != null)
+                  "az": double.parse(p.az!.toStringAsFixed(3)),
+                if (p.gx != null)
+                  "gx": double.parse(p.gx!.toStringAsFixed(3)),
+                if (p.gy != null)
+                  "gy": double.parse(p.gy!.toStringAsFixed(3)),
+                if (p.gz != null)
+                  "gz": double.parse(p.gz!.toStringAsFixed(3)),
               })
           .toList(),
       "events": trip.events

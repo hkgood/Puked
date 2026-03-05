@@ -62,14 +62,8 @@ class SensorEngine {
   /// 仅在「已开始行程」时为 true，由 RecordingProvider 在 start/stopRecording 时设置
   bool _isRecording = false;
 
-  /// 连续自动校准失败次数，用于失败后退避
-  int _consecutiveAutoCalibrationFailures = 0;
-
-  /// 基础冷却时间（秒）
+  /// 成功校准后的冷却时间（秒），防止在长红灯等待时反复重校准
   static const int _autoCalibrationCooldownSeconds = 15;
-
-  /// 连续失败 2 次后的退避冷却时间（秒），彻底避免持续重试
-  static const int _autoCalibrationBackoffSeconds = 60;
 
   StreamSubscription? _accelSub;
   StreamSubscription? _gyroSub;
@@ -83,9 +77,6 @@ class SensorEngine {
   /// 由 RecordingProvider 在开始/停止行程时调用，仅行程中才允许自动校准
   void setRecording(bool recording) {
     _isRecording = recording;
-    if (!recording) {
-      _consecutiveAutoCalibrationFailures = 0;
-    }
   }
 
   /// 由 RecordingProvider 传入「仅用于静止判断」的速度 (m/s)。
@@ -105,14 +96,10 @@ class SensorEngine {
     if (_isRunning) return;
     _isRunning = true;
 
-    // 根据平台选择采样间隔
-    final sensorInterval = Platform.isIOS
-        ? SensorInterval.uiInterval
-        : SensorInterval.gameInterval;
-
-    // 监听原始传感器流
+    // 监听原始传感器流：直接使用 samplingPeriod（iOS=16ms/60Hz，Android=33ms/30Hz）
+    // SensorInterval.uiInterval 实际为 66.7ms(15Hz)，不能用于 60Hz 场景
     _accelSub =
-        accelerometerEventStream(samplingPeriod: sensorInterval).listen((e) {
+        accelerometerEventStream(samplingPeriod: samplingPeriod).listen((e) {
       final now = DateTime.now();
       _latestAccel.setValues(e.x, e.y, e.z);
       _lastSensorEventTime = now;
@@ -121,9 +108,9 @@ class SensorEngine {
       if (Platform.isIOS) _processTick(now);
     });
 
-    _gyroSub = gyroscopeEventStream(samplingPeriod: sensorInterval)
+    _gyroSub = gyroscopeEventStream(samplingPeriod: samplingPeriod)
         .listen((e) => _latestGyro.setValues(e.x, e.y, e.z));
-    _magSub = magnetometerEventStream(samplingPeriod: sensorInterval)
+    _magSub = magnetometerEventStream(samplingPeriod: samplingPeriod)
         .listen((e) => _latestMag.setValues(e.x, e.y, e.z));
 
     // Android 依然使用定时器，因为 Android 定位服务需要稳定的心跳
@@ -282,7 +269,7 @@ class SensorEngine {
     _stationaryStartTime ??= now;
     final stationaryDuration = now.difference(_stationaryStartTime!);
 
-    return stationaryDuration.inSeconds >= 1; // 连续静止1秒
+    return stationaryDuration.inSeconds >= 1; // 连续静止至少1秒（触发阈值由调用方判断）
   }
 
   /// ✅ 检查静止状态并触发自动校准
@@ -301,17 +288,15 @@ class SensorEngine {
     // 检查是否已经在进行自动校准
     if (_autoCalibrationInProgress) return;
 
-    // 检查静止时长是否达到3秒
+    // 检查静止时长是否达到2秒
     final stationaryDuration = now.difference(_stationaryStartTime!);
-    if (stationaryDuration.inSeconds < 3) return;
+    if (stationaryDuration.inSeconds < 2) return;
 
-    // 冷却：只要发生过失败就用长冷却（60s），成功后才用基础冷却（15s），彻底避免失败后持续重试
-    final cooldownSec = _consecutiveAutoCalibrationFailures >= 1
-        ? _autoCalibrationBackoffSeconds
-        : _autoCalibrationCooldownSeconds;
+    // 冷却：仅在上次校准【成功】后生效（15s），防止长红灯反复重校准
+    // 失败（车辆中途行驶）不设冷却，下次静止2秒即可重试
     if (_lastAutoCalibrationTime != null) {
       final timeSinceLastCalib = now.difference(_lastAutoCalibrationTime!);
-      if (timeSinceLastCalib.inSeconds < cooldownSec) {
+      if (timeSinceLastCalib.inSeconds < _autoCalibrationCooldownSeconds) {
         return;
       }
     }
@@ -333,14 +318,13 @@ class SensorEngine {
   Future<void> _performAutoCalibration(double currentSpeedMs) async {
     try {
       await calibrate(currentSpeedMs: currentSpeedMs);
+      // 成功：记录时间，触发15秒冷却
       _lastAutoCalibrationTime = DateTime.now();
-      _consecutiveAutoCalibrationFailures = 0;
       debugPrint('✅ [Auto-Calibration] Successfully recalibrated!');
     } catch (e) {
-      debugPrint('⚠️ [Auto-Calibration] Rejected: $e');
-      _lastAutoCalibrationTime = DateTime.now();
-      _consecutiveAutoCalibrationFailures++;
-      // 连续失败时由调用方用长冷却（60s）限制，此处不再额外逻辑
+      // 失败（车辆中途移动 / 传感器抖动）：不记录时间，不设冷却
+      // 下次满足连续静止2秒的条件即可立即重试
+      debugPrint('⚠️ [Auto-Calibration] Interrupted/Rejected: $e');
     }
   }
 

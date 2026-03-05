@@ -13,47 +13,72 @@ struct WaveformChartView: View {
     var body: some View {
         Canvas(
             renderer: { context, size in
-                guard let interpolator = interpolator, trip != nil else { return }
+                guard let interpolator = interpolator, let trip = trip else { return }
                 
-                // 🎯 计算整个行程的最大G值（绝对值），向上取整，构建对称范围
-                let globalRange = interpolator.calculateGForceRange()
+                let globalRange = interpolator.gForceRange
                 let maxAbsG = max(abs(globalRange.min), abs(globalRange.max))
-                let ceiledMaxG = ceil(maxAbsG) // 向上取整
-                
-                // 以 0 为中心，对称范围
+                let ceiledMaxG = ceil(maxAbsG)
                 let minG = -ceiledMaxG
                 let maxG = ceiledMaxG
                 
                 let headX = size.width * 0.8
                 let pixelsPerSecond = size.width / CGFloat(windowSize)
-                
-                // 30Hz 高精绘图步长
-                let stepSeconds = interpolator.mode == .highFreq ? 0.033 : 0.1
-                let pointsCount = Int(windowSize / stepSeconds)
+                let windowStart = currentTime - windowSize
                 
                 var pointsX: [CGPoint] = []
                 var pointsY: [CGPoint] = []
                 
-                for i in 0...pointsCount {
-                    let ts = currentTime - Double(i) * stepSeconds
-                    let x = headX - CGFloat(currentTime - ts) * pixelsPerSecond
+                // 领头点：在精确的 currentTime 插值，保持平滑的实时光标
+                if let headState = interpolator.state(at: currentTime) {
+                    pointsX.append(CGPoint(x: headX, y: mapGValue(headState.gForceLongitudinal, size: size, minG: minG, maxG: maxG)))
+                    pointsY.append(CGPoint(x: headX, y: mapGValue(headState.gForceLateral, size: size, minG: minG, maxG: maxG)))
+                }
+                
+                // 历史点：直接使用原始数据的固定时间戳取值，Y 值与 currentTime 完全解耦。
+                // X 坐标随 currentTime 连续滑动（60fps），曲线形状由稳定的数据点决定。
+                // 用二分搜索定位窗口起始，避免全量遍历。
+                let traj = trip.trajectory
+                var lo = 0; var hi = traj.count - 1
+                while lo < hi {
+                    let mid = (lo + hi) / 2
+                    if traj[mid].ts < windowStart { lo = mid + 1 } else { hi = mid }
+                }
+                let startIdx = lo
+                
+                // 从最新到最旧遍历窗口内的数据点
+                var idx = traj.count - 1
+                while idx >= startIdx {
+                    let point = traj[idx]
+                    guard point.ts < currentTime else { idx -= 1; continue }
+                    
+                    let x = headX - CGFloat(currentTime - point.ts) * pixelsPerSecond
                     if x < -20 { break }
                     
-                    if let state = interpolator.state(at: ts) {
-                        pointsX.append(CGPoint(x: x, y: mapGValue(state.gForceLongitudinal, size: size, minG: minG, maxG: maxG)))
-                        pointsY.append(CGPoint(x: x, y: mapGValue(state.gForceLateral, size: size, minG: minG, maxG: maxG)))
+                    // 优先使用点内嵌的 IMU 值（上传 JSON 中携带），否则回退到插值
+                    let gLong: Double
+                    let gLat: Double
+                    if let ax = point.ax, let ay = point.ay {
+                        gLong = ax
+                        gLat = ay
+                    } else if let state = interpolator.state(at: point.ts) {
+                        gLong = state.gForceLongitudinal
+                        gLat = state.gForceLateral
+                    } else {
+                        idx -= 1; continue
                     }
+                    
+                    pointsX.append(CGPoint(x: x, y: mapGValue(gLong, size: size, minG: minG, maxG: maxG)))
+                    pointsY.append(CGPoint(x: x, y: mapGValue(gLat, size: size, minG: minG, maxG: maxG)))
+                    idx -= 1
                 }
                 
                 drawScales(context: context, size: size, minG: minG, maxG: maxG)
                 drawAreaGradient(context: context, points: pointsX, size: size, color: Color(red: 0.2, green: 0.9, blue: 0.4).opacity(0.1), minG: minG, maxG: maxG)
                 
-                // 采用三阶平滑绘制
                 context.stroke(createCubicPath(from: pointsY), with: .color(Color(red: 1.0, green: 0.3, blue: 0.3).opacity(0.3)), lineWidth: 2.5)
                 
                 context.addFilter(.shadow(color: .green.opacity(0.4), radius: 6, x: 0, y: 0))
                 context.stroke(createCubicPath(from: pointsX), with: .color(Color(red: 0.2, green: 0.9, blue: 0.4)), lineWidth: 2.2)
-                
                 context.addFilter(.shadow(color: .clear, radius: 0))
                 
                 if showEvents {
@@ -82,25 +107,17 @@ struct WaveformChartView: View {
         .frame(height: 200)
     }
     
-    // --- 核心：Catmull-Rom 三次样条路径生成器 ---
+    // Catmull-Rom 三次样条路径生成器
     private func createCubicPath(from points: [CGPoint]) -> Path {
         var path = Path()
         guard points.count > 1 else { return path }
-        
         path.move(to: points[0])
-        
         for i in 0..<points.count - 1 {
-            let p1 = points[i]
-            let p2 = points[i+1]
-            
-            // 计算辅助点以模拟三阶连续
+            let p1 = points[i]; let p2 = points[i+1]
             let p0 = i > 0 ? points[i-1] : p1
             let p3 = i < points.count - 2 ? points[i+2] : p2
-            
-            // Catmull-Rom to Bezier 转换公式 (已修正 X/Y 混淆)
             let cp1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
             let cp2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
-            
             path.addCurve(to: p2, control1: cp1, control2: cp2)
         }
         return path

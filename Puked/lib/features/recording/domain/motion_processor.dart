@@ -99,8 +99,8 @@ class MotionProcessor {
     // 执行各项检测逻辑
     _detectRapidAccelDecel(
         now, factor, suppression.y, turnComp, currentPosition, currentSpeedMs);
-    _detectJerk(
-        now, factor, suppression.x, turnComp, currentPosition, currentSpeedMs);
+    _detectJerk(now, factor, suppression.x, turnComp, currentPosition,
+        currentSpeedMs, data.processedAccel.z);
     _detectWobble(now, currentSpeedKmh, factor, suppression.y, currentPosition,
         currentSpeedMs);
     _detectBump(now, data.processedAccel.z, currentPosition, currentSpeedMs);
@@ -213,7 +213,8 @@ class MotionProcessor {
 
     final decelThreshold =
         config.thresholdDecel * factor * suppressionY * turnComp;
-    final accelThreshold = config.thresholdAccel * factor * suppressionY;
+    final accelThreshold =
+        config.thresholdAccel * factor * suppressionY * turnComp;
 
     int decelCount = window.where((e) => e.value < decelThreshold).length;
     int accelCount = window.where((e) => e.value > accelThreshold).length;
@@ -247,8 +248,15 @@ class MotionProcessor {
   }
 
   void _detectJerk(DateTime now, double factor, double suppressionX,
-      double turnComp, Position? pos, double speed) {
+      double turnComp, Position? pos, double speed, double currentAz) {
     if (_isDebounced('jerk', now)) return;
+
+    // 🔥 Z轴过滤：如果垂直加速度显著（>2.0 m/s²），很可能是减速带/颠簸，不触发jerk
+    if (currentAz.abs() > 2.0) {
+      debugPrint(
+          '⚠️ [Jerk Filter] Z轴冲击显著 (${currentAz.toStringAsFixed(2)} m/s²), 疑似减速带/颠簸');
+      return;
+    }
 
     final window = _yHistory
         .where(

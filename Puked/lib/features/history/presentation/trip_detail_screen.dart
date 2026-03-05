@@ -15,6 +15,8 @@ import 'package:puked/features/recording/presentation/vehicle_info_screen.dart';
 import 'package:puked/services/export/export_service.dart';
 import 'package:puked/services/storage/storage_service.dart';
 import 'package:puked/services/cloud_trip_service.dart';
+import 'package:puked/services/ai_commentary_service.dart';
+import 'package:puked/services/trip_score_calculator.dart';
 import 'package:puked/features/auth/providers/auth_provider.dart';
 import 'package:puked/features/recording/providers/vehicle_provider.dart';
 import 'package:screenshot/screenshot.dart';
@@ -351,9 +353,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final trajectory = trip.trajectory.toList();
     final events = trip.events.toList();
 
-    // Core logic: Check if this is a cloud placeholder without downloaded details
-    final isPlaceholder = trip.isLocalMissing;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -617,6 +616,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // 1.5. AI 舒适度点评卡片
+                  _AiCommentaryCard(trip: _currentTrip),
                   const SizedBox(height: 16),
 
                   // 2. Data Overview and Charts (combined in one card)
@@ -1075,6 +1078,339 @@ class _StatItem extends StatelessWidget {
             )),
       ],
     );
+  }
+}
+
+// ─── AI 舒适度点评卡片 ──────────────────────────────────────────────────────
+class _AiCommentaryCard extends ConsumerStatefulWidget {
+  final Trip trip;
+  const _AiCommentaryCard({required this.trip});
+
+  @override
+  ConsumerState<_AiCommentaryCard> createState() => _AiCommentaryCardState();
+}
+
+class _AiCommentaryCardState extends ConsumerState<_AiCommentaryCard> {
+  bool _isLoading = false;
+  String? _commentary; // 展示用：纯文本 commentary（已从 AiContent 解析）
+  String? _aiLabel;   // AI 生成的吐感裁决（有则覆盖静态 label）
+  late TripScore _score;
+  String _lastLangCode = 'zh'; // 当前展示内容所属的语言
+
+  // ── 用本地标志位追踪「MAD 分量是否已纳入评分」──────────────
+  // 不能靠比较 widget.trip 与 oldWidget.trip 的 trajectory.isLoaded，
+  // 因为两者指向同一个 Isar 对象，加载前后该属性在两侧看到的值相同。
+  bool _scoreIncludesSmoothing = false;
+
+  /// 展示用 label：AI 生成的优先，加载中时为 null（由 UI 显示占位）
+  String? get _displayLabel =>
+      (_aiLabel != null && _aiLabel!.isNotEmpty) ? _aiLabel : null;
+
+  String _langCode(String languageCode) =>
+      languageCode == 'en' ? 'en' : 'zh';
+
+  @override
+  void initState() {
+    super.initState();
+    _scoreIncludesSmoothing = widget.trip.trajectory.isLoaded;
+    final locale = ref.read(i18nProvider).locale;
+    _lastLangCode = _langCode(locale.languageCode);
+    _score = TripScoreCalculator.calculate(
+      widget.trip,
+      language: scoreLabelLanguageFromLocale(locale),
+    );
+    _loadCachedContent(_lastLangCode);
+    if (_commentary == null || _commentary!.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+    }
+  }
+
+  /// 从缓存加载指定语言的内容到 UI 状态
+  void _loadCachedContent(String langCode) {
+    final cached = AiCommentaryService.fromTrip(widget.trip, langCode: langCode);
+    _commentary = cached?.commentary?.isNotEmpty == true
+        ? cached!.commentary
+        : null;
+    _aiLabel = cached?.label?.isNotEmpty == true ? cached!.label : null;
+  }
+
+  @override
+  void didUpdateWidget(_AiCommentaryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final tripChanged = widget.trip.id != oldWidget.trip.id;
+    // 轨迹刚加载完：之前评分未含 MAD，现在轨迹已可用 → 重算含平滑度的完整分
+    final smoothingNowAvailable =
+        !_scoreIncludesSmoothing && widget.trip.trajectory.isLoaded;
+
+    if (tripChanged || smoothingNowAvailable) {
+      setState(() {
+        _scoreIncludesSmoothing = widget.trip.trajectory.isLoaded;
+        _score = TripScoreCalculator.calculate(
+          widget.trip,
+          language: scoreLabelLanguageFromLocale(ref.read(i18nProvider).locale),
+        );
+        if (tripChanged) {
+          _lastLangCode = _langCode(ref.read(i18nProvider).locale.languageCode);
+          _loadCachedContent(_lastLangCode);
+        }
+      });
+      if (tripChanged && (_commentary == null || _commentary!.isEmpty)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+      }
+    }
+  }
+
+  Future<void> _generate({bool forceRefresh = false}) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      final service = ref.read(aiCommentaryServiceProvider);
+      final result = await service.generateCommentary(
+        widget.trip,
+        brandName: widget.trip.brand,
+        forceRefresh: forceRefresh,
+        tripScore: _score,
+      );
+      if (mounted) {
+        setState(() {
+          _commentary = result?.commentary;
+          _aiLabel = (result?.label.isNotEmpty == true) ? result!.label : null;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _commentary = null);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final i18n = ref.watch(i18nProvider);
+    final currentLangCode = _langCode(i18n.locale.languageCode);
+
+    // 检测语言切换：如果当前语言与上次渲染不同，切换展示内容
+    if (currentLangCode != _lastLangCode) {
+      _lastLangCode = currentLangCode;
+      // 先尝试读取该语言的缓存
+      final cached = AiCommentaryService.fromTrip(
+          widget.trip, langCode: currentLangCode);
+      if (cached != null && cached.commentary.isNotEmpty) {
+        // 有缓存：直接切换，无需网络
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _commentary = cached.commentary;
+              _aiLabel = cached.label.isNotEmpty ? cached.label : null;
+            });
+          }
+        });
+      } else {
+        // 无该语言缓存：清空并重新生成
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _commentary = null;
+              _aiLabel = null;
+            });
+            _generate();
+          }
+        });
+      }
+    }
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── 标题行 ──────────────────────────────────────
+            Row(
+              children: [
+                Text(
+                  i18n.t('ai_commentary_card_title'),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                if (!_isLoading)
+                  IconButton(
+                    tooltip: i18n.t('ai_regenerate_tooltip'),
+                    icon: Icon(Icons.refresh, size: 20, color: cs.primary),
+                    onPressed: () => _generate(forceRefresh: true),
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(32, 32),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── 评分区（永远显示，纯本地计算）────────────────
+            _buildScoreSection(cs, i18n),
+
+            const SizedBox(height: 16),
+
+            // ── 分割线 ────────────────────────────────────────
+            Divider(color: cs.outlineVariant.withValues(alpha: 0.5), height: 1),
+
+            const SizedBox(height: 14),
+
+            // ── AI 文字点评区 ─────────────────────────────────
+            if (_isLoading)
+              _buildLoadingState(cs, i18n)
+            else if (_commentary != null && _commentary!.isNotEmpty)
+              _buildCommentaryText(cs, i18n)
+            else
+              _buildEmptyState(cs, i18n),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── 评分区：大号分数 + 吐感裁决，水平居中 ──────────────────────
+  Widget _buildScoreSection(ColorScheme cs, dynamic i18n) {
+    final scoreColor = _score.color;
+
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            '${_score.score}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 76,
+              fontWeight: FontWeight.w800,
+              color: scoreColor,
+              height: 1.0,
+              letterSpacing: -3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_displayLabel != null)
+            Text(
+              '「$_displayLabel」',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: scoreColor.withValues(alpha: 0.82),
+                fontStyle: FontStyle.italic,
+              ),
+            )
+          else if (_isLoading)
+            Text(
+              i18n.t('ai_verdict_pending'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: scoreColor.withValues(alpha: 0.4),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── 加载中 ─────────────────────────────────────────────────
+  Widget _buildLoadingState(ColorScheme cs, dynamic i18n) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 15,
+          height: 15,
+          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          i18n.t('ai_generating'),
+          style: TextStyle(
+            fontSize: 13,
+            color: cs.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── 有内容 ────────────────────────────────────────────────
+  Widget _buildCommentaryText(ColorScheme cs, dynamic i18n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _commentary!,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.7,
+            color: cs.onSurface.withValues(alpha: 0.9),
+          ),
+        ),
+        if (widget.trip.aiCommentaryGeneratedAt != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(
+              i18n.t('ai_generated_at',
+                  args: [_formatDt(widget.trip.aiCommentaryGeneratedAt!)]),
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── 空态（未生成） ────────────────────────────────────────
+  Widget _buildEmptyState(ColorScheme cs, dynamic i18n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          i18n.t('ai_no_commentary'),
+          style: TextStyle(
+            fontSize: 13,
+            color: cs.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonal(
+          onPressed: () => _generate(forceRefresh: true),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(40),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.auto_awesome, size: 15),
+              const SizedBox(width: 6),
+              Text(i18n.t('ai_generate_btn')),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDt(DateTime dt) {
+    return '${dt.month}/${dt.day} '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
   }
 }
 

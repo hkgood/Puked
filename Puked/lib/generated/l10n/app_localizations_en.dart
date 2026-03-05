@@ -1212,4 +1212,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selecting_best_mirror => 'Selecting fastest mirror...';
+
+  @override
+  String get ai_commentary_card_title => 'AI Commentary & Puked Score';
+
+  @override
+  String get ai_verdict_pending => 'Verdicting…';
+
+  @override
+  String get ai_generating => 'AI is composing commentary…';
+
+  @override
+  String get ai_no_commentary =>
+      'No AI commentary yet — tap below to generate one';
+
+  @override
+  String get ai_generate_btn => 'Generate AI Commentary';
+
+  @override
+  String get ai_regenerate_tooltip => 'Regenerate';
+
+  @override
+  String ai_generated_at(String time) {
+    return 'Generated at $time';
+  }
 }

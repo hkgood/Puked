@@ -71,7 +71,7 @@ dev_dependencies:
   isar_generator: ^3.1.0+1
   json_serializable: ^6.7.1
   flutter_launcher_icons: ^0.13.1
-  flutter_native_splash: ^2.4.0
+  # flutter_native_splash: 移除运行时依赖，启动图已生成为静态资源，无需保留此包
 
 flutter:
   generate: true

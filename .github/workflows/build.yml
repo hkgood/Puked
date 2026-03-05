@@ -1,0 +1,172 @@
+name: Puked Fast CI & Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # 任务 1：快速检查（格式、分析、测试）
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Puked   # Flutter 项目在 Puked/ 子目录
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Fast Checks
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed .
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+
+  # 任务 2：APK 编译（与检查并行）
+  build-android:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: Puked   # Flutter 项目在 Puked/ 子目录
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Configure Keystore
+        env:
+          KEYSTORE_CONTENT: ${{ secrets.KEYSTORE_FILE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "Checking Secrets availability..."
+          if [ -z "$KEYSTORE_CONTENT" ]; then
+            echo "❌ ERROR: 'KEYSTORE_FILE' secret is empty!"
+            exit 1
+          fi
+
+          # 创建 key.properties（路径相对于 Puked/ 目录）
+          cat <<EOF > android/key.properties
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+
+          # 解码 Keystore
+          echo "$KEYSTORE_CONTENT" | base64 -d > android/app/upload-keystore.jks || \
+          echo "$KEYSTORE_CONTENT" | base64 --decode > android/app/upload-keystore.jks
+
+          echo "✅ Keystore configured successfully."
+
+      - name: Build APK
+        run: |
+          # 提取版本号，去除 v 前缀 (例如 v2.5.2 -> 2.5.2)
+          if [[ ${{ github.ref_name }} =~ ^v ]]; then
+            VERSION_NAME=$(echo ${{ github.ref_name }} | sed 's/^v//')
+          else
+            # 自动从 pubspec.yaml 获取版本号，避免硬编码
+            VERSION_NAME=$(grep 'version: ' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1)
+          fi
+
+          # 计算构建号：增加 2000 偏移量，确保永远高于本地编译版本
+          BUILD_NUMBER=$((2000 + ${{ github.run_number }}))
+          echo "Building version: $VERSION_NAME with build number: $BUILD_NUMBER"
+
+          flutter pub get
+          flutter build apk --release \
+            --build-name=$VERSION_NAME \
+            --build-number=$BUILD_NUMBER
+
+          # 重命名 APK 方便辨识
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/Puked-$VERSION_NAME.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Puked-APK
+          path: Puked/build/app/outputs/flutter-apk/Puked-*.apk
+
+      # 仅在推送以 v 开头的标签时才创建 GitHub Release
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Puked/build/app/outputs/flutter-apk/Puked-*.apk
+          name: Puked ${{ github.ref_name }}
+          body: |
+            ## v2.5.2 版本更新说明
+            1. 高帧率采集对全体用户开放（iOS 60Hz / Android 30Hz），行程 JSON 文件体积增大，请注意及时上传导出并删除已同步的本地行程
+            2. 行程详情新增驾驶评分与 AI 吐感点评（由通义千问生成），打开任意历史行程即可查看
+            3. 新增本地数据体积监控，超过 200MB 时设置页将显示警告提示
+            4. 修复行程数据同步与云端状态不一致的若干问题
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 同步到 Gitea（通过链接方式）
+      - name: Sync to Gitea Release
+        run: |
+          VERSION_NAME=${{ github.ref_name }}
+          if [[ ${{ github.ref }} == refs/tags/v* ]]; then
+            RELEASE_NAME="Puked $VERSION_NAME"
+          else
+            VERSION_NAME="latest-main"
+            RELEASE_NAME="Puked Main (Rolling Build)"
+          fi
+
+          GITHUB_APK_URL="https://github.com/hkgood/Puked/releases/download/$VERSION_NAME/Puked-${VERSION_NAME#v}.apk"
+          CN_PROXY_URL="https://ghproxy.cn/$GITHUB_APK_URL"
+
+          echo "Gitea Syncing... APK: $GITHUB_APK_URL"
+
+          RELEASE_BODY="### 🚀 自动构建版本\n\n#### 📥 下载地址\n\n- **[官方下载 (GitHub)]($GITHUB_APK_URL)**\n- **[⚡️ 国内加速下载]($CN_PROXY_URL)**\n\n---\n*Commit: ${{ github.sha }}*"
+
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+
+          RELEASE_JSON=$(curl -s -X 'POST' \
+            "https://gitea.com/api/v1/repos/hkgood/Puked/releases" \
+            -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"tag_name\": \"$VERSION_NAME\",
+              \"name\": \"$RELEASE_NAME\",
+              \"body\": \"$RELEASE_BODY\",
+              \"draft\": false,
+              \"prerelease\": false
+            }")
+
+          RELEASE_ID=$(echo $RELEASE_JSON | jq -r '.id')
+          if [ "$RELEASE_ID" == "null" ] || [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              "https://gitea.com/api/v1/repos/hkgood/Puked/releases" | \
+              jq -r ".[] | select(.tag_name==\"$VERSION_NAME\") | .id")
+
+            echo "Updating existing Gitea Release ID: $RELEASE_ID"
+            curl -s -X 'PATCH' \
+              "https://gitea.com/api/v1/repos/hkgood/Puked/releases/$RELEASE_ID" \
+              -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"body\": \"$RELEASE_BODY\"}"
+          fi

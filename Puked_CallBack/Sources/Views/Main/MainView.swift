@@ -1,6 +1,11 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// 行程 JSON 单文件体积上限（与 `readJson` 校验一致）
+private enum TripJSONImportLimits {
+    static let maxFileBytes = 200 * 1024 * 1024
+}
+
 /// JSON 导入错误类型
 enum ImportError: LocalizedError {
     case permissionDenied
@@ -15,7 +20,8 @@ enum ImportError: LocalizedError {
             return "无法访问文件，请确保已授予文件访问权限。"
         case .fileTooLarge(let size):
             let sizeMB = Double(size) / (1024 * 1024)
-            return "文件过大（\(String(format: "%.1f", sizeMB)) MB），最大支持 50 MB。\n\n建议导出较短的行程片段。"
+            let capMB = Double(TripJSONImportLimits.maxFileBytes) / (1024 * 1024)
+            return "文件过大（\(String(format: "%.1f", sizeMB)) MB），最大支持 \(Int(capMB)) MB。\n\n建议导出较短的行程片段。"
         case .emptyTrajectory:
             return "数据文件中没有轨迹点，无法导入。\n\n请确保文件包含完整的行程数据。"
         case .insufficientData:
@@ -459,8 +465,8 @@ struct MainView: View {
             // 读取文件数据（在后台线程）
             let data = try Data(contentsOf: url)
             
-            // 验证文件大小（最大 50MB）
-            let maxSize = 50 * 1024 * 1024
+            // 验证文件大小（上限见 TripJSONImportLimits）
+            let maxSize = TripJSONImportLimits.maxFileBytes
             guard data.count <= maxSize else {
                 throw ImportError.fileTooLarge(size: data.count)
             }

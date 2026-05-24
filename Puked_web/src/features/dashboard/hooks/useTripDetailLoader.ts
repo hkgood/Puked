@@ -17,6 +17,10 @@ export const useTripDetailLoader = (selectedTrip: any, autoLoad = false) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [supplementalEvents, setSupplementalEvents] = useState<SupplementalEvent[]>([]);
 
+  // 🔥 P1-1 修复：添加 AbortController + useRef 跟踪当前请求，避免竞态
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const currentTripIdRef = useRef<string | null>(null);
+
   const fetchFullData = useCallback(async () => {
     const dataFile = selectedTrip?.raw_log_file || selectedTrip?.data_file;
 
@@ -29,8 +33,16 @@ export const useTripDetailLoader = (selectedTrip: any, autoLoad = false) => {
       return;
     }
 
-    // 如果是同一个行程且已经加载，直接返回
+    // 🔥 如果是同一个行程且已经加载，直接返回
     if (loadedTripId === selectedTrip.id && fullTripData) return;
+
+    // 🔥 切换到新行程时，取消上一个请求（防止竞态）
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    currentTripIdRef.current = selectedTrip.id;
 
     // 切换到新行程时，清空旧的详情数据
     if (loadedTripId !== selectedTrip.id) {
@@ -50,7 +62,6 @@ export const useTripDetailLoader = (selectedTrip: any, autoLoad = false) => {
       setIsDataLoading(false);
     } else {
       setIsDataLoading(true);
-      // 清空旧数据防止混淆
       if (tripData) await tripCacheService.set(selectedTrip.id, "0", null);
       tripData = null;
     }
@@ -64,7 +75,7 @@ export const useTripDetailLoader = (selectedTrip: any, autoLoad = false) => {
         if (!fileUrl) throw new Error('File URL not found');
 
         const finalUrl = `${fileUrl}${fileUrl.includes('?') ? '&' : '?'}_nocache=${Math.random().toString(36).substring(7)}`;
-        const response = await fetch(finalUrl, { cache: 'no-store', mode: 'cors' });
+        const response = await fetch(finalUrl, { cache: 'no-store', mode: 'cors', signal: controller.signal });
 
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
@@ -78,6 +89,11 @@ export const useTripDetailLoader = (selectedTrip: any, autoLoad = false) => {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          // 🔥 每次 chunk 后检查是否已切换行程（竞态检测）
+          if (currentTripIdRef.current !== selectedTrip.id) {
+            reader.cancel();
+            return;
+          }
           chunks.push(value);
           loaded += value.length;
           if (total) setLoadingProgress(Math.round((loaded / total) * 100));
@@ -97,13 +113,15 @@ export const useTripDetailLoader = (selectedTrip: any, autoLoad = false) => {
         await tripCacheService.set(selectedTrip.id, selectedTrip.updated, tripData);
       }
 
+      // 🔥 再次检查是否已切换行程（JSON parse 后也要检查）
+      if (currentTripIdRef.current !== selectedTrip.id) return;
+
       if (tripData) {
         setFullTripData(tripData);
         setLoadedTripId(selectedTrip.id);
         setLoadingProgress(100);
         setIsDataLoading(false);
 
-        // 2. 扫描缺失事件
         const missing = await ScannerService.scanForMissingEvents(tripData);
         const existingEvents = getEvents(selectedTrip);
         const filteredMissing = missing.filter(m =>
@@ -112,6 +130,8 @@ export const useTripDetailLoader = (selectedTrip: any, autoLoad = false) => {
         setSupplementalEvents(filteredMissing);
       }
     } catch (err: any) {
+      // 忽略主动取消的错误
+      if (err.name === 'AbortError' || err.message === 'canceled') return;
       console.error('[useTripDetailLoader] Error:', err);
       setLoadError(err.message);
       setIsDataLoading(false);

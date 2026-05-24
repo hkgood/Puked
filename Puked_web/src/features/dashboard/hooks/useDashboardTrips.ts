@@ -24,9 +24,14 @@ export const useDashboardTrips = (
 
   /**
    * 核心函数：构建过滤条件
-   * 现在的策略：如果存在搜索词，先查用户 ID，再组合成不带 '.' 的扁平过滤语句，彻底规避 400 错误
+   * 策略：
+   * - 用户名搜索部分（需要查 users 表）由调用方预先拉取，传入 matchedUserIds
+   * - 这样 buildFilters 保持同步，避免 3 次并发调用时重复查 users 表
+   *
+   * @param extraCondition 额外条件
+   * @param matchedUserIds 预先查好的用户 ID 列表（来自用户名搜索）
    */
-  const buildFilters = useCallback(async (extraCondition?: string) => {
+  const buildFilters = useCallback((extraCondition?: string, matchedUserIds?: string[]) => {
     const params: any = {};
     const conditions: string[] = [];
 
@@ -67,27 +72,20 @@ export const useDashboardTrips = (
     if (tripSearchQuery && tripSearchQuery.trim()) {
       const q = tripSearchQuery.trim();
       params.q = q;
-      
+
       const searchParts = ['brand ~ {:q}', 'car_model ~ {:q}'];
 
-      try {
-        // 先查符合的用户名 ID，避免直接在 trips 过滤里穿透 user.name (这是 400 的根源)
-        const matchedUsers = await pb.collection('users').getFullList({
-          filter: pb.filter('name ~ {:q} || username ~ {:q}', { q }),
-          fields: 'id',
-          requestKey: null
+      // 如果调用方已经预先查好了用户 ID，直接用；否则跳过 users 表搜索
+      if (matchedUserIds && matchedUserIds.length > 0) {
+        const userConditions = matchedUserIds.map((uid, i) => {
+          const key = `u${i}`;
+          params[key] = uid;
+          return `user = {:${key}}`;
         });
-
-        if (matchedUsers.length > 0) {
-          const userConditions = matchedUsers.map((u, i) => {
-            const key = `u${i}`;
-            params[key] = u.id;
-            return `user = {:${key}}`;
-          });
-          searchParts.push(...userConditions);
-        }
-      } catch (e) {
-        console.warn('[Search] Failed to fetch matched users, fallback to text search only.');
+        searchParts.push(...userConditions);
+      } else {
+        // 没有预查用户时，只搜品牌和车型（避免 400）
+        console.warn('[buildFilters] 未传入 matchedUserIds，仅搜索品牌/车型');
       }
 
       conditions.push(`(${searchParts.join(' || ')})`);
@@ -97,16 +95,39 @@ export const useDashboardTrips = (
     return pb.filter(conditions.join(' && '), params);
   }, [isSuperAdmin, currentUser?.id, tripFilter, filterBrand, filterVersion, filterStartDate, filterEndDate, tripSearchQuery]);
 
+  /**
+   * 预搜索用户名（避免每次 buildFilters 重复查 users 表）
+   * @returns matchedUserIds 或 null（无搜索词或搜索失败）
+   */
+  const prefetchMatchedUserIds = useCallback(async (): Promise<string[] | null> => {
+    if (!tripSearchQuery || !tripSearchQuery.trim()) return null;
+
+    const q = tripSearchQuery.trim();
+    try {
+      const matchedUsers = await pb.collection('users').getFullList({
+        filter: pb.filter('name ~ {:q} || username ~ {:q}', { q }),
+        fields: 'id',
+        requestKey: null
+      });
+      return matchedUsers.map(u => u.id);
+    } catch (e) {
+      console.warn('[Search] Failed to fetch matched users, fallback to text search only.');
+      return null;
+    }
+  }, [tripSearchQuery]);
+
   const refreshTripStats = useCallback(async () => {
     try {
       const options = { expand: 'user', requestKey: null };
-      
-      // 这里的 buildFilters 现在是 async 了
-      const [allFilter, pubFilter, pendingFilter] = await Promise.all([
-        buildFilters(),
-        buildFilters('is_public = true'),
-        buildFilters('is_public = false')
-      ]);
+
+      // 关键优化：只查一次 users 表，避免 3× async buildFilters 导致的重复查询
+      const matchedUserIds = await prefetchMatchedUserIds();
+
+      const [allFilter, pubFilter, pendingFilter] = [
+        buildFilters(undefined, matchedUserIds),
+        buildFilters('is_public = true', matchedUserIds),
+        buildFilters('is_public = false', matchedUserIds),
+      ];
 
       const [all, pub, pending] = await Promise.all([
         pb.collection('trips').getList(1, 1, { ...options, filter: allFilter }),
@@ -117,7 +138,7 @@ export const useDashboardTrips = (
     } catch (e) {
       console.error('[refreshTripStats] Error:', e);
     }
-  }, [buildFilters]);
+  }, [buildFilters, prefetchMatchedUserIds]);
 
   const loadTrips = useCallback(async (page: number, isMore = false) => {
     if (activeTab !== 'trips') return;
@@ -126,7 +147,9 @@ export const useDashboardTrips = (
     else setLoading(true);
 
     try {
-      const filterStr = await buildFilters();
+      // 同样预查用户，避免 loadTrips 中 buildFilters 也产生重复查询
+      const matchedUserIds = await prefetchMatchedUserIds();
+      const filterStr = buildFilters(undefined, matchedUserIds);
       const [result] = await Promise.all([
         TripService.getTripsList(page, PER_PAGE, filterStr),
         refreshTripStats()
@@ -143,7 +166,7 @@ export const useDashboardTrips = (
       setLoading(false);
       setIsLoadingMore(false);
     }
-  }, [activeTab, buildFilters, refreshTripStats]);
+  }, [activeTab, buildFilters, prefetchMatchedUserIds, refreshTripStats]);
 
   useEffect(() => {
     setTrips([]);

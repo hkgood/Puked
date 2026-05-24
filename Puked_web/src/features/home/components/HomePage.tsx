@@ -129,18 +129,18 @@ const HomePage: React.FC<HomePageProps> = ({ onEnterArena, onLogin, onNavigateDa
   };
 
   /**
-   * 从 GitHub API 获取最新版本
+   * 从 GitHub API 获取最新版本（延迟到浏览器空闲时执行，避免阻塞首屏）
    * @param repo 仓库名称
    * @param cacheKey 缓存键名
    * @param setTag 设置状态的函数
    * @param removePrefix 是否移除版本前缀 'v'
    */
-  const fetchLatestRelease = async (
+  const fetchLatestRelease = (
     repo: string,
     cacheKey: string,
     setTag: (tag: string) => void,
     removePrefix: boolean = false
-  ): Promise<void> => {
+  ): void => {
     // 首先尝试从缓存读取（只读取未过期的）
     const cachedVersion = getCachedVersion(cacheKey, 30 * 60 * 1000, false);
     if (cachedVersion) {
@@ -161,67 +161,50 @@ const HomePage: React.FC<HomePageProps> = ({ onEnterArena, onLogin, onNavigateDa
       return;
     }
 
-    // 缓存未命中且未达速率限制，从 API 获取
-    try {
-      const response = await fetch(`https://api.github.com/repos/hkgood/${repo}/releases/latest`, {
-        // 添加缓存控制，避免浏览器缓存 403 响应
-        cache: 'no-cache',
-      });
-      
-      // 检查 API 速率限制
-      if (response.status === 403) {
-        // 检查速率限制的详细信息
-        const remaining = response.headers.get('X-RateLimit-Remaining');
-        const resetTime = response.headers.get('X-RateLimit-Reset');
-        
-        // 记录速率限制状态，避免后续无效请求
-        recordRateLimit(resetTime || undefined);
-        
-        // 尝试使用过期缓存作为降级方案
-        const staleVersion = getCachedVersion(cacheKey, 30 * 60 * 1000, true);
-        if (staleVersion) {
-          console.info(
-            `[HomePage] GitHub API 速率限制已达到，使用过期缓存版本 ${repo}: ${staleVersion}` +
-            (resetTime ? `，将在 ${new Date(parseInt(resetTime) * 1000).toLocaleTimeString()} 重置。` : '')
-          );
-          setTag(staleVersion);
-        } else {
-          console.info(
-            `[HomePage] GitHub API 速率限制已达到，无可用缓存，使用默认版本 ${repo}。`
-          );
-        }
-        return;
-      }
+    // 🔥 关键修复：使用 requestIdleCallback 延迟到浏览器空闲时执行，避免阻塞首屏
+    // 如果 requestIdleCallback 不可用（Safari < 15.4），fallback 到 setTimeout 0
+    const defer = typeof requestIdleCallback !== 'undefined'
+      ? (cb: () => void) => requestIdleCallback(cb, { timeout: 3000 })
+      : (cb: () => void) => setTimeout(cb, 0);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    defer(async () => {
+      // 缓存未命中且未达速率限制，从 API 获取
+      try {
+        const response = await fetch(`https://api.github.com/repos/hkgood/${repo}/releases/latest`, {
+          cache: 'no-cache',
+        });
 
-      const data = await response.json();
-      
-      if (data.tag_name) {
-        let version = data.tag_name;
-        
-        // 根据需要移除前缀 'v'
-        if (removePrefix && version.startsWith('v')) {
-          version = version.substring(1);
+        if (response.status === 403) {
+          const remaining = response.headers.get('X-RateLimit-Remaining');
+          const resetTime = response.headers.get('X-RateLimit-Reset');
+          recordRateLimit(resetTime || undefined);
+
+          const staleVersion = getCachedVersion(cacheKey, 30 * 60 * 1000, true);
+          if (staleVersion) {
+            console.info(
+              `[HomePage] GitHub API 速率限制已达到，使用过期缓存版本 ${repo}: ${staleVersion}`
+            );
+            setTag(staleVersion);
+          }
+          return;
         }
-        
-        // 更新状态并缓存
-        setTag(version);
-        setCachedVersion(cacheKey, version);
-        console.log(`[HomePage] 已获取并缓存版本 ${repo}: ${version}`);
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        const data = await response.json();
+        if (data.tag_name) {
+          let version = data.tag_name;
+          if (removePrefix && version.startsWith('v')) version = version.substring(1);
+          setTag(version);
+          setCachedVersion(cacheKey, version);
+          console.log(`[HomePage] 已获取并缓存版本 ${repo}: ${version}`);
+        }
+      } catch (error) {
+        if (error instanceof Error && !error.message.includes('403')) {
+          console.warn(`[HomePage] 获取 ${repo} 最新版本失败:`, error.message, '- 使用默认版本');
+        }
       }
-    } catch (error) {
-      // 只有在非 403 错误时才输出错误日志
-      if (error instanceof Error && !error.message.includes('403')) {
-        console.warn(
-          `[HomePage] 获取 ${repo} 最新版本失败:`,
-          error.message,
-          '- 使用默认版本'
-        );
-      }
-    }
+    });
   };
 
   useEffect(() => {
@@ -238,12 +221,10 @@ const HomePage: React.FC<HomePageProps> = ({ onEnterArena, onLogin, onNavigateDa
     }
     hasFetchedRef.current = true;
 
-    // 串行获取两个仓库的最新版本，避免并行请求导致重复的 403
+    // 串行获取两个仓库的最新版本（已改为 requestIdleCallback 延迟执行，不阻塞首屏）
     // 如果第一个请求遇到速率限制，第二个会自动跳过
-    (async () => {
-      await fetchLatestRelease('Puked', 'puked-version', setLatestTag, true);
-      await fetchLatestRelease('Puked-Callback', 'callback-version', setCallbackTag, false);
-    })();
+    fetchLatestRelease('Puked', 'puked-version', setLatestTag, true);
+    fetchLatestRelease('Puked-Callback', 'callback-version', setCallbackTag, false);
   }, []);
 
   const androidDownloadUrl = `https://download.osglab.com/PukedAPK/Puked-${latestTag}.apk`;

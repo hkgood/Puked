@@ -82,7 +82,7 @@ struct TrajectoryPoint: Codable, Identifiable, Sendable, Equatable {
     let speed: Double
     let lowConf: Bool?
     
-    // 高频传感器数据 (可选)
+    // 高频传感器数据 (可选)。ax/ay/az 单位为 m/s²（与 Flutter 录制侧一致），不是 g。
     let ax: Double?
     let ay: Double?
     let az: Double?
@@ -98,6 +98,13 @@ struct TrajectoryPoint: Codable, Identifiable, Sendable, Equatable {
         case lowConf = "low_conf"
         case ax, ay, az, gx, gy, gz
     }
+    
+    /// 标准重力加速度，用于 m/s² → g
+    static let gravityMs2: Double = 9.80665
+    
+    /// 将轨迹加速度（m/s²）转为 g；缺测返回 nil
+    var accelXInG: Double? { ax.map { $0 / Self.gravityMs2 } }
+    var accelYInG: Double? { ay.map { $0 / Self.gravityMs2 } }
 }
 
 /// 负体验事件

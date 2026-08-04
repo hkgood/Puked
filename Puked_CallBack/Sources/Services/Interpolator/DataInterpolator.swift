@@ -37,13 +37,15 @@ final class DataInterpolator: Sendable {
     private static func precalculateGValues(points: [TrajectoryPoint]) -> [Double: (gx: Double, gy: Double)] {
         var results: [Double: (gx: Double, gy: Double)] = [:]
         guard points.count >= 2 else { return [:] }
+        let g0 = TrajectoryPoint.gravityMs2
         
         for i in 0..<points.count {
             let p = points[i]
-            var gx = p.ax ?? 0
-            var gy = p.ay ?? 0
+            // 轨迹 ax/ay 为 m/s²，统一换算为 g 再进入显示/导出链路
+            var gx = p.accelXInG ?? 0
+            var gy = p.accelYInG ?? 0
             
-            // 如果缺失 G 值且是稀疏模式，使用中心差分法估算
+            // 如果缺失加速度且是稀疏模式，使用中心差分法直接估算 g
             if p.ax == nil || p.ay == nil {
                 let prevIdx = max(0, i - 1)
                 let nextIdx = min(points.count - 1, i + 1)
@@ -53,7 +55,7 @@ final class DataInterpolator: Sendable {
                 
                 if dt > 0 {
                     if p.ax == nil {
-                        gx = ((next.speed - prev.speed) / dt) / 9.81
+                        gx = ((next.speed - prev.speed) / dt) / g0
                     }
                     if p.ay == nil {
                         let hPrev = (i == 0) ? calculateHeadingStatic(from: points[0], to: points[1]) : calculateHeadingStatic(from: points[i-1], to: points[i])
@@ -65,13 +67,13 @@ final class DataInterpolator: Sendable {
                         
                         let dtInner = (i == 0 || i == points.count - 1) ? (next.ts - prev.ts) : (points[i+1].ts - points[i-1].ts)
                         let omega = dtInner > 0 ? (dH * .pi / 180.0) / dtInner : 0
-                        gy = (p.speed * omega) / 9.81
+                        gy = (p.speed * omega) / g0
                     }
                 } else if points.count >= 2 {
                     // 如果 dt 为 0（极其罕见），尝试使用相邻段的加速度
                     if i == 0 {
                         let dts = points[1].ts - points[0].ts
-                        if dts > 0 { gx = ((points[1].speed - points[0].speed) / dts) / 9.81 }
+                        if dts > 0 { gx = ((points[1].speed - points[0].speed) / dts) / g0 }
                     }
                 }
             }
@@ -128,22 +130,13 @@ final class DataInterpolator: Sendable {
         )
     }
     
-    private func calculateHeading(from: TrajectoryPoint, to: TrajectoryPoint) -> Double {
-        let lat1 = from.lat * Double.pi / 180; let lon1 = from.lng * Double.pi / 180
-        let lat2 = to.lat * Double.pi / 180; let lon2 = to.lng * Double.pi / 180
-        let dLon = lon2 - lon1
-        let y = sin(dLon) * cos(lat2)
-        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
-        return atan2(y, x) * 180 / Double.pi
-    }
-    
     private func makeState(from point: TrajectoryPoint) -> InterpolatedState {
         return InterpolatedState(
             timestamp: point.ts,
             coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lng),
             speed: point.speed,
-            gForceLongitudinal: point.ax ?? 0,
-            gForceLateral: point.ay ?? 0
+            gForceLongitudinal: point.accelXInG ?? 0,
+            gForceLateral: point.accelYInG ?? 0
         )
     }
     
@@ -156,15 +149,15 @@ final class DataInterpolator: Sendable {
         var minG = 0.0
         var maxG = 0.0
         
-        // 🎯 直接遍历原始数据点，不采样，确保不漏掉任何峰值
+        // 直接遍历原始数据点（先 m/s²→g），不采样，确保不漏掉任何峰值
         for point in points {
-            if let ax = point.ax {
-                minG = min(minG, ax)
-                maxG = max(maxG, ax)
+            if let gx = point.accelXInG {
+                minG = min(minG, gx)
+                maxG = max(maxG, gx)
             }
-            if let ay = point.ay {
-                minG = min(minG, ay)
-                maxG = max(maxG, ay)
+            if let gy = point.accelYInG {
+                minG = min(minG, gy)
+                maxG = max(maxG, gy)
             }
         }
         
@@ -172,7 +165,9 @@ final class DataInterpolator: Sendable {
             return (-0.5, 0.5)
         }
         
-        return (minG, maxG)
+        // 量程至少覆盖 ±0.5g，避免低动态行程波形被过度放大
+        let pad = 0.5
+        return (min(minG, -pad), max(maxG, pad))
     }
 }
 

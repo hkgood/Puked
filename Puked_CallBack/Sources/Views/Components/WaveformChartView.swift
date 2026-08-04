@@ -54,12 +54,12 @@ struct WaveformChartView: View {
                     let x = headX - CGFloat(currentTime - point.ts) * pixelsPerSecond
                     if x < -20 { break }
                     
-                    // 优先使用点内嵌的 IMU 值（上传 JSON 中携带），否则回退到插值
+                    // 优先使用点内嵌 IMU（m/s²→g），否则回退到插值状态（已是 g）
                     let gLong: Double
                     let gLat: Double
-                    if let ax = point.ax, let ay = point.ay {
-                        gLong = ax
-                        gLat = ay
+                    if let gx = point.accelXInG, let gy = point.accelYInG {
+                        gLong = gx
+                        gLat = gy
                     } else if let state = interpolator.state(at: point.ts) {
                         gLong = state.gForceLongitudinal
                         gLat = state.gForceLateral
